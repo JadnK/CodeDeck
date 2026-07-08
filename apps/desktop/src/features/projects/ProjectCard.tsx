@@ -1,48 +1,38 @@
+import type { Editor } from "../../shared/types/editor";
 import type { Project } from "../../shared/types/project";
 
 type ProjectCardProps = {
   project: Project;
+  editor?: Editor;
+  onDelete: () => void;
 };
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, editor, onDelete }: ProjectCardProps) {
+  function openProject() {
+    alert(
+      `Später öffnet Code Deck:\n\n${project.path}\n\nmit:\n${editor?.path ?? "Keine IDE"}`
+    );
+  }
+
   return (
     <article className="project-card">
-      <div className="project-card-main">
-        <div>
-          <div className="project-title-row">
-            <h3>{project.name}</h3>
+      <div>
+        <h2>{project.name}</h2>
+        <p className="project-path">{project.path}</p>
 
-            {project.favorite && (
-              <span className="favorite-badge" title="Favorite">
-                ★ Favorite
-              </span>
-            )}
-          </div>
-
-          {project.description && (
-            <p className="project-description">{project.description}</p>
-          )}
-
-          <p className="project-path">{project.path}</p>
-        </div>
-
-        <div className="project-actions">
-          <button className="secondary-button" type="button">
-            Open IDE
-          </button>
-
-          <button className="ghost-button" type="button">
-            Details
-          </button>
+        <div className="project-meta">
+          <span>{editor?.name ?? "Keine IDE"}</span>
         </div>
       </div>
 
-      <div className="tag-list">
-        {project.tags.map((tag) => (
-          <span key={tag} className="tag">
-            {tag}
-          </span>
-        ))}
+      <div className="card-actions">
+        <button className="primary-button" type="button" onClick={openProject}>
+          Öffnen
+        </button>
+
+        <button className="danger-button" type="button" onClick={onDelete}>
+          Löschen
+        </button>
       </div>
     </article>
   );

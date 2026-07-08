@@ -1,66 +1,105 @@
+import { useState } from "react";
 import type { Editor } from "../../shared/types/editor";
 
-const demoEditors: Editor[] = [
-  {
-    id: "vscode",
-    name: "VS Code",
-    commandTemplate: 'code "{projectPath}"',
-    enabled: true,
-    platform: "all"
-  },
-  {
-    id: "cursor",
-    name: "Cursor",
-    commandTemplate: 'cursor "{projectPath}"',
-    enabled: true,
-    platform: "all"
+type SettingsPageProps = {
+  editors: Editor[];
+  onAddEditor: (data: { name: string; path: string }) => void;
+  onDeleteEditor: (editorId: string) => void;
+  onBack: () => void;
+};
+
+export function SettingsPage({
+  editors,
+  onAddEditor,
+  onDeleteEditor,
+  onBack
+}: SettingsPageProps) {
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+
+  function submitEditor(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!name.trim() || !path.trim()) {
+      return;
+    }
+
+    onAddEditor({
+      name: name.trim(),
+      path: path.trim()
+    });
+
+    setName("");
+    setPath("");
   }
-];
 
-export function SettingsPage() {
   return (
-    <section className="page">
-      <div className="page-header">
+    <main className="page">
+      <header className="topbar">
         <div>
-          <p className="eyebrow">Configuration</p>
-          <h2>Settings</h2>
+          <p className="eyebrow">Settings</p>
+          <h1>IDEs</h1>
         </div>
 
-        <button className="primary-button" type="button">
-          Add editor
+        <button className="icon-button" type="button" onClick={onBack}>
+          Zurück
         </button>
-      </div>
+      </header>
 
-      <section className="panel">
-        <h3>Editors</h3>
-        <p className="muted">
-          Configure IDE commands. Later, Code Deck will replace{" "}
-          <code>{"{projectPath}"}</code> with the selected project path.
-        </p>
+      <section className="settings-layout">
+        <form className="settings-card" onSubmit={submitEditor}>
+          <h2>IDE hinzufügen</h2>
 
-        <div className="editor-list">
-          {demoEditors.map((editor) => (
-            <article key={editor.id} className="editor-card">
-              <div>
-                <h4>{editor.name}</h4>
-                <code>{editor.commandTemplate}</code>
-              </div>
+          <label>
+            Name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="VS Code"
+            />
+          </label>
 
-              <span className={editor.enabled ? "badge-success" : "badge-muted"}>
-                {editor.enabled ? "Enabled" : "Disabled"}
-              </span>
-            </article>
-          ))}
-        </div>
+          <label>
+            Pfad oder Command
+            <input
+              value={path}
+              onChange={(event) => setPath(event.target.value)}
+              placeholder='code oder C:\...\Code.exe'
+            />
+          </label>
+
+          <button className="primary-button" type="submit">
+            Speichern
+          </button>
+        </form>
+
+        <section className="settings-card">
+          <h2>Gespeicherte IDEs</h2>
+
+          {editors.length === 0 ? (
+            <p className="hint">Noch keine IDE gespeichert.</p>
+          ) : (
+            <div className="editor-list">
+              {editors.map((editor) => (
+                <article key={editor.id} className="editor-row">
+                  <div>
+                    <strong>{editor.name}</strong>
+                    <code>{editor.path}</code>
+                  </div>
+
+                  <button
+                    className="danger-button"
+                    type="button"
+                    onClick={() => onDeleteEditor(editor.id)}
+                  >
+                    Löschen
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       </section>
-
-      <section className="panel">
-        <h3>Storage</h3>
-        <p className="muted">
-          Local storage is not implemented yet. Next step: save projects and
-          editors locally.
-        </p>
-      </section>
-    </section>
+    </main>
   );
 }
