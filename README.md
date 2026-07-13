@@ -17,22 +17,22 @@
 
 ![Code Deck dashboard](docs/screenshots/dashboard.png)
 
-## What Code Deck does
+## What CodeDeck does
 
-I made Code Deck because opening a project was usually the same routine: find the folder, open the right IDE, start a terminal and look up the command I used last time.
-
-Code Deck keeps that setup with the project. You can:
-
-- add existing projects or create new ones from a starter
-- open a project in its preferred IDE
-- open its terminal or folder
-- save and run project commands
-- see live command output and stop running processes
-- view basic Git information such as branch, changed files and the last commit
-- group several actions into a workspace
-- keep everything local and export the configuration as JSON
+- Keep local projects in one searchable dashboard
+- Open projects in the correct IDE
+- Run and stop development commands
+- Create projects from built-in or custom templates
+- Start complete multi-project workspaces
 
 The current interface is in German. This README uses the exact German button names where that makes the app easier to find.
+
+## Download
+
+Download the latest version from
+[GitHub Releases](../../releases/latest).
+
+__Dont forget giving the Star :)__
 
 ## Where everything is
 
