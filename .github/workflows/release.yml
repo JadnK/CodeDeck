@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Vorhandenen Tag bauen, z. B. v0.2.1"
+        description: "Vorhandenen Tag bauen, z. B. v0.2.0"
         required: true
         type: string
 
@@ -29,6 +29,13 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Manuelle Ausführung vom Standardbranch prüfen
+        if: github.event_name == 'workflow_dispatch' && github.ref_name != github.event.repository.default_branch
+        shell: bash
+        run: |
+          echo "::error::Wähle bei 'Use workflow from' den Branch '${{ github.event.repository.default_branch }}'. Aktuell ausgewählt ist '${{ github.ref_name }}'."
+          exit 1
+
       - name: Repository und Release-Tag auschecken
         uses: actions/checkout@v7
         with:
@@ -51,7 +58,7 @@ jobs:
           const tag = process.env.RELEASE_TAG;
           const match = /^v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/.exec(tag);
           if (!match) {
-            throw new Error(`Ungültiger Release-Tag: ${tag}. Erwartet wird z. B. v0.2.1.`);
+            throw new Error(`Ungültiger Release-Tag: ${tag}. Erwartet wird z. B. v0.2.0.`);
           }
 
           const expected = match[1];
@@ -62,8 +69,8 @@ jobs:
 
           const versions = {
             'package.json': packageJson.version,
-            'tauri.conf.json': tauriConfig.version,
-            'Cargo.toml': cargoVersion,
+            'src-tauri/tauri.conf.json': tauriConfig.version,
+            'src-tauri/Cargo.toml': cargoVersion,
           };
 
           const mismatches = Object.entries(versions)
@@ -89,58 +96,78 @@ jobs:
       release_url: ${{ steps.release.outputs.release_url }}
 
     steps:
-      - name: Repository und Release-Tag auschecken
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ env.RELEASE_TAG }}
-          fetch-depth: 0
-          persist-credentials: false
-
       - name: GitHub-Release-Entwurf erstellen oder wiederverwenden
         id: release
-        shell: bash
+        uses: actions/github-script@v9
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          cat > release-intro.md <<EOF
-          ## Code Deck ${RELEASE_TAG}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+        with:
+          retries: 3
+          script: |
+            const tag = process.env.RELEASE_TAG;
+            const prerelease = tag.includes('-');
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
 
-          Lokales Desktop-Dashboard zum Organisieren, Öffnen und Starten von Entwicklungsprojekten.
+            const body = [
+              `## Code Deck ${tag}`,
+              '',
+              'Lokales Desktop-Dashboard zum Organisieren, Öffnen und Starten von Entwicklungsprojekten.',
+              '',
+              '### Downloads',
+              '- **Windows:** MSI oder Setup-EXE',
+              '- **macOS:** DMG als Universal-Build für Intel und Apple Silicon',
+              '- **Linux:** AppImage oder DEB',
+              '',
+              '### Installation',
+              'Lade unter Assets das passende Installationspaket herunter und starte es.',
+              '',
+              '> Die Builds sind aktuell nicht mit einem kostenpflichtigen Plattform-Zertifikat signiert. Windows SmartScreen oder macOS Gatekeeper können deshalb beim ersten Start eine Warnung anzeigen.'
+            ].join('\n');
 
-          ### Download
-          - **Windows:** `.msi` oder `-setup.exe`
-          - **macOS:** `.dmg` (Universal-Build für Intel und Apple Silicon)
-          - **Linux:** `.AppImage` oder `.deb`
+            const releases = await github.paginate(
+              github.rest.repos.listReleases,
+              { owner, repo, per_page: 100 }
+            );
 
-          > Hinweis: Die Builds sind derzeit nicht mit einem kostenpflichtigen Plattform-Zertifikat signiert. Windows SmartScreen oder macOS Gatekeeper können deshalb beim ersten Start nachfragen.
-          EOF
+            let release = releases.find(item => item.tag_name === tag);
 
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            draft=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.draft')
-            if [[ "$draft" != "true" ]]; then
-              echo "::error::Für ${RELEASE_TAG} existiert bereits ein veröffentlichter Release. Bitte verwende einen neuen Tag."
-              exit 1
-            fi
-            echo "Vorhandener Release-Entwurf wird wiederverwendet."
-          else
-            prerelease_args=()
-            if [[ "$RELEASE_TAG" == *-* ]]; then
-              prerelease_args+=(--prerelease)
-            fi
+            if (release && !release.draft) {
+              core.setFailed(`Für ${tag} existiert bereits ein veröffentlichter Release. Verwende einen neuen Tag.`);
+              return;
+            }
 
-            gh release create "$RELEASE_TAG" \
-              --draft \
-              --verify-tag \
-              --title "Code Deck ${RELEASE_TAG}" \
-              --generate-notes \
-              --notes-file release-intro.md \
-              "${prerelease_args[@]}"
-          fi
+            if (release) {
+              const updated = await github.rest.repos.updateRelease({
+                owner,
+                repo,
+                release_id: release.id,
+                tag_name: tag,
+                name: `Code Deck ${tag}`,
+                body,
+                draft: true,
+                prerelease
+              });
+              release = updated.data;
+              core.info(`Vorhandener Release-Entwurf wird wiederverwendet: ${release.html_url}`);
+            } else {
+              const created = await github.rest.repos.createRelease({
+                owner,
+                repo,
+                tag_name: tag,
+                target_commitish: tag,
+                name: `Code Deck ${tag}`,
+                body,
+                draft: true,
+                prerelease,
+                generate_release_notes: true
+              });
+              release = created.data;
+              core.info(`Release-Entwurf erstellt: ${release.html_url}`);
+            }
 
-          release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.id')
-          release_url=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" --jq '.html_url')
-          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
-          echo "release_url=${release_url}" >> "$GITHUB_OUTPUT"
+            core.setOutput('release_id', String(release.id));
+            core.setOutput('release_url', release.html_url);
 
   build:
     name: ${{ matrix.name }}
