@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -48,7 +48,7 @@ jobs:
       - name: Cache Rust build artifacts
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: apps/desktop/src-tauri -> target
+          workspaces: src-tauri -> target
 
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'

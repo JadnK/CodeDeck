@@ -26,7 +26,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: apps/desktop
+        working-directory: .
 
     steps:
       - name: Checkout repository
@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -52,7 +52,7 @@ jobs:
       - name: Cache Rust build artifacts
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: apps/desktop/src-tauri -> target
+          workspaces: src-tauri -> target
 
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
@@ -73,10 +73,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: apps/desktop
+          projectPath: .
           tagName: ${{ github.ref_name }}
           releaseName: "Code Deck ${{ github.ref_name }}"
-          releaseBody: "See apps/desktop/CHANGELOG.md for details."
+          releaseBody: "See CHANGELOG.md for details."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
