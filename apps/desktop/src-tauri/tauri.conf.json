@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "codedeck",
+  "productName": "Code Deck",
   "version": "0.1.0",
-  "identifier": "de.jadenk.codedeck",
+  "identifier": "dev.codedeck.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,15 @@
   "app": {
     "windows": [
       {
-        "title": "codedeck",
-        "width": 800,
-        "height": 600
+        "title": "Code Deck",
+        "width": 1320,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 620,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "decorations": true
       }
     ],
     "security": {
@@ -24,6 +30,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "category": "DeveloperTool",
+    "shortDescription": "Organize, launch and manage local coding projects.",
+    "longDescription": "Code Deck is a local desktop dashboard for developers to organize projects, launch IDEs, run commands, inspect Git status and start workspaces.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
