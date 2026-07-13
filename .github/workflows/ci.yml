@@ -22,10 +22,6 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    defaults:
-      run:
-        working-directory: apps/desktop
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
