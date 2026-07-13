@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -14,39 +15,57 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, windows-latest, macos-15]
+        platform:
+          - ubuntu-22.04
+          - windows-latest
+          - macos-15
+
     runs-on: ${{ matrix.platform }}
 
+    defaults:
+      run:
+        working-directory: apps/desktop
+
     steps:
-      - name: Repository auschecken
-        uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - name: Node.js 24 einrichten
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: pnpm einrichten
+      - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
           version: 10.33.0
 
-      - name: Rust stable einrichten
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+
+      - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Linux-Systempakete installieren
+      - name: Cache Rust build artifacts
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            xdg-utils
 
-      - name: Frontend-Abhängigkeiten installieren
-        # Nutzt den eingecheckten pnpm-lock.yaml für reproduzierbare Builds.
+      - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: TypeScript und Frontend bauen
+      - name: Build frontend
         run: pnpm build
 
-      - name: Tauri/Rust prüfen
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Check Rust core
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
