@@ -425,7 +425,7 @@ export function App() {
         <div className="header-actions">
           <button className="header-button" type="button" onClick={() => setWorkspacesOpen(true)}><Icon name="layers" /><span>Workspaces</span></button>
           <button className="header-button" type="button" onClick={() => setProcessesOpen(true)}><Icon name="terminal" /><span>Prozesse</span>{activeProcesses.length > 0 && <b>{activeProcesses.length}</b>}</button>
-          <button className="icon-button" type="button" onClick={() => setSettingsOpen(true)} aria-label="Einstellungen"><Icon name="settings" /></button>
+          <button className="header-button" type="button" onClick={() => setSettingsOpen(true)}><Icon name="settings" /><span>Einstellungen</span></button>
         </div>
       </header>
 
@@ -438,7 +438,7 @@ export function App() {
           </div>
           <div className="hero-actions">
             <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}><Icon name="search" />Ordner scannen</button>
-            <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" />Projekt hinzufügen</button>
+            <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" />Neues Projekt</button>
           </div>
         </section>
 
@@ -475,14 +475,16 @@ export function App() {
         )}
       </main>
 
-      <button className="floating-add" type="button" onClick={() => setCreateOpen(true)} aria-label="Projekt hinzufügen"><Icon name="plus" /></button>
+      <button className="floating-add" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" /><span>Neues Projekt</span></button>
 
       <ProjectCreateModal
         open={createOpen}
         editors={data.editors}
+        projectTemplates={data.projectTemplates}
         defaultProjectDir={data.settings.defaultProjectDir}
         onClose={() => setCreateOpen(false)}
         onCreate={addProject}
+        onOpenTemplateSettings={() => { setCreateOpen(false); setSettingsOpen(true); }}
         onError={(message) => pushToast("error", "Projekt konnte nicht hinzugefügt werden", message)}
       />
       <ProjectScanModal
@@ -511,9 +513,11 @@ export function App() {
       <SettingsPanel
         open={settingsOpen}
         editors={data.editors}
+        projectTemplates={data.projectTemplates}
         settings={data.settings}
         onClose={() => setSettingsOpen(false)}
         onEditorsChange={(editors: Editor[]) => setData((current) => ({ ...current, editors }))}
+        onProjectTemplatesChange={(projectTemplates) => setData((current) => ({ ...current, projectTemplates }))}
         onSettingsChange={(settings) => setData((current) => ({ ...current, settings }))}
         onExport={() => void exportConfiguration()}
         onImport={() => void importConfiguration()}

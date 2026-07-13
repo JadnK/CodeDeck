@@ -1,4 +1,4 @@
-import type { AppData, Editor, ProjectCommand } from "../types/models";
+import type { AppData, CustomProjectTemplate, Editor, ProjectCommand } from "../types/models";
 
 const STORAGE_KEY = "code-deck-data-v1";
 
@@ -34,6 +34,7 @@ export function createDefaultData(): AppData {
     version: "1",
     projects: [],
     editors: defaultEditors(),
+    projectTemplates: [],
     workspaces: [],
     processHistory: [],
     settings: {
@@ -104,6 +105,20 @@ export function normalizeData(input: unknown, imported = false): AppData {
       })
     : [];
 
+
+  const projectTemplates: CustomProjectTemplate[] = Array.isArray(value.projectTemplates)
+    ? value.projectTemplates.map((template) => ({
+        id: template.id ?? id(),
+        name: template.name?.trim() || "Eigene Vorlage",
+        description: template.description ?? "",
+        sourcePath: template.sourcePath ?? "",
+        tags: Array.isArray(template.tags) ? template.tags : [],
+        preferredEditorId: template.preferredEditorId,
+        createdAt: template.createdAt ?? now(),
+        updatedAt: template.updatedAt ?? now(),
+      }))
+    : [];
+
   const workspaces = Array.isArray(value.workspaces)
     ? value.workspaces.map((workspace) => ({
         id: workspace.id ?? id(),
@@ -147,6 +162,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
     version: "1",
     projects,
     editors,
+    projectTemplates,
     workspaces,
     processHistory,
     settings: {

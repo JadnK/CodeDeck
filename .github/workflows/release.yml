@@ -10,40 +10,59 @@ permissions:
 
 jobs:
   publish-tauri:
+    name: release (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
+          - platform: macos-15
             args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
+            rust_targets: ""
           - platform: windows-latest
             args: ""
+            rust_targets: ""
     runs-on: ${{ matrix.platform }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - name: Repository auschecken
+        uses: actions/checkout@v6
+
+      - name: Node.js 24 einrichten
+        uses: actions/setup-node@v6
         with:
-          version: 10
-      - uses: actions/setup-node@v4
+          node-version: 24
+          package-manager-cache: false
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v6
         with:
-          node-version: 22
-          cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
+          version: 10.33.0
+
+      - name: Rust stable einrichten
+        uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-      - name: Install Linux dependencies
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Linux-Systempakete installieren
         if: matrix.platform == 'ubuntu-22.04'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      - run: pnpm install --frozen-lockfile
-      - uses: tauri-apps/tauri-action@v0
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Frontend-Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+
+      - name: Tauri-App bauen und Release-Artefakte hochladen
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "Code Deck ${{ github.ref_name }}"
-          releaseBody: "See CHANGELOG.md for details."
+          releaseBody: "Änderungen und bekannte Einschränkungen stehen in CHANGELOG.md."
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

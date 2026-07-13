@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type {
+  BuiltInProjectTemplateId,
+  CreatedProject,
   EditorSuggestion,
   ProcessExitEvent,
   ProcessOutputEvent,
@@ -49,6 +51,22 @@ export async function chooseExportPath() {
     title: "Code Deck Konfiguration exportieren",
   });
 }
+
+
+export const createProjectFromTemplate = (
+  parentPath: string,
+  projectName: string,
+  templateId: BuiltInProjectTemplateId | "custom",
+  customTemplatePath: string | undefined,
+  initGit: boolean,
+) =>
+  call<CreatedProject>("create_project_from_template", {
+    parentPath,
+    projectName,
+    templateId,
+    customTemplatePath: customTemplatePath || null,
+    initGit,
+  });
 
 export const inspectProject = (path: string) =>
   call<ProjectInspection>("inspect_project", { path });

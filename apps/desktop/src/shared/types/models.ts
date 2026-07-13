@@ -58,6 +58,31 @@ export type Project = {
   inspection?: ProjectInspection;
 };
 
+export type BuiltInProjectTemplateId =
+  | "empty"
+  | "node"
+  | "node-typescript"
+  | "react-vite"
+  | "spring-boot"
+  | "python"
+  | "rust";
+
+export type CustomProjectTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  sourcePath: string;
+  tags: string[];
+  preferredEditorId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreatedProject = {
+  name: string;
+  path: string;
+};
+
 export type WorkspaceActionType =
   | "openEditor"
   | "openTerminal"
@@ -122,6 +147,7 @@ export type AppData = {
   version: "1";
   projects: Project[];
   editors: Editor[];
+  projectTemplates: CustomProjectTemplate[];
   workspaces: Workspace[];
   processHistory: ProcessRun[];
   settings: AppSettings;

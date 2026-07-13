@@ -45,8 +45,8 @@ export function Onboarding({
       title: "Erstes Projekt hinzufügen",
       text: hasProjects
         ? "Dein erstes Projekt ist bereits angelegt. Du kannst Code Deck jetzt vollständig nutzen."
-        : "Wähle einen lokalen Ordner. Code Deck erkennt Git, Frameworks und package.json-Scripts automatisch.",
-      action: hasProjects ? "Code Deck öffnen" : "Projekt auswählen",
+        : "Erstelle ein neues Node-, React-, Spring-, Python- oder Rust-Grundgerüst – oder füge einen vorhandenen Ordner hinzu. Code Deck erkennt Git, Frameworks und Scripts automatisch.",
+      action: hasProjects ? "Code Deck öffnen" : "Projekt erstellen oder hinzufügen",
       run: () => hasProjects ? onComplete() : onAddProject(),
     },
   ];

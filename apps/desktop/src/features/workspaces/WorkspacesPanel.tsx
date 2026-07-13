@@ -233,9 +233,9 @@ export function WorkspacesPanel({
                       <span className="workspace-action-list__icon"><Icon name={actionIcon(action.type)} /></span>
                       <div><strong>{actionLabels[action.type]}</strong><small>{describeAction(action)}</small></div>
                       <span className="badge badge--muted">{action.runMode === "sequence" ? "Nacheinander" : "Parallel"}</span>
-                      <button className="icon-button icon-button--small" type="button" onClick={() => moveAction(action.id, -1)} disabled={index === 0}>↑</button>
-                      <button className="icon-button icon-button--small" type="button" onClick={() => moveAction(action.id, 1)} disabled={index === selected.actions.length - 1}>↓</button>
-                      <button className="icon-button icon-button--small icon-button--danger" type="button" onClick={() => removeAction(action.id)}><Icon name="trash" /></button>
+                      <button className="icon-button icon-button--small" type="button" title="Aktion nach oben verschieben" aria-label="Aktion nach oben verschieben" onClick={() => moveAction(action.id, -1)} disabled={index === 0}>↑</button>
+                      <button className="icon-button icon-button--small" type="button" title="Aktion nach unten verschieben" aria-label="Aktion nach unten verschieben" onClick={() => moveAction(action.id, 1)} disabled={index === selected.actions.length - 1}>↓</button>
+                      <button className="icon-button icon-button--small icon-button--danger" type="button" title="Aktion entfernen" aria-label="Aktion entfernen" onClick={() => removeAction(action.id)}><Icon name="trash" /></button>
                     </article>
                   ))}
                 </div>
