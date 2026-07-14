@@ -151,11 +151,30 @@ jobs:
               release = updated.data;
               core.info(`Vorhandener Release-Entwurf wird wiederverwendet: ${release.html_url}`);
             } else {
+              // The workflow checks out an already existing Git tag before this job.
+              // target_commitish only accepts a branch or commit SHA when GitHub
+              // needs to create a new tag, so it must not be set to the tag name.
+              try {
+                const tagRef = await github.rest.git.getRef({
+                  owner,
+                  repo,
+                  ref: `tags/${tag}`
+                });
+                core.info(`Release-Tag gefunden: ${tag} -> ${tagRef.data.object.sha}`);
+              } catch (error) {
+                if (error.status === 404) {
+                  core.setFailed(
+                    `Der Tag ${tag} existiert nicht auf GitHub. Push ihn zuerst mit: git push origin ${tag}`
+                  );
+                  return;
+                }
+                throw error;
+              }
+
               const created = await github.rest.repos.createRelease({
                 owner,
                 repo,
                 tag_name: tag,
-                target_commitish: tag,
                 name: `Code Deck ${tag}`,
                 body,
                 draft: true,
