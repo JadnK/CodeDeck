@@ -34,7 +34,7 @@ export function ProcessesPanel({
   const finished = processes.filter((process) => !["starting", "running", "stopping"].includes(process.status));
 
   return (
-    <Modal open={open} onClose={onClose} title="Prozesse" eyebrow={`${active.length} aktiv`} size="large">
+    <Modal open={open} onClose={onClose} title={`Prozesse · ${active.length} aktiv`} size="large">
       <div className="processes-panel">
         {processes.length === 0 ? (
           <div className="empty-state"><Icon name="terminal" /><h3>Keine Prozesse</h3><p>Gestartete Commands erscheinen hier mit Live-Logs und Stop-Funktion.</p></div>

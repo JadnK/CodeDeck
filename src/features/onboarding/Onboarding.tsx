@@ -22,31 +22,25 @@ export function Onboarding({
   const [step, setStep] = useState(0);
   const steps = [
     {
-      icon: "layers" as const,
-      eyebrow: "Willkommen",
-      title: "Deine Projekte. Ein Deck.",
-      text: "Code Deck bündelt lokale Entwicklungsprojekte, IDEs, Commands und Workspaces in einer schnellen Desktop-App.",
-      action: "Loslegen",
+      title: "Willkommen bei CodeDeck",
+      text: "Verwalte lokale Projekte, öffne sie in der passenden IDE und starte wiederkehrende Commands an einem Ort.",
+      action: "Einrichtung starten",
       run: () => setStep(1),
     },
     {
-      icon: "code" as const,
-      eyebrow: "Schritt 1 von 2",
-      title: "IDE konfigurieren",
+      title: "IDE prüfen",
       text: hasEditors
-        ? "VS Code und Cursor sind bereits als Vorlagen angelegt. Du kannst sie prüfen oder weitere Editoren hinzufügen."
-        : "Lege mindestens eine IDE mit einem Command-Template an, zum Beispiel code \"{projectPath}\".",
+        ? "Mindestens eine IDE ist bereits eingerichtet. Du kannst die Einträge später jederzeit in den Einstellungen ändern."
+        : "Lege eine IDE mit einem Command-Template an, zum Beispiel code \"{projectPath}\".",
       action: hasEditors ? "Weiter" : "Einstellungen öffnen",
       run: () => hasEditors ? setStep(2) : onOpenSettings(),
     },
     {
-      icon: "folder" as const,
-      eyebrow: "Schritt 2 von 2",
-      title: "Erstes Projekt hinzufügen",
+      title: "Projekt hinzufügen",
       text: hasProjects
-        ? "Dein erstes Projekt ist bereits angelegt. Du kannst Code Deck jetzt vollständig nutzen."
-        : "Erstelle ein neues Node-, React-, Spring-, Python- oder Rust-Grundgerüst – oder füge einen vorhandenen Ordner hinzu. Code Deck erkennt Git, Frameworks und Scripts automatisch.",
-      action: hasProjects ? "Code Deck öffnen" : "Projekt erstellen oder hinzufügen",
+        ? "Ein Projekt ist bereits vorhanden. Die Einrichtung ist abgeschlossen."
+        : "Füge einen vorhandenen Ordner hinzu oder erstelle ein Grundgerüst für Node.js, React, Spring Boot, Python oder Rust.",
+      action: hasProjects ? "CodeDeck öffnen" : "Projekt hinzufügen",
       run: () => hasProjects ? onComplete() : onAddProject(),
     },
   ];
@@ -55,14 +49,23 @@ export function Onboarding({
   return (
     <Modal open={open} onClose={onComplete} size="small">
       <div className="onboarding">
-        <div className="onboarding__brand"><span><Icon name="code" /></span>CODE DECK</div>
-        <div className="onboarding__visual"><Icon name={current.icon} /></div>
-        <p className="eyebrow">{current.eyebrow}</p>
+        <div className="onboarding__brand">
+          <img src="/icon.png" alt="" />
+          <div><strong>CodeDeck</strong><span>Ersteinrichtung</span></div>
+        </div>
+        <div className="onboarding__progress" aria-label={`Schritt ${step + 1} von ${steps.length}`}>
+          {steps.map((_, index) => <span key={index} className={index <= step ? "active" : ""} />)}
+        </div>
+        <p className="onboarding__step">Schritt {step + 1} von {steps.length}</p>
         <h2>{current.title}</h2>
-        <p>{current.text}</p>
-        <div className="onboarding__dots">{steps.map((_, index) => <span key={index} className={index === step ? "active" : ""} />)}</div>
-        <button className="button button--primary button--full" type="button" onClick={current.run}>{current.action}<Icon name="external" /></button>
-        <button className="text-button" type="button" onClick={onComplete}>Onboarding überspringen</button>
+        <p className="onboarding__text">{current.text}</p>
+        <div className="onboarding__actions">
+          <button className="button button--primary button--full" type="button" onClick={current.run}>
+            <span>{current.action}</span>
+            <Icon name="external" />
+          </button>
+          <button className="text-button" type="button" onClick={onComplete}>Überspringen</button>
+        </div>
       </div>
     </Modal>
   );

@@ -217,7 +217,7 @@ export function ProjectCreateModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Projekt hinzufügen" eyebrow="Neues oder vorhandenes Projekt" size="large">
+    <Modal open={open} onClose={onClose} title="Projekt hinzufügen" size="large">
       <form className="form-stack project-create" onSubmit={submit}>
         <div className="creation-mode-tabs" role="tablist" aria-label="Art des Projekts">
           <button type="button" className={mode === "new" ? "active" : ""} onClick={() => setMode("new")}>

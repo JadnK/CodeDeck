@@ -170,7 +170,7 @@ export function SettingsPanel({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Einstellungen" eyebrow="Code Deck konfigurieren" size="large">
+    <Modal open={open} onClose={onClose} title="Einstellungen" size="large">
       <div className="settings-sections">
         <section className="settings-section">
           <div className="settings-section__header"><div><Icon name="sun" /><span><strong>Darstellung</strong><small>Hell, dunkel oder automatisch nach Betriebssystem</small></span></div></div>
