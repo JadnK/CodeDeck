@@ -22,7 +22,7 @@ export function ProjectCard({
   const { t, locale } = useI18n();
   const quickCommand = project.commands[0];
   const inspection = project.inspection;
-  const allBadges = Array.from(new Set([...(inspection?.frameworks ?? []), ...project.tags]));
+  const allBadges = Array.from(new Set(inspection?.frameworks ?? []));
   const visibleBadges = allBadges.slice(0, 2);
   const remainingBadges = Math.max(0, allBadges.length - visibleBadges.length);
 
@@ -59,14 +59,14 @@ export function ProjectCard({
         </span>
       </button>
 
-      <div className="project-card__badges" aria-label={t("Technologien und Tags", "Technologies and tags")}>
+      <div className="project-card__badges" aria-label={t("Erkannte Technologien", "Detected technologies")}>
         {visibleBadges.length > 0 ? (
           <>
             {visibleBadges.map((badge) => <span className="badge" key={badge}>{badge}</span>)}
             {remainingBadges > 0 && <span className="badge badge--muted">+{remainingBadges}</span>}
           </>
         ) : (
-          <span className="project-card__meta-muted">{t("Keine Tags", "No tags")}</span>
+          <span className="project-card__meta-muted">{t("Keine Technologie erkannt", "No technology detected")}</span>
         )}
       </div>
 

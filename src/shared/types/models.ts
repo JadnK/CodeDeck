@@ -48,7 +48,6 @@ export type Project = {
   name: string;
   path: string;
   description: string;
-  tags: string[];
   favorite: boolean;
   archived: boolean;
   preferredEditorId?: string;
@@ -73,7 +72,6 @@ export type CustomProjectTemplate = {
   name: string;
   description: string;
   sourcePath: string;
-  tags: string[];
   preferredEditorId?: string;
   createdAt: string;
   updatedAt: string;
@@ -107,7 +105,6 @@ export type Workspace = {
   id: string;
   name: string;
   description: string;
-  tags: string[];
   actions: WorkspaceAction[];
   createdAt: string;
   updatedAt: string;

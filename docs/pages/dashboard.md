@@ -12,9 +12,8 @@ The dashboard opens when Code Deck starts. Return to it by closing the current d
 
 | Control | What it does |
 |---|---|
-| Search field | Searches project names, paths, tags, frameworks and known Git branches |
+| Search field | Searches project names, paths, frameworks and known Git branches |
 | **Favoriten** | Shows only projects marked with a star |
-| Framework or tag filters | Narrows the list without changing project data |
 | Sort control | Changes the order, for example by name or last use |
 | **Neues Projekt** | Opens the project creation and import dialog |
 | **Ordner scannen** | Searches below a selected folder for likely projects |

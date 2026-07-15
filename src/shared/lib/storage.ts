@@ -12,6 +12,21 @@ function id() {
 
 export const createId = id;
 
+function normalizeEditorTemplate(idValue: string, nameValue: string, commandTemplate: string) {
+  const template = commandTemplate.trim();
+  if (template.includes("{projectPath}")) return template;
+
+  const identity = `${idValue} ${nameValue}`.toLowerCase();
+  if (identity.includes("vscode") || identity.includes("vs code") || identity.includes("visual studio code")) {
+    return 'code "{projectPath}"';
+  }
+  if (identity.includes("cursor")) {
+    return 'cursor "{projectPath}"';
+  }
+
+  return template;
+}
+
 export function defaultEditors(): Editor[] {
   return [
     {
@@ -70,10 +85,16 @@ export function normalizeData(input: unknown, imported = false): AppData {
   const editors = rawEditors.length
     ? rawEditors.map((editor) => {
         const legacy = editor as typeof editor & { path?: string };
+        const editorId = editor.id ?? id();
+        const editorName = editor.name?.trim() || "IDE";
         return {
-          id: editor.id ?? id(),
-          name: editor.name?.trim() || "IDE",
-          commandTemplate: editor.commandTemplate ?? legacy.path ?? "",
+          id: editorId,
+          name: editorName,
+          commandTemplate: normalizeEditorTemplate(
+            editorId,
+            editorName,
+            editor.commandTemplate ?? legacy.path ?? "",
+          ),
           enabled: editor.enabled ?? true,
           detected: editor.detected,
         };
@@ -88,7 +109,6 @@ export function normalizeData(input: unknown, imported = false): AppData {
           name: project.name?.trim() || (language === "en" ? "Untitled project" : "Unbenanntes Projekt"),
           path: project.path ?? "",
           description: project.description ?? "",
-          tags: Array.isArray(project.tags) ? project.tags : [],
           favorite: Boolean(project.favorite),
           archived: Boolean(project.archived),
           preferredEditorId: project.preferredEditorId ?? legacy.editorId,
@@ -114,7 +134,6 @@ export function normalizeData(input: unknown, imported = false): AppData {
         name: template.name?.trim() || (language === "en" ? "Custom template" : "Eigene Vorlage"),
         description: template.description ?? "",
         sourcePath: template.sourcePath ?? "",
-        tags: Array.isArray(template.tags) ? template.tags : [],
         preferredEditorId: template.preferredEditorId,
         createdAt: template.createdAt ?? now(),
         updatedAt: template.updatedAt ?? now(),
@@ -126,7 +145,6 @@ export function normalizeData(input: unknown, imported = false): AppData {
         id: workspace.id ?? id(),
         name: workspace.name?.trim() || "Workspace",
         description: workspace.description ?? "",
-        tags: Array.isArray(workspace.tags) ? workspace.tags : [],
         actions: Array.isArray(workspace.actions)
           ? workspace.actions.map((action, index) => {
               const legacy = action as typeof action & { targetId?: string };

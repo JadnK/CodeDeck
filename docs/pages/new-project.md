@@ -55,7 +55,7 @@ Dockerfile
 .git
 ```
 
-This information is used to suggest frameworks, tags and package scripts. The project files are not rewritten.
+This information is used to detect frameworks and package scripts. The project files are not rewritten.
 
 ## Scan a base folder
 

@@ -49,7 +49,6 @@ export function App() {
   const [search, setSearch] = useState("");
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [selectedTag, setSelectedTag] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
@@ -63,10 +62,6 @@ export function App() {
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
   const editorById = useMemo(() => new Map(data.editors.map((editor) => [editor.id, editor])), [data.editors]);
-  const allTags = useMemo(
-    () => Array.from(new Set(data.projects.flatMap((project) => [...project.tags, ...(project.inspection?.frameworks ?? [])]))).sort((a, b) => a.localeCompare(b)),
-    [data.projects],
-  );
   const activeProcesses = data.processHistory.filter((process) => ["starting", "running", "stopping"].includes(process.status));
 
   const visibleProjects = useMemo(() => {
@@ -74,20 +69,18 @@ export function App() {
     return [...data.projects]
       .filter((project) => showArchived ? true : !project.archived)
       .filter((project) => favoriteOnly ? project.favorite : true)
-      .filter((project) => selectedTag ? [...project.tags, ...(project.inspection?.frameworks ?? [])].some((tag) => tag.toLowerCase() === selectedTag.toLowerCase()) : true)
       .filter((project) => {
         if (!needle) return true;
         return [
           project.name,
           project.path,
           project.description,
-          ...project.tags,
           ...(project.inspection?.frameworks ?? []),
           project.inspection?.branch ?? "",
         ].some((value) => value.toLowerCase().includes(needle));
       })
       .sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.lastOpenedAt ?? b.createdAt).localeCompare(a.lastOpenedAt ?? a.createdAt));
-  }, [data.projects, favoriteOnly, search, selectedTag, showArchived]);
+  }, [data.projects, favoriteOnly, search, showArchived]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => saveData(data), 200);
@@ -210,6 +203,15 @@ export function App() {
       pushToast("info", t("Keine IDE konfiguriert", "No IDE configured"), t("Lege in den Einstellungen zuerst einen Editor an.", "Add an editor in Settings first."));
       return;
     }
+    if (!editor.commandTemplate.includes("{projectPath}")) {
+      setSettingsOpen(true);
+      pushToast(
+        "error",
+        t("IDE-Befehl ist unvollständig", "IDE command is incomplete"),
+        t("Der Startbefehl muss {projectPath} enthalten. Code Deck hat die Einstellungen geöffnet.", "The launch command must contain {projectPath}. Code Deck opened Settings."),
+      );
+      return;
+    }
     try {
       await launchTemplate(editor.commandTemplate, project.path, project.name);
       const lastOpenedAt = new Date().toISOString();
@@ -325,7 +327,6 @@ export function App() {
         name: candidate.name,
         path: candidate.path,
         description: "",
-        tags: inspection.frameworks,
         favorite: false,
         archived: false,
         preferredEditorId: data.editors.find((editor) => editor.enabled)?.id,
@@ -422,11 +423,7 @@ export function App() {
       <div className="app-shell">
       <header className="app-header">
         <div className="app-header__bar">
-          {/* <div className="brand" aria-label="CodeDeck">
-            <img src="/icon.png" alt="" className="brand__mark" />
-            <strong>CodeDeck</strong>
-          </div> */}
-
+          {/* Brand/logo intentionally hidden in the navigation bar. */}
           <nav className="main-nav" aria-label={t("Hauptnavigation", "Main navigation")}>
             <button className="main-nav__item active" type="button" aria-current="page">
               <Icon name="folder" />
@@ -472,7 +469,7 @@ export function App() {
               ref={searchRef}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("Name, Pfad, Tag oder Framework", "Name, path, tag or framework")}
+              placeholder={t("Name, Pfad oder Framework", "Name, path or framework")}
               aria-label={t("Projekte durchsuchen", "Search projects")}
             />
             <kbd>Ctrl K</kbd>
@@ -491,17 +488,13 @@ export function App() {
               <Icon name="star" />
               <span>{t("Favoriten", "Favorites")}</span>
             </button>
-            <select aria-label={t("Nach Tag filtern", "Filter by tag")} value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
-              <option value="">{t("Alle Tags und Frameworks", "All tags and frameworks")}</option>
-              {allTags.map((tag) => <option value={tag} key={tag}>{tag}</option>)}
-            </select>
             <label className="filter-checkbox">
               <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
               <span>{t("Archivierte anzeigen", "Show archived")}</span>
             </label>
           </div>
-          {(search || favoriteOnly || selectedTag || showArchived) && (
-            <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
+          {(search || favoriteOnly || showArchived) && (
+            <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setShowArchived(false); }}>
               <Icon name="x" />
               <span>{t("Zurücksetzen", "Reset")}</span>
             </button>
@@ -512,7 +505,7 @@ export function App() {
           <section className="project-list" aria-label={t("Projektliste", "Project list")}>
             <div className="project-list__header" aria-hidden="true">
               <span>{t("Projekt", "Project")}</span>
-              <span>{t("Tags", "Tags")}</span>
+              <span>{t("Technologien", "Technologies")}</span>
               <span>Git</span>
               <span>{t("Zuletzt genutzt", "Last used")}</span>
               <span>{t("Aktionen", "Actions")}</span>
@@ -538,7 +531,7 @@ export function App() {
             <p>{emptyBecauseFilters ? t("Ändere die Suche oder setze die Filter zurück.", "Change the search or reset the filters.") : t("Füge einen vorhandenen Ordner hinzu oder erstelle ein neues Projekt aus einer Vorlage.", "Add an existing folder or create a new project from a template.")}</p>
             <div className="button-row">
               {emptyBecauseFilters ? (
-                <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
+                <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setShowArchived(false); }}>
                   <Icon name="refresh" />
                   <span>{t("Filter zurücksetzen", "Reset filters")}</span>
                 </button>

@@ -192,7 +192,7 @@ svg {
 
 .app-header__bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   min-height: 54px;
   padding: 0 24px;
@@ -2532,7 +2532,7 @@ svg {
 
 @media (max-width: 850px) {
   .app-header__bar {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .brand {

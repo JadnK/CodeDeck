@@ -52,7 +52,6 @@ export function WorkspacesPanel({
   const [selectedId, setSelectedId] = useState<string>();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
   const [actionType, setActionType] = useState<WorkspaceActionType>("openEditor");
   const [actionProjectId, setActionProjectId] = useState("");
   const [actionCommandId, setActionCommandId] = useState("");
@@ -78,12 +77,10 @@ export function WorkspacesPanel({
     if (!selected) {
       setName("");
       setDescription("");
-      setTags("");
       return;
     }
     setName(selected.name);
     setDescription(selected.description);
-    setTags(selected.tags.join(", "));
   }, [selected]);
 
   function createWorkspace() {
@@ -92,7 +89,6 @@ export function WorkspacesPanel({
       id: createId(),
       name: t("Neuer Workspace", "New workspace"),
       description: "",
-      tags: [],
       actions: [],
       createdAt: now,
       updatedAt: now,
@@ -108,7 +104,6 @@ export function WorkspacesPanel({
       ...workspace,
       name: name.trim(),
       description: description.trim(),
-      tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
       updatedAt: new Date().toISOString(),
     } : workspace));
   }
@@ -213,10 +208,7 @@ export function WorkspacesPanel({
         {selected ? (
           <div className="workspace-content">
             <form className="workspace-meta" onSubmit={saveMeta}>
-              <div className="form-grid form-grid--2">
-                <div className="form-field"><label htmlFor="workspace-name">{t("Name", "Name")}</label><input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
-                <div className="form-field"><label htmlFor="workspace-tags">Tags</label><input id="workspace-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="fullstack, kunde-a" /></div>
-              </div>
+              <div className="form-field"><label htmlFor="workspace-name">{t("Name", "Name")}</label><input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
               <div className="form-field"><label htmlFor="workspace-description">{t("Beschreibung", "Description")}</label><textarea id="workspace-description" rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></div>
               <div className="form-actions form-actions--space-between"><button className="button button--danger button--small" type="button" onClick={deleteWorkspace}><Icon name="trash" />{t("Löschen", "Delete")}</button><button className="button button--secondary button--small" type="submit"><Icon name="check" />{t("Metadaten speichern", "Save metadata")}</button></div>
             </form>
