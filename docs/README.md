@@ -24,3 +24,7 @@ This guide explains the app page by page. The names in bold match the current Ge
 - A **template** is a folder used as the starting point for a new project.
 
 Code Deck keeps its own configuration locally. Adding a project does not move the project folder, and opening a project does not change its source files.
+
+## Maintainer setup
+
+- [Signed in-app updater](updater-setup.md)

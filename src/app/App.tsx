@@ -7,6 +7,7 @@ import { ProjectDetails } from "../features/projects/ProjectDetails";
 import { ProjectScanModal } from "../features/projects/ProjectScanModal";
 import { ProjectTodosModal } from "../features/projects/ProjectTodosModal";
 import { SettingsPanel } from "../features/settings/SettingsPanel";
+import { UpdateModal } from "../features/updates/UpdateModal";
 import { WorkspacesPanel } from "../features/workspaces/WorkspacesPanel";
 import { Icon } from "../shared/components/Icon";
 import { ToastStack, type Toast } from "../shared/components/ToastStack";
@@ -15,7 +16,9 @@ import { createId, loadData, normalizeData, saveData } from "../shared/lib/stora
 import {
   chooseConfigFile,
   chooseExportPath,
+  detectEditors,
   inspectProject,
+  isTauri,
   launchTemplate,
   onProcessExit,
   onProcessOutput,
@@ -26,9 +29,17 @@ import {
   stopProcess,
   writeTextFile,
 } from "../shared/lib/tauri";
+import {
+  checkForAppUpdate,
+  getCurrentAppVersion,
+  installAppUpdate,
+  type AvailableAppUpdate,
+  type UpdateProgress,
+} from "../shared/lib/updater";
 import type {
   AppData,
   Editor,
+  EditorSuggestion,
   ProcessRun,
   Project,
   ProjectCandidate,
@@ -45,6 +56,18 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function mergeDetectedEditors(editors: Editor[], suggestions: EditorSuggestion[]) {
+  const next = [...editors];
+  for (const suggestion of suggestions) {
+    const duplicate = next.some((editor) =>
+      editor.id === suggestion.id ||
+      editor.commandTemplate.toLowerCase() === suggestion.commandTemplate.toLowerCase(),
+    );
+    if (!duplicate) next.push({ ...suggestion, enabled: true, detected: true });
+  }
+  return next;
+}
+
 export function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [search, setSearch] = useState("");
@@ -59,7 +82,16 @@ export function App() {
   const [processesOpen, setProcessesOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [currentVersion, setCurrentVersion] = useState("0.2.2");
+  const [checkingForUpdates, setCheckingForUpdates] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState<AvailableAppUpdate>();
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [updateInstalling, setUpdateInstalling] = useState(false);
+  const [updateProgress, setUpdateProgress] = useState<UpdateProgress>();
+  const [updateError, setUpdateError] = useState<string>();
   const searchRef = useRef<HTMLInputElement>(null);
+  const startupUpdateCheckStarted = useRef(false);
+  const startupIdeScanStarted = useRef(false);
   const t = (german: string, english: string) => translate(data.settings.language, german, english);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
@@ -93,6 +125,47 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = data.settings.language;
   }, [data.settings.language]);
+
+  useEffect(() => {
+    if (startupIdeScanStarted.current || data.settings.ideDetectionComplete || !isTauri()) return;
+    startupIdeScanStarted.current = true;
+
+    void detectEditors()
+      .then((suggestions) => {
+        setData((current) => ({
+          ...current,
+          editors: mergeDetectedEditors(current.editors, suggestions),
+          settings: { ...current.settings, ideDetectionComplete: true },
+        }));
+        if (suggestions.length > 0) {
+          pushToast(
+            "success",
+            t("Installierte IDEs erkannt", "Installed IDEs detected"),
+            t(
+              `${suggestions.length} Editor${suggestions.length === 1 ? "" : "en"} wurde${suggestions.length === 1 ? "" : "n"} hinzugefügt.`,
+              `${suggestions.length} editor${suggestions.length === 1 ? "" : "s"} added.`,
+            ),
+          );
+        }
+      })
+      .catch(() => {
+        setData((current) => ({
+          ...current,
+          settings: { ...current.settings, ideDetectionComplete: true },
+        }));
+      });
+  }, []);
+
+  useEffect(() => {
+    if (startupUpdateCheckStarted.current) return;
+    startupUpdateCheckStarted.current = true;
+
+    void getCurrentAppVersion().then(setCurrentVersion).catch(() => undefined);
+    if (data.settings.checkForUpdatesOnStartup) {
+      const timer = window.setTimeout(() => void checkForUpdates(false), 1100);
+      return () => window.clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -167,6 +240,49 @@ export function App() {
     const id = createId();
     setToasts((current) => [...current, { id, type, title, message }]);
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4500);
+  }
+
+  async function checkForUpdates(manual: boolean) {
+    if (checkingForUpdates) return;
+    setCheckingForUpdates(true);
+    setUpdateError(undefined);
+    try {
+      const found = await checkForAppUpdate();
+      if (found) {
+        setAvailableUpdate(found);
+        setUpdateProgress(undefined);
+        setUpdateOpen(true);
+        return;
+      }
+      if (manual) {
+        pushToast(
+          "success",
+          t("CodeDeck ist aktuell", "CodeDeck is up to date"),
+          t(`Installierte Version: ${currentVersion}`, `Installed version: ${currentVersion}`),
+        );
+      }
+    } catch (error) {
+      const message = errorMessage(error);
+      if (manual) {
+        pushToast("error", t("Update-Prüfung fehlgeschlagen", "Update check failed"), message);
+      } else {
+        console.warn("CodeDeck update check failed", error);
+      }
+    } finally {
+      setCheckingForUpdates(false);
+    }
+  }
+
+  async function installAvailableUpdate() {
+    if (!availableUpdate || updateInstalling) return;
+    setUpdateInstalling(true);
+    setUpdateError(undefined);
+    try {
+      await installAppUpdate(availableUpdate, setUpdateProgress);
+    } catch (error) {
+      setUpdateError(errorMessage(error));
+      setUpdateInstalling(false);
+    }
   }
 
   function updateProject(project: Project) {
@@ -603,6 +719,8 @@ export function App() {
         editors={data.editors}
         projectTemplates={data.projectTemplates}
         settings={data.settings}
+        currentVersion={currentVersion}
+        checkingForUpdates={checkingForUpdates}
         onClose={() => setSettingsOpen(false)}
         onEditorsChange={(editors: Editor[]) => setData((current) => ({ ...current, editors }))}
         onProjectTemplatesChange={(projectTemplates) => setData((current) => ({ ...current, projectTemplates }))}
@@ -610,6 +728,8 @@ export function App() {
         onExport={() => void exportConfiguration()}
         onImport={() => void importConfiguration()}
         onResetOnboarding={() => { setData((current) => ({ ...current, settings: { ...current.settings, onboardingComplete: false } })); setOnboardingDismissed(false); setSettingsOpen(false); }}
+        onCheckForUpdates={() => void checkForUpdates(true)}
+        onSuccess={(message) => pushToast("success", t("Einstellungen", "Settings"), message)}
         onError={(message) => pushToast("error", t("Einstellungen", "Settings"), message)}
       />
       <WorkspacesPanel
@@ -638,6 +758,15 @@ export function App() {
         onAddProject={() => { setOnboardingDismissed(true); setCreateOpen(true); }}
         onOpenSettings={() => { setOnboardingDismissed(true); setSettingsOpen(true); }}
         onComplete={() => { setData((current) => ({ ...current, settings: { ...current.settings, onboardingComplete: true } })); setOnboardingDismissed(true); }}
+      />
+      <UpdateModal
+        open={updateOpen}
+        update={availableUpdate}
+        installing={updateInstalling}
+        progress={updateProgress}
+        error={updateError}
+        onClose={() => { if (!updateInstalling) setUpdateOpen(false); }}
+        onInstall={() => void installAvailableUpdate()}
       />
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
       </div>

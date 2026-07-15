@@ -3159,3 +3159,197 @@ svg {
     width: auto;
   }
 }
+
+/* Update flow */
+.update-dialog {
+  display: grid;
+  gap: 16px;
+}
+
+.update-dialog__version {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  background: var(--surface-2);
+}
+
+.update-dialog__version img {
+  width: 44px;
+  height: 44px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.update-dialog__version > div {
+  display: grid;
+  gap: 3px;
+}
+
+.update-dialog__version span {
+  color: var(--text-faint);
+  font-size: 11px;
+}
+
+.update-dialog__version strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.update-dialog__summary {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.update-dialog__notes {
+  display: grid;
+  gap: 8px;
+}
+
+.update-dialog__notes > strong {
+  font-size: 12px;
+}
+
+.update-dialog__notes pre {
+  max-height: 210px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  padding: 11px 12px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.update-progress {
+  display: grid;
+  gap: 7px;
+}
+
+.update-progress__track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.update-progress__track span {
+  display: block;
+  height: 100%;
+  min-width: 10px;
+  border-radius: inherit;
+  background: var(--primary);
+  transition: width 140ms ease;
+}
+
+.update-progress small {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.update-dialog__error {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  border-radius: var(--radius-small);
+  padding: 10px;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.update-dialog__error svg {
+  width: 16px;
+  height: 16px;
+}
+
+.update-settings-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.update-settings-row__version {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.update-settings-row__version span {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.update-settings-row__version strong {
+  font-size: 13px;
+}
+
+.checkbox-row--compact {
+  margin: 0;
+}
+
+.settings-inline-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  padding: 8px 10px;
+  color: var(--text-faint);
+  background: var(--surface-2);
+  font-size: 11px;
+}
+
+.settings-inline-status svg {
+  width: 15px;
+  height: 15px;
+  color: var(--success);
+}
+
+/* Additional IDE actions */
+.editor-row {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+}
+
+@media (max-width: 920px) {
+  .update-settings-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .update-settings-row .button {
+    justify-self: start;
+  }
+
+  .editor-row {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .editor-row .button--danger-text {
+    grid-column: 2 / -1;
+    justify-self: end;
+  }
+}
+
+@media (max-width: 650px) {
+  .editor-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .editor-row .button {
+    grid-column: 2;
+    justify-self: end;
+  }
+}

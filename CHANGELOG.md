@@ -23,6 +23,23 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [0.2.2]
+
+### Added
+
+- Secure in-app updates from signed GitHub Release artifacts.
+- Automatic update checks on application startup.
+- Manual update checks and an update preference in Settings.
+- Download and installation progress inside the update dialog.
+- Automatic IDE detection on the first application launch.
+- Broader IDE detection for common Windows, macOS and Linux installations.
+- A test action for every saved IDE that opens the Desktop folder.
+
+### Changed
+
+- Fresh installations no longer assume that VS Code or Cursor is installed.
+- Release builds now create signed updater artifacts and `latest.json`.
+
 ## [0.2.1]
 
 ### Added
@@ -83,8 +100,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/JadnK/CodeDeck/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JadnK/CodeDeck/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JadnK/CodeDeck/releases/tag/v0.1.0
-
-[0.2.1]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...v0.2.1
