@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
-import { builtInProjectTemplates } from "../../shared/lib/projectTemplates";
+import { useI18n } from "../../shared/i18n/I18n";
+import { getBuiltInProjectTemplates } from "../../shared/lib/projectTemplates";
 import { createId } from "../../shared/lib/storage";
 import {
   chooseDirectory,
@@ -28,14 +29,14 @@ type ProjectCreateModalProps = {
 
 type CreateMode = "existing" | "new";
 
-function folderName(path: string) {
-  return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || "Neues Projekt";
+function folderName(path: string, fallback: string) {
+  return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || fallback;
 }
 
 function joinPreview(parent: string, name: string) {
   if (!parent.trim()) return name.trim();
   const separator = parent.includes("\\") && !parent.includes("/") ? "\\" : "/";
-  return `${parent.replace(/[\\/]+$/, "")}${separator}${name.trim() || "mein-projekt"}`;
+  return `${parent.replace(/[\\/]+$/, "")}${separator}${name.trim() || "my-project"}`;
 }
 
 function tagsFromInput(value: string) {
@@ -52,6 +53,8 @@ export function ProjectCreateModal({
   onOpenTemplateSettings,
   onError,
 }: ProjectCreateModalProps) {
+  const { t, language } = useI18n();
+  const builtInProjectTemplates = getBuiltInProjectTemplates(language);
   const [mode, setMode] = useState<CreateMode>("new");
   const [existingPath, setExistingPath] = useState("");
   const [parentPath, setParentPath] = useState("");
@@ -103,7 +106,7 @@ export function ProjectCreateModal({
       const selected = await chooseDirectory(defaultProjectDir);
       if (!selected) return;
       setExistingPath(selected);
-      setName((current) => current || folderName(selected));
+      setName((current) => current || folderName(selected, t("Neues Projekt", "New project")));
       setLoading(true);
       const result = await inspectProject(selected);
       setInspection(result);
@@ -165,19 +168,19 @@ export function ProjectCreateModal({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!name.trim()) {
-      onError("Bitte gib einen Projektnamen ein.");
+      onError(t("Bitte gib einen Projektnamen ein.", "Enter a project name."));
       return;
     }
 
     if (mode === "existing") {
       if (!existingPath.trim()) {
-        onError("Bitte wähle den vorhandenen Projektordner aus.");
+        onError(t("Bitte wähle den vorhandenen Projektordner aus.", "Choose the existing project folder."));
         return;
       }
       setLoading(true);
       try {
         const result = inspection ?? await inspectProject(existingPath.trim());
-        if (!result.exists) throw new Error("Der ausgewählte Projektordner wurde nicht gefunden.");
+        if (!result.exists) throw new Error(t("Der ausgewählte Projektordner wurde nicht gefunden.", "The selected project folder could not be found."));
         onCreate(buildProject(existingPath.trim(), result));
         onClose();
       } catch (error) {
@@ -189,11 +192,11 @@ export function ProjectCreateModal({
     }
 
     if (!parentPath.trim()) {
-      onError("Bitte wähle einen Ordner, in dem das neue Projekt erstellt werden soll.");
+      onError(t("Bitte wähle einen Ordner, in dem das neue Projekt erstellt werden soll.", "Choose a folder in which the new project should be created."));
       return;
     }
     if (!selectedBuiltIn && !selectedCustom) {
-      onError("Bitte wähle eine Projektvorlage aus.");
+      onError(t("Bitte wähle eine Projektvorlage aus.", "Choose a project template."));
       return;
     }
 
@@ -217,16 +220,16 @@ export function ProjectCreateModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Projekt hinzufügen" size="large">
+    <Modal open={open} onClose={onClose} title={t("Projekt hinzufügen", "Add project")} size="large">
       <form className="form-stack project-create" onSubmit={submit}>
-        <div className="creation-mode-tabs" role="tablist" aria-label="Art des Projekts">
+        <div className="creation-mode-tabs" role="tablist" aria-label={t("Art des Projekts", "Project type")}>
           <button type="button" className={mode === "new" ? "active" : ""} onClick={() => setMode("new")}>
             <Icon name="plus" />
-            <span><strong>Neues Projekt erstellen</strong><small>Code Deck erzeugt ein startfertiges Grundgerüst.</small></span>
+            <span><strong>{t("Neues Projekt erstellen", "Create new project")}</strong><small>{t("Code Deck erzeugt ein startfertiges Grundgerüst.", "Code Deck creates a ready-to-use starter.")}</small></span>
           </button>
           <button type="button" className={mode === "existing" ? "active" : ""} onClick={() => setMode("existing")}>
             <Icon name="folder" />
-            <span><strong>Vorhandenen Ordner hinzufügen</strong><small>Ein bereits existierendes Projekt nur verwalten.</small></span>
+            <span><strong>{t("Vorhandenen Ordner hinzufügen", "Add existing folder")}</strong><small>{t("Ein bereits existierendes Projekt nur verwalten.", "Manage a project that already exists.")}</small></span>
           </button>
         </div>
 
@@ -234,8 +237,8 @@ export function ProjectCreateModal({
           <>
             <section className="creation-section">
               <div className="creation-section__header">
-                <div><p className="eyebrow">1. Grundgerüst</p><h3>Welche Art Projekt soll entstehen?</h3><p>Die Dateien werden lokal erstellt. Abhängigkeiten werden bewusst nicht automatisch installiert.</p></div>
-                <button className="button button--ghost button--small" type="button" onClick={onOpenTemplateSettings}><Icon name="settings" />Eigene Vorlagen verwalten</button>
+                <div><p className="eyebrow">{t("1. Grundgerüst", "1. Starter")}</p><h3>{t("Welche Art Projekt soll entstehen?", "What kind of project should be created?")}</h3><p>{t("Die Dateien werden lokal erstellt. Abhängigkeiten werden bewusst nicht automatisch installiert.", "Files are created locally. Dependencies are intentionally not installed automatically.")}</p></div>
+                <button className="button button--ghost button--small" type="button" onClick={onOpenTemplateSettings}><Icon name="settings" />{t("Eigene Vorlagen verwalten", "Manage custom templates")}</button>
               </div>
               <div className="template-picker">
                 {builtInProjectTemplates.map((template) => (
@@ -258,92 +261,92 @@ export function ProjectCreateModal({
                     onClick={() => selectTemplate(`custom:${template.id}`)}
                   >
                     <span className="template-option__icon"><Icon name="layers" /></span>
-                    <span><strong>{template.name}</strong><small>{template.description || "Eigene Ordnervorlage"}</small><em>Quelle: {template.sourcePath}</em></span>
-                    <b>Eigene Vorlage</b>
+                    <span><strong>{template.name}</strong><small>{template.description || t("Eigene Ordnervorlage", "Custom folder template")}</small><em>{t("Quelle", "Source")}: {template.sourcePath}</em></span>
+                    <b>{t("Eigene Vorlage", "Custom template")}</b>
                   </button>
                 ))}
               </div>
             </section>
 
             <section className="creation-section">
-              <div className="creation-section__header"><div><p className="eyebrow">2. Speicherort</p><h3>Name und Zielordner</h3><p>Code Deck legt im Zielordner einen neuen Unterordner an.</p></div></div>
+              <div className="creation-section__header"><div><p className="eyebrow">{t("2. Speicherort", "2. Location")}</p><h3>{t("Name und Zielordner", "Name and destination folder")}</h3><p>{t("Code Deck legt im Zielordner einen neuen Unterordner an.", "Code Deck creates a new subfolder in the destination folder.")}</p></div></div>
               <div className="form-grid form-grid--2">
                 <div className="form-field">
-                  <label htmlFor="new-project-name">Projektname</label>
-                  <input id="new-project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="mein-neues-projekt" autoFocus />
+                  <label htmlFor="new-project-name">{t("Projektname", "Project name")}</label>
+                  <input id="new-project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder={t("mein-neues-projekt", "my-new-project")} autoFocus />
                 </div>
                 <div className="form-field">
-                  <label htmlFor="new-project-parent">Übergeordneter Ordner</label>
+                  <label htmlFor="new-project-parent">{t("Übergeordneter Ordner", "Parent folder")}</label>
                   <div className="input-action-row">
                     <input id="new-project-parent" value={parentPath} onChange={(event) => setParentPath(event.target.value)} placeholder="C:\\Users\\du\\Projects" />
-                    <button className="button button--secondary" type="button" onClick={browseParent}><Icon name="folder" />Ordner wählen</button>
+                    <button className="button button--secondary" type="button" onClick={browseParent}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button>
                   </div>
                 </div>
               </div>
-              <div className="path-preview"><Icon name="folder" /><span><small>Neuer Projektpfad</small><code>{joinPreview(parentPath, name)}</code></span></div>
+              <div className="path-preview"><Icon name="folder" /><span><small>{t("Neuer Projektpfad", "New project path")}</small><code>{joinPreview(parentPath, name)}</code></span></div>
               <label className="checkbox-row">
                 <input type="checkbox" checked={initGit} onChange={(event) => setInitGit(event.target.checked)} />
-                <span><strong>Git-Repository initialisieren</strong><small>Führt nach dem Erstellen lokal <code>git init</code> aus, sofern Git installiert ist.</small></span>
+                <span><strong>{t("Git-Repository initialisieren", "Initialize Git repository")}</strong><small>{t("Führt nach dem Erstellen lokal", "Runs locally after creation")} <code>git init</code> {t("aus, sofern Git installiert ist.", "if Git is installed.")}</small></span>
               </label>
             </section>
           </>
         ) : (
           <section className="creation-section">
-            <div className="creation-section__header"><div><p className="eyebrow">Projektordner</p><h3>Vorhandenes Projekt auswählen</h3><p>Code Deck liest nur Metadaten und verändert keine Projektdateien.</p></div></div>
+            <div className="creation-section__header"><div><p className="eyebrow">{t("Projektordner", "Project folder")}</p><h3>{t("Vorhandenes Projekt auswählen", "Select existing project")}</h3><p>{t("Code Deck liest nur Metadaten und verändert keine Projektdateien.", "Code Deck only reads metadata and does not change project files.")}</p></div></div>
             <div className="form-field">
-              <label htmlFor="project-path">Projektordner</label>
+              <label htmlFor="project-path">{t("Projektordner", "Project folder")}</label>
               <div className="input-action-row">
-                <input id="project-path" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder="C:\\Users\\...\\mein-projekt" />
-                <button className="button button--secondary" type="button" onClick={browseExisting}><Icon name="folder" />Projektordner wählen</button>
+                <input id="project-path" value={existingPath} onChange={(event) => setExistingPath(event.target.value)} placeholder="C:\\Users\\...\\my-project" />
+                <button className="button button--secondary" type="button" onClick={browseExisting}><Icon name="folder" />{t("Projektordner wählen", "Choose project folder")}</button>
               </div>
               <div className="field-inline-actions">
-                <button className="text-button" type="button" onClick={refreshInspection} disabled={!existingPath || loading}><Icon name="refresh" />{loading ? "Analysiere…" : "Git, Frameworks und Scripts erkennen"}</button>
+                <button className="text-button" type="button" onClick={refreshInspection} disabled={!existingPath || loading}><Icon name="refresh" />{loading ? t("Analysiere…", "Inspecting…") : t("Git, Frameworks und Scripts erkennen", "Detect Git, frameworks and scripts")}</button>
               </div>
             </div>
             {inspection && (
               <div className="detection-summary">
-                <div><Icon name="check" /><span>{inspection.exists ? "Ordner gefunden" : "Ordner nicht gefunden"}</span></div>
-                <div><Icon name="git" /><span>{inspection.isGit ? `Git: ${inspection.branch || "Repository"}` : "Kein Git-Repository"}</span></div>
-                <div><Icon name="command" /><span>{inspection.scripts.length} startbare Scripts erkannt</span></div>
+                <div><Icon name="check" /><span>{inspection.exists ? t("Ordner gefunden", "Folder found") : t("Ordner nicht gefunden", "Folder not found")}</span></div>
+                <div><Icon name="git" /><span>{inspection.isGit ? `Git: ${inspection.branch || t("Repository", "Repository")}` : t("Kein Git-Repository", "No Git repository")}</span></div>
+                <div><Icon name="command" /><span>{t(`${inspection.scripts.length} startbare Scripts erkannt`, `${inspection.scripts.length} runnable scripts detected`)}</span></div>
               </div>
             )}
           </section>
         )}
 
         <section className="creation-section creation-section--compact">
-          <div className="creation-section__header"><div><p className="eyebrow">3. Anzeige in Code Deck</p><h3>Metadaten und Standardaktion</h3><p>Diese Angaben kannst du später in den Projektdetails ändern.</p></div></div>
+          <div className="creation-section__header"><div><p className="eyebrow">{t("3. Anzeige in Code Deck", "3. Display in Code Deck")}</p><h3>{t("Metadaten und Standardaktion", "Metadata and default action")}</h3><p>{t("Diese Angaben kannst du später in den Projektdetails ändern.", "You can change these values later in the project details.")}</p></div></div>
           {mode === "existing" && (
-            <div className="form-field"><label htmlFor="project-name">Anzeigename</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Portfolio Website" /></div>
+            <div className="form-field"><label htmlFor="project-name">{t("Anzeigename", "Display name")}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Portfolio Website" /></div>
           )}
           <div className="form-grid form-grid--2">
             <div className="form-field">
-              <label htmlFor="project-editor">Bevorzugte IDE</label>
+              <label htmlFor="project-editor">{t("Bevorzugte IDE", "Preferred IDE")}</label>
               <select id="project-editor" value={editorId} onChange={(event) => setEditorId(event.target.value)}>
-                <option value="">Keine IDE festlegen</option>
+                <option value="">{t("Keine IDE festlegen", "Do not set an IDE")}</option>
                 {enabledEditors.map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}
               </select>
-              <small>Der große Öffnen-Button verwendet später diese IDE.</small>
+              <small>{t("Der große Öffnen-Button verwendet später diese IDE.", "The main Open button will use this IDE.")}</small>
             </div>
             <div className="form-field">
-              <label htmlFor="project-tags">Tags</label>
+              <label htmlFor="project-tags">{t("Tags", "Tags")}</label>
               <input id="project-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="backend, spring, kunde-a" />
-              <small>Mehrere Tags mit Komma trennen.</small>
+              <small>{t("Mehrere Tags mit Komma trennen.", "Separate multiple tags with commas.")}</small>
             </div>
           </div>
-          <div className="form-field"><label htmlFor="project-description">Beschreibung</label><textarea id="project-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Worum geht es in diesem Projekt?" rows={2} /></div>
-          <label className="checkbox-row"><input type="checkbox" checked={favorite} onChange={(event) => setFavorite(event.target.checked)} /><span><strong>Als Favorit markieren</strong><small>Das Projekt erscheint weiter oben auf der Startseite.</small></span></label>
+          <div className="form-field"><label htmlFor="project-description">{t("Beschreibung", "Description")}</label><textarea id="project-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Worum geht es in diesem Projekt?", "What is this project about?")} rows={2} /></div>
+          <label className="checkbox-row"><input type="checkbox" checked={favorite} onChange={(event) => setFavorite(event.target.checked)} /><span><strong>{t("Als Favorit markieren", "Mark as favorite")}</strong><small>{t("Das Projekt erscheint weiter oben auf der Startseite.", "The project appears higher on the home page.")}</small></span></label>
         </section>
 
         <div className="creation-summary">
           <Icon name={mode === "new" ? "plus" : "folder"} />
-          <span><strong>{mode === "new" ? "Code Deck erstellt Dateien und nimmt das Projekt direkt auf." : "Code Deck nimmt den Ordner auf und erkennt verfügbare Aktionen."}</strong><small>{mode === "new" ? "Pakete wie npm-Dependencies oder Maven-Artefakte installierst du anschließend über die erkannten Commands." : "Es werden keine Dateien im ausgewählten Projekt verändert."}</small></span>
+          <span><strong>{mode === "new" ? t("Code Deck erstellt Dateien und nimmt das Projekt direkt auf.", "Code Deck creates the files and adds the project immediately.") : t("Code Deck nimmt den Ordner auf und erkennt verfügbare Aktionen.", "Code Deck adds the folder and detects available actions.")}</strong><small>{mode === "new" ? t("Pakete wie npm-Dependencies oder Maven-Artefakte installierst du anschließend über die erkannten Commands.", "Install packages such as npm dependencies or Maven artifacts afterwards using the detected commands.") : t("Es werden keine Dateien im ausgewählten Projekt verändert.", "No files in the selected project are changed.")}</small></span>
         </div>
 
         <div className="form-actions">
-          <button className="button button--ghost" type="button" onClick={onClose}>Abbrechen</button>
+          <button className="button button--ghost" type="button" onClick={onClose}>{t("Abbrechen", "Cancel")}</button>
           <button className="button button--primary" type="submit" disabled={loading}>
             <Icon name={mode === "new" ? "plus" : "folder"} />
-            {loading ? "Bitte warten…" : mode === "new" ? "Projekt erstellen" : "Ordner zu Code Deck hinzufügen"}
+            {loading ? t("Bitte warten…", "Please wait…") : mode === "new" ? t("Projekt erstellen", "Create project") : t("Ordner zu Code Deck hinzufügen", "Add folder to Code Deck")}
           </button>
         </div>
       </form>

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useI18n } from "../i18n/I18n";
 import { Icon } from "./Icon";
 
 type ModalProps = {
@@ -20,8 +21,11 @@ export function Modal({
   size = "medium",
   children,
   footer,
-  closeLabel = "Schließen",
+  closeLabel,
 }: ModalProps) {
+  const { t } = useI18n();
+  const resolvedCloseLabel = closeLabel ?? t("Schließen", "Close");
+
   useEffect(() => {
     if (!open) return;
     const listener = (event: KeyboardEvent) => {
@@ -39,7 +43,7 @@ export function Modal({
         className={`modal modal--${size}`}
         role="dialog"
         aria-modal="true"
-        aria-label={title ?? closeLabel}
+        aria-label={title ?? resolvedCloseLabel}
         onMouseDown={(event) => event.stopPropagation()}
       >
         {(title || eyebrow) && (
@@ -48,7 +52,7 @@ export function Modal({
               {eyebrow && <p className="eyebrow">{eyebrow}</p>}
               {title && <h2>{title}</h2>}
             </div>
-            <button className="icon-button" type="button" onClick={onClose} aria-label={closeLabel}>
+            <button className="icon-button" type="button" onClick={onClose} aria-label={resolvedCloseLabel}>
               <Icon name="x" />
             </button>
           </header>

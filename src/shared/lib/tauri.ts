@@ -14,9 +14,12 @@ import type {
 export const isTauri = () =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+const runtimeText = (german: string, english: string) =>
+  typeof document !== "undefined" && document.documentElement.lang === "en" ? english : german;
+
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!isTauri()) {
-    throw new Error("Diese Aktion ist nur in der Desktop-App verfügbar.");
+    throw new Error(runtimeText("Diese Aktion ist nur in der Desktop-App verfügbar.", "This action is only available in the desktop app."));
   }
   return invoke<T>(command, args);
 }
@@ -27,7 +30,7 @@ export async function chooseDirectory(defaultPath?: string) {
     directory: true,
     multiple: false,
     defaultPath: defaultPath || undefined,
-    title: "Projektordner auswählen",
+    title: runtimeText("Projektordner auswählen", "Select project folder"),
   });
   return typeof selected === "string" ? selected : null;
 }
@@ -37,8 +40,8 @@ export async function chooseConfigFile() {
   const selected = await open({
     multiple: false,
     directory: false,
-    filters: [{ name: "Code Deck Konfiguration", extensions: ["json"] }],
-    title: "Code Deck Konfiguration importieren",
+    filters: [{ name: runtimeText("Code Deck Konfiguration", "Code Deck configuration"), extensions: ["json"] }],
+    title: runtimeText("Code Deck Konfiguration importieren", "Import Code Deck configuration"),
   });
   return typeof selected === "string" ? selected : null;
 }
@@ -48,7 +51,7 @@ export async function chooseExportPath() {
   return save({
     defaultPath: `code-deck-backup-${new Date().toISOString().slice(0, 10)}.json`,
     filters: [{ name: "JSON", extensions: ["json"] }],
-    title: "Code Deck Konfiguration exportieren",
+    title: runtimeText("Code Deck Konfiguration exportieren", "Export Code Deck configuration"),
   });
 }
 

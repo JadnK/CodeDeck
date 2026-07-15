@@ -1,4 +1,5 @@
 import { Icon } from "../../shared/components/Icon";
+import { useI18n } from "../../shared/i18n/I18n";
 import type { Editor, Project, ProjectCommand } from "../../shared/types/models";
 
 type ProjectCardProps = {
@@ -10,18 +11,6 @@ type ProjectCardProps = {
   onToggleFavorite: () => void;
 };
 
-function relativeDate(value?: string) {
-  if (!value) return "Nie geöffnet";
-  const diff = Date.now() - new Date(value).getTime();
-  const minutes = Math.max(1, Math.round(diff / 60_000));
-  if (minutes < 60) return `vor ${minutes} Min.`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `vor ${hours} Std.`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `vor ${days} Tagen`;
-  return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
-}
-
 export function ProjectCard({
   project,
   editor,
@@ -30,11 +19,24 @@ export function ProjectCard({
   onRunCommand,
   onToggleFavorite,
 }: ProjectCardProps) {
+  const { t, locale } = useI18n();
   const quickCommand = project.commands[0];
   const inspection = project.inspection;
   const allBadges = Array.from(new Set([...(inspection?.frameworks ?? []), ...project.tags]));
   const visibleBadges = allBadges.slice(0, 2);
   const remainingBadges = Math.max(0, allBadges.length - visibleBadges.length);
+
+  const relativeDate = (value?: string) => {
+    if (!value) return t("Nie geöffnet", "Never opened");
+    const diff = Date.now() - new Date(value).getTime();
+    const minutes = Math.max(1, Math.round(diff / 60_000));
+    if (minutes < 60) return t(`vor ${minutes} Min.`, `${minutes} min ago`);
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return t(`vor ${hours} Std.`, `${hours} hr ago`);
+    const days = Math.round(hours / 24);
+    if (days < 30) return t(`vor ${days} Tagen`, `${days} days ago`);
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(value));
+  };
 
   return (
     <article className="project-card">
@@ -42,13 +44,13 @@ export function ProjectCard({
         className={`project-card__favorite ${project.favorite ? "active" : ""}`}
         type="button"
         onClick={onToggleFavorite}
-        title={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
-        aria-label={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
+        title={project.favorite ? t("Aus Favoriten entfernen", "Remove from favorites") : t("Als Favorit markieren", "Add to favorites")}
+        aria-label={project.favorite ? t("Aus Favoriten entfernen", "Remove from favorites") : t("Als Favorit markieren", "Add to favorites")}
       >
         <Icon name="star" />
       </button>
 
-      <button className="project-card__identity" type="button" onClick={onOpenDetails} title="Projektdetails öffnen">
+      <button className="project-card__identity" type="button" onClick={onOpenDetails} title={t("Projektdetails öffnen", "Open project details")}>
         <span className="project-icon"><Icon name="folder" /></span>
         <span className="project-card__title">
           <strong>{project.name}</strong>
@@ -57,18 +59,18 @@ export function ProjectCard({
         </span>
       </button>
 
-      <div className="project-card__badges" aria-label="Technologien und Tags">
+      <div className="project-card__badges" aria-label={t("Technologien und Tags", "Technologies and tags")}>
         {visibleBadges.length > 0 ? (
           <>
             {visibleBadges.map((badge) => <span className="badge" key={badge}>{badge}</span>)}
             {remainingBadges > 0 && <span className="badge badge--muted">+{remainingBadges}</span>}
           </>
         ) : (
-          <span className="project-card__meta-muted">Keine Tags</span>
+          <span className="project-card__meta-muted">{t("Keine Tags", "No tags")}</span>
         )}
       </div>
 
-      <div className="project-card__meta" title={inspection?.isGit ? "Git-Status" : "Kein Git-Repository erkannt"}>
+      <div className="project-card__meta" title={inspection?.isGit ? t("Git-Status", "Git status") : t("Kein Git-Repository erkannt", "No Git repository detected")}>
         {inspection?.isGit ? (
           <>
             <Icon name="git" />
@@ -76,11 +78,11 @@ export function ProjectCard({
             {inspection.changedFiles > 0 && <b>{inspection.changedFiles}</b>}
           </>
         ) : (
-          <span className="project-card__meta-muted">Kein Git</span>
+          <span className="project-card__meta-muted">{t("Kein Git", "No Git")}</span>
         )}
       </div>
 
-      <div className="project-card__last-used" title="Zuletzt in einer IDE geöffnet">
+      <div className="project-card__last-used" title={t("Zuletzt in einer IDE geöffnet", "Last opened in an IDE")}>
         <Icon name="history" />
         <span>{relativeDate(project.lastOpenedAt)}</span>
       </div>
@@ -94,7 +96,7 @@ export function ProjectCard({
             title={`${quickCommand.label}: ${quickCommand.command}`}
           >
             <Icon name="play" />
-            <span>Start</span>
+            <span>{t("Start", "Run")}</span>
           </button>
         )}
         <button
@@ -102,12 +104,12 @@ export function ProjectCard({
           type="button"
           onClick={onOpenEditor}
           disabled={!editor}
-          title={editor ? `In ${editor.name} öffnen` : "Zuerst eine IDE in den Einstellungen festlegen"}
+          title={editor ? t(`In ${editor.name} öffnen`, `Open in ${editor.name}`) : t("Zuerst eine IDE in den Einstellungen festlegen", "Choose an IDE in Settings first")}
         >
           <Icon name="external" />
-          <span>Öffnen</span>
+          <span>{t("Öffnen", "Open")}</span>
         </button>
-        <button className="icon-button icon-button--small" type="button" onClick={onOpenDetails} title="Details" aria-label="Details öffnen">
+        <button className="icon-button icon-button--small" type="button" onClick={onOpenDetails} title={t("Details", "Details")} aria-label={t("Details öffnen", "Open details")}>
           <Icon name="more" />
         </button>
       </div>

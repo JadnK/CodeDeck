@@ -9,6 +9,7 @@ import { SettingsPanel } from "../features/settings/SettingsPanel";
 import { WorkspacesPanel } from "../features/workspaces/WorkspacesPanel";
 import { Icon } from "../shared/components/Icon";
 import { ToastStack, type Toast } from "../shared/components/ToastStack";
+import { I18nProvider, translate } from "../shared/i18n/I18n";
 import { createId, loadData, normalizeData, saveData } from "../shared/lib/storage";
 import {
   chooseConfigFile,
@@ -58,6 +59,7 @@ export function App() {
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const searchRef = useRef<HTMLInputElement>(null);
+  const t = (german: string, english: string) => translate(data.settings.language, german, english);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
   const editorById = useMemo(() => new Map(data.editors.map((editor) => [editor.id, editor])), [data.editors]);
@@ -91,6 +93,10 @@ export function App() {
     const timer = window.setTimeout(() => saveData(data), 200);
     return () => window.clearTimeout(timer);
   }, [data]);
+
+  useEffect(() => {
+    document.documentElement.lang = data.settings.language;
+  }, [data.settings.language]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -181,7 +187,7 @@ export function App() {
       settings: { ...current.settings, onboardingComplete: true },
     }));
     setSelectedProjectId(project.id);
-    pushToast("success", "Projekt hinzugefügt", project.name);
+    pushToast("success", t("Projekt hinzugefügt", "Project added"), project.name);
   }
 
   function deleteProject(projectId: string) {
@@ -194,23 +200,23 @@ export function App() {
       })),
     }));
     setSelectedProjectId(undefined);
-    pushToast("success", "Projekt entfernt", "Die Projektdateien wurden nicht verändert.");
+    pushToast("success", t("Projekt entfernt", "Project removed"), t("Die Projektdateien wurden nicht verändert.", "The project files were not changed."));
   }
 
   async function openProjectEditor(project: Project, editorId?: string) {
     const editor = editorById.get(editorId ?? project.preferredEditorId ?? "") ?? data.editors.find((entry) => entry.enabled);
     if (!editor) {
       setSettingsOpen(true);
-      pushToast("info", "Keine IDE konfiguriert", "Lege in den Einstellungen zuerst einen Editor an.");
+      pushToast("info", t("Keine IDE konfiguriert", "No IDE configured"), t("Lege in den Einstellungen zuerst einen Editor an.", "Add an editor in Settings first."));
       return;
     }
     try {
       await launchTemplate(editor.commandTemplate, project.path, project.name);
       const lastOpenedAt = new Date().toISOString();
       updateProject({ ...project, preferredEditorId: project.preferredEditorId ?? editor.id, lastOpenedAt, updatedAt: lastOpenedAt });
-      pushToast("success", `${project.name} geöffnet`, editor.name);
+      pushToast("success", t(`${project.name} geöffnet`, `${project.name} opened`), editor.name);
     } catch (error) {
-      pushToast("error", "IDE konnte nicht gestartet werden", errorMessage(error));
+      pushToast("error", t("IDE konnte nicht gestartet werden", "Could not launch IDE"), errorMessage(error));
     }
   }
 
@@ -218,7 +224,7 @@ export function App() {
     try {
       await openTerminal(project.path, data.settings.terminalCommand);
     } catch (error) {
-      pushToast("error", "Terminal konnte nicht geöffnet werden", errorMessage(error));
+      pushToast("error", t("Terminal konnte nicht geöffnet werden", "Could not open terminal"), errorMessage(error));
     }
   }
 
@@ -226,14 +232,14 @@ export function App() {
     try {
       await openTarget(project.path);
     } catch (error) {
-      pushToast("error", "Ordner konnte nicht geöffnet werden", errorMessage(error));
+      pushToast("error", t("Ordner konnte nicht geöffnet werden", "Could not open folder"), errorMessage(error));
     }
   }
 
   async function runProjectCommand(project: Project, command: ProjectCommand, workspaceId?: string) {
     let safeCommand = command;
     if (data.settings.confirmImportedCommands && command.imported && !command.trusted) {
-      const confirmed = window.confirm(`Dieser Command wurde importiert und noch nicht bestätigt:\n\n${command.command}\n\nNur starten, wenn du dem Inhalt vertraust.`);
+      const confirmed = window.confirm(t(`Dieser Command wurde importiert und noch nicht bestätigt:\n\n${command.command}\n\nNur starten, wenn du dem Inhalt vertraust.`, `This command was imported and has not been trusted yet:\n\n${command.command}\n\nOnly run it if you trust its contents.`));
       if (!confirmed) return;
       safeCommand = { ...command, trusted: true };
       updateProject({
@@ -269,10 +275,10 @@ export function App() {
           ...entry,
           status: "failed",
           endedAt: new Date().toISOString(),
-          logs: [...entry.logs, `[Fehler] ${errorMessage(error)}`],
+          logs: [...entry.logs, `${t("[Fehler]", "[Error]")} ${errorMessage(error)}`],
         } : entry),
       }));
-      pushToast("error", "Command konnte nicht gestartet werden", errorMessage(error));
+      pushToast("error", t("Command konnte nicht gestartet werden", "Could not start command"), errorMessage(error));
     }
   }
 
@@ -282,7 +288,7 @@ export function App() {
 
   async function stopRun(process: ProcessRun, ask = true) {
     if (!process.pid) return;
-    if (ask && !window.confirm(`Prozess „${process.label}“ wirklich beenden?`)) return;
+    if (ask && !window.confirm(t(`Prozess „${process.label}“ wirklich beenden?`, `Stop process “${process.label}”?`))) return;
     setData((current) => ({
       ...current,
       processHistory: current.processHistory.map((entry) => entry.id === process.id ? { ...entry, status: "stopping" } : entry),
@@ -290,7 +296,7 @@ export function App() {
     try {
       await stopProcess(process.pid);
     } catch (error) {
-      pushToast("error", "Prozess konnte nicht beendet werden", errorMessage(error));
+      pushToast("error", t("Prozess konnte nicht beendet werden", "Could not stop process"), errorMessage(error));
       setData((current) => ({
         ...current,
         processHistory: current.processHistory.map((entry) => entry.id === process.id ? { ...entry, status: "running" } : entry),
@@ -302,10 +308,10 @@ export function App() {
     try {
       const inspection = await inspectProject(project.path);
       updateProject({ ...project, inspection, updatedAt: new Date().toISOString() });
-      pushToast("success", "Projektstatus aktualisiert", project.name);
+      pushToast("success", t("Projektstatus aktualisiert", "Project status refreshed"), project.name);
       return inspection;
     } catch (error) {
-      pushToast("error", "Projekt konnte nicht analysiert werden", errorMessage(error));
+      pushToast("error", t("Projekt konnte nicht analysiert werden", "Could not inspect project"), errorMessage(error));
       return undefined;
     }
   }
@@ -329,7 +335,7 @@ export function App() {
         inspection,
       });
     } catch (error) {
-      pushToast("error", "Projekt konnte nicht hinzugefügt werden", errorMessage(error));
+      pushToast("error", t("Projekt konnte nicht hinzugefügt werden", "Could not add project"), errorMessage(error));
     }
   }
 
@@ -339,7 +345,7 @@ export function App() {
       return;
     }
     const project = data.projects.find((entry) => entry.id === action.projectId);
-    if (!project) throw new Error("Ein Projekt dieser Workspace-Aktion wurde nicht gefunden.");
+    if (!project) throw new Error(t("Ein Projekt dieser Workspace-Aktion wurde nicht gefunden.", "A project used by this workspace action could not be found."));
     if (action.type === "openEditor") return openProjectEditor(project, action.editorId);
     if (action.type === "openTerminal") return openProjectTerminal(project);
     if (action.type === "openFileManager") return openProjectFolder(project);
@@ -360,19 +366,19 @@ export function App() {
         await runWorkspaceAction(workspace, action);
         await sleep(350);
       }
-      pushToast("success", "Workspace gestartet", `${workspace.name}: ${actions.length} Aktionen`);
+      pushToast("success", t("Workspace gestartet", "Workspace started"), t(`${workspace.name}: ${actions.length} Aktionen`, `${workspace.name}: ${actions.length} actions`));
     } catch (error) {
-      pushToast("error", "Workspace konnte nicht vollständig gestartet werden", errorMessage(error));
+      pushToast("error", t("Workspace konnte nicht vollständig gestartet werden", "Workspace could not be started completely"), errorMessage(error));
     }
   }
 
   async function stopWorkspace(workspace: Workspace) {
     const runs = data.processHistory.filter((process) => process.workspaceId === workspace.id && ["starting", "running", "stopping"].includes(process.status));
     if (!runs.length) {
-      pushToast("info", "Keine aktiven Prozesse", workspace.name);
+      pushToast("info", t("Keine aktiven Prozesse", "No active processes"), workspace.name);
       return;
     }
-    if (!window.confirm(`${runs.length} Prozess(e) des Workspaces „${workspace.name}“ beenden?`)) return;
+    if (!window.confirm(t(`${runs.length} Prozess(e) des Workspaces „${workspace.name}“ beenden?`, `Stop ${runs.length} process(es) from workspace “${workspace.name}”?`))) return;
     await Promise.all(runs.map((run) => stopRun(run, false)));
   }
 
@@ -386,9 +392,9 @@ export function App() {
         exportedAt: new Date().toISOString(),
       };
       await writeTextFile(path, JSON.stringify(exportData, null, 2));
-      pushToast("success", "Konfiguration exportiert", path);
+      pushToast("success", t("Konfiguration exportiert", "Configuration exported"), path);
     } catch (error) {
-      pushToast("error", "Export fehlgeschlagen", errorMessage(error));
+      pushToast("error", t("Export fehlgeschlagen", "Export failed"), errorMessage(error));
     }
   }
 
@@ -399,12 +405,12 @@ export function App() {
       const contents = await readTextFile(path);
       const parsed = JSON.parse(contents) as unknown;
       const imported = normalizeData(parsed, true);
-      if (!window.confirm(`Konfiguration importieren?\n\n${imported.projects.length} Projekte\n${imported.editors.length} IDEs\n${imported.workspaces.length} Workspaces\n\nDie aktuelle Konfiguration wird ersetzt.`)) return;
+      if (!window.confirm(t(`Konfiguration importieren?\n\n${imported.projects.length} Projekte\n${imported.editors.length} IDEs\n${imported.workspaces.length} Workspaces\n\nDie aktuelle Konfiguration wird ersetzt.`, `Import configuration?\n\n${imported.projects.length} projects\n${imported.editors.length} IDEs\n${imported.workspaces.length} workspaces\n\nThe current configuration will be replaced.`))) return;
       setData(imported);
       setSelectedProjectId(undefined);
-      pushToast("success", "Konfiguration importiert", "Importierte Commands müssen vor dem ersten Start bestätigt werden.");
+      pushToast("success", t("Konfiguration importiert", "Configuration imported"), t("Importierte Commands müssen vor dem ersten Start bestätigt werden.", "Imported commands must be confirmed before their first run."));
     } catch (error) {
-      pushToast("error", "Import fehlgeschlagen", errorMessage(error));
+      pushToast("error", t("Import fehlgeschlagen", "Import failed"), errorMessage(error));
     }
   }
 
@@ -412,7 +418,8 @@ export function App() {
 
 
   return (
-    <div className="app-shell">
+    <I18nProvider language={data.settings.language}>
+      <div className="app-shell">
       <header className="app-header">
         <div className="app-header__bar">
           {/* <div className="brand" aria-label="CodeDeck">
@@ -420,10 +427,10 @@ export function App() {
             <strong>CodeDeck</strong>
           </div> */}
 
-          <nav className="main-nav" aria-label="Hauptnavigation">
+          <nav className="main-nav" aria-label={t("Hauptnavigation", "Main navigation")}>
             <button className="main-nav__item active" type="button" aria-current="page">
               <Icon name="folder" />
-              <span>Projekte</span>
+              <span>{t("Projekte", "Projects")}</span>
             </button>
             <button className="main-nav__item" type="button" onClick={() => setWorkspacesOpen(true)}>
               <Icon name="layers" />
@@ -432,7 +439,7 @@ export function App() {
             </button>
             <button className="main-nav__item" type="button" onClick={() => setProcessesOpen(true)}>
               <Icon name="terminal" />
-              <span>Prozesse</span>
+              <span>{t("Prozesse", "Processes")}</span>
               {activeProcesses.length > 0 && <small className="main-nav__badge">{activeProcesses.length}</small>}
             </button>
           </nav>
@@ -442,22 +449,22 @@ export function App() {
               className="icon-button"
               type="button"
               onClick={() => setSettingsOpen(true)}
-              title="Einstellungen"
-              aria-label="Einstellungen öffnen"
+              title={t("Einstellungen", "Settings")}
+              aria-label={t("Einstellungen öffnen", "Open settings")}
             >
               <Icon name="settings" />
             </button>
             <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}>
               <Icon name="plus" />
-              <span>Projekt hinzufügen</span>
+              <span>{t("Projekt hinzufügen", "Add project")}</span>
             </button>
           </div>
         </div>
 
         <div className="app-toolbar">
           <div className="app-toolbar__title">
-            <h1>Projekte</h1>
-            <span>{visibleProjects.length} von {data.projects.filter((project) => showArchived || !project.archived).length}</span>
+            <h1>{t("Projekte", "Projects")}</h1>
+            <span>{visibleProjects.length} {t("von", "of")} {data.projects.filter((project) => showArchived || !project.archived).length}</span>
           </div>
           <div className="global-search">
             <Icon name="search" />
@@ -465,50 +472,50 @@ export function App() {
               ref={searchRef}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Name, Pfad, Tag oder Framework"
-              aria-label="Projekte durchsuchen"
+              placeholder={t("Name, Pfad, Tag oder Framework", "Name, path, tag or framework")}
+              aria-label={t("Projekte durchsuchen", "Search projects")}
             />
             <kbd>Ctrl K</kbd>
           </div>
           <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}>
             <Icon name="search" />
-            <span>Ordner scannen</span>
+            <span>{t("Ordner scannen", "Scan folder")}</span>
           </button>
         </div>
       </header>
 
       <main className="home-page">
-        <section className="filter-bar" aria-label="Projektfilter">
+        <section className="filter-bar" aria-label={t("Projektfilter", "Project filters")}>
           <div className="filter-bar__left">
             <button className={`filter-chip ${favoriteOnly ? "active" : ""}`} type="button" onClick={() => setFavoriteOnly((value) => !value)}>
               <Icon name="star" />
-              <span>Favoriten</span>
+              <span>{t("Favoriten", "Favorites")}</span>
             </button>
-            <select aria-label="Nach Tag filtern" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
-              <option value="">Alle Tags und Frameworks</option>
+            <select aria-label={t("Nach Tag filtern", "Filter by tag")} value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
+              <option value="">{t("Alle Tags und Frameworks", "All tags and frameworks")}</option>
               {allTags.map((tag) => <option value={tag} key={tag}>{tag}</option>)}
             </select>
             <label className="filter-checkbox">
               <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
-              <span>Archivierte anzeigen</span>
+              <span>{t("Archivierte anzeigen", "Show archived")}</span>
             </label>
           </div>
           {(search || favoriteOnly || selectedTag || showArchived) && (
             <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
               <Icon name="x" />
-              <span>Zurücksetzen</span>
+              <span>{t("Zurücksetzen", "Reset")}</span>
             </button>
           )}
         </section>
 
         {visibleProjects.length ? (
-          <section className="project-list" aria-label="Projektliste">
+          <section className="project-list" aria-label={t("Projektliste", "Project list")}>
             <div className="project-list__header" aria-hidden="true">
-              <span>Projekt</span>
-              <span>Tags</span>
+              <span>{t("Projekt", "Project")}</span>
+              <span>{t("Tags", "Tags")}</span>
               <span>Git</span>
-              <span>Zuletzt genutzt</span>
-              <span>Aktionen</span>
+              <span>{t("Zuletzt genutzt", "Last used")}</span>
+              <span>{t("Aktionen", "Actions")}</span>
             </div>
             <div className="project-list__body">
               {visibleProjects.map((project) => (
@@ -527,23 +534,23 @@ export function App() {
         ) : (
           <section className="home-empty">
             <div className="home-empty__art"><Icon name={emptyBecauseFilters ? "search" : "folder"} /></div>
-            <h2>{emptyBecauseFilters ? "Keine passenden Projekte" : "Noch keine Projekte"}</h2>
-            <p>{emptyBecauseFilters ? "Ändere die Suche oder setze die Filter zurück." : "Füge einen vorhandenen Ordner hinzu oder erstelle ein neues Projekt aus einer Vorlage."}</p>
+            <h2>{emptyBecauseFilters ? t("Keine passenden Projekte", "No matching projects") : t("Noch keine Projekte", "No projects yet")}</h2>
+            <p>{emptyBecauseFilters ? t("Ändere die Suche oder setze die Filter zurück.", "Change the search or reset the filters.") : t("Füge einen vorhandenen Ordner hinzu oder erstelle ein neues Projekt aus einer Vorlage.", "Add an existing folder or create a new project from a template.")}</p>
             <div className="button-row">
               {emptyBecauseFilters ? (
                 <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
                   <Icon name="refresh" />
-                  <span>Filter zurücksetzen</span>
+                  <span>{t("Filter zurücksetzen", "Reset filters")}</span>
                 </button>
               ) : (
                 <>
                   <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}>
                     <Icon name="search" />
-                    <span>Ordner scannen</span>
+                    <span>{t("Ordner scannen", "Scan folder")}</span>
                   </button>
                   <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}>
                     <Icon name="plus" />
-                    <span>Projekt hinzufügen</span>
+                    <span>{t("Projekt hinzufügen", "Add project")}</span>
                   </button>
                 </>
               )}
@@ -560,7 +567,7 @@ export function App() {
         onClose={() => setCreateOpen(false)}
         onCreate={addProject}
         onOpenTemplateSettings={() => { setCreateOpen(false); setSettingsOpen(true); }}
-        onError={(message) => pushToast("error", "Projekt konnte nicht hinzugefügt werden", message)}
+        onError={(message) => pushToast("error", t("Projekt konnte nicht hinzugefügt werden", "Could not add project"), message)}
       />
       <ProjectScanModal
         open={scanOpen}
@@ -568,7 +575,7 @@ export function App() {
         existingPaths={data.projects.map((project) => project.path)}
         onClose={() => setScanOpen(false)}
         onChooseCandidate={(candidate) => { setScanOpen(false); void addCandidate(candidate); }}
-        onError={(message) => pushToast("error", "Scan fehlgeschlagen", message)}
+        onError={(message) => pushToast("error", t("Scan fehlgeschlagen", "Scan failed"), message)}
       />
       <ProjectDetails
         project={selectedProject}
@@ -583,7 +590,7 @@ export function App() {
         onRunCommand={(project, command, workspaceId) => void runProjectCommand(project, command, workspaceId)}
         onRunRawCommand={(project, label, command) => void runRawCommand(project, label, command)}
         onRefreshInspection={refreshInspection}
-        onError={(message) => pushToast("error", "Eingabe prüfen", message)}
+        onError={(message) => pushToast("error", t("Eingabe prüfen", "Check input"), message)}
       />
       <SettingsPanel
         open={settingsOpen}
@@ -597,7 +604,7 @@ export function App() {
         onExport={() => void exportConfiguration()}
         onImport={() => void importConfiguration()}
         onResetOnboarding={() => { setData((current) => ({ ...current, settings: { ...current.settings, onboardingComplete: false } })); setOnboardingDismissed(false); setSettingsOpen(false); }}
-        onError={(message) => pushToast("error", "Einstellungen", message)}
+        onError={(message) => pushToast("error", t("Einstellungen", "Settings"), message)}
       />
       <WorkspacesPanel
         open={workspacesOpen}
@@ -627,6 +634,7 @@ export function App() {
         onComplete={() => { setData((current) => ({ ...current, settings: { ...current.settings, onboardingComplete: true } })); setOnboardingDismissed(true); }}
       />
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />
-    </div>
+      </div>
+    </I18nProvider>
   );
 }

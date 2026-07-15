@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/I18n";
 import { Icon } from "./Icon";
 
 export type Toast = {
@@ -13,6 +14,7 @@ type ToastStackProps = {
 };
 
 export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
+  const { t } = useI18n();
   return (
     <div className="toast-stack" aria-live="polite">
       {toasts.map((toast) => (
@@ -24,7 +26,7 @@ export function ToastStack({ toasts, onDismiss }: ToastStackProps) {
             <strong>{toast.title}</strong>
             {toast.message && <p>{toast.message}</p>}
           </div>
-          <button type="button" className="icon-button icon-button--small" onClick={() => onDismiss(toast.id)}>
+          <button type="button" className="icon-button icon-button--small" onClick={() => onDismiss(toast.id)} aria-label={t("Benachrichtigung schließen", "Dismiss notification")}>
             <Icon name="x" />
           </button>
         </article>

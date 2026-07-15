@@ -39,6 +39,7 @@ export function createDefaultData(): AppData {
     processHistory: [],
     settings: {
       theme: "dark",
+      language: "de",
       terminalCommand: "",
       defaultProjectDir: "",
       onboardingComplete: false,
@@ -64,6 +65,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
   if (!input || typeof input !== "object") return fallback;
 
   const value = input as Partial<AppData>;
+  const language = value.settings?.language === "en" ? "en" : "de";
   const rawEditors = Array.isArray(value.editors) ? value.editors : [];
   const editors = rawEditors.length
     ? rawEditors.map((editor) => {
@@ -83,7 +85,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
         const legacy = project as typeof project & { editorId?: string };
         return {
           id: project.id ?? id(),
-          name: project.name?.trim() || "Unbenanntes Projekt",
+          name: project.name?.trim() || (language === "en" ? "Untitled project" : "Unbenanntes Projekt"),
           path: project.path ?? "",
           description: project.description ?? "",
           tags: Array.isArray(project.tags) ? project.tags : [],
@@ -109,7 +111,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
   const projectTemplates: CustomProjectTemplate[] = Array.isArray(value.projectTemplates)
     ? value.projectTemplates.map((template) => ({
         id: template.id ?? id(),
-        name: template.name?.trim() || "Eigene Vorlage",
+        name: template.name?.trim() || (language === "en" ? "Custom template" : "Eigene Vorlage"),
         description: template.description ?? "",
         sourcePath: template.sourcePath ?? "",
         tags: Array.isArray(template.tags) ? template.tags : [],
@@ -168,6 +170,10 @@ export function normalizeData(input: unknown, imported = false): AppData {
     settings: {
       ...fallback.settings,
       ...(value.settings ?? {}),
+      theme: ["dark", "light", "system"].includes(value.settings?.theme ?? "")
+        ? value.settings!.theme
+        : fallback.settings.theme,
+      language: value.settings?.language === "en" ? "en" : "de",
     },
   };
 }

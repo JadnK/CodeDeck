@@ -52,6 +52,11 @@ Use templates for files you want in many new projects, for example:
 
 Do not include secrets, installed dependencies or generated build output.
 
+
+## Language
+
+Choose **Deutsch** or **English** under **Settings → Interface → Language**. The interface changes immediately and the selection is stored locally with the rest of the Code Deck settings.
+
 ## Appearance
 
 Choose light, dark or system theme. The selection is saved locally.

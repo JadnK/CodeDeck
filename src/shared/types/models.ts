@@ -1,4 +1,5 @@
 export type Theme = "dark" | "light" | "system";
+export type Language = "de" | "en";
 
 export type Editor = {
   id: string;
@@ -137,6 +138,7 @@ export type ProcessRun = {
 
 export type AppSettings = {
   theme: Theme;
+  language: Language;
   terminalCommand: string;
   defaultProjectDir: string;
   onboardingComplete: boolean;
