@@ -9,6 +9,7 @@ This guide explains the app page by page. The names in bold match the current Ge
 | [Dashboard](pages/dashboard.md) | Finding projects and using the most common shortcuts |
 | [New Project](pages/new-project.md) | Creating a starter project, copying a template or importing an existing folder |
 | [Project Details](pages/project-details.md) | Editing one project and using its IDE, terminal, commands and Git information |
+| [Todos](pages/todos.md) | Keeping a small local task list for each project |
 | [Processes](pages/processes.md) | Viewing live output and stopping commands |
 | [Workspaces](pages/workspaces.md) | Starting several projects and actions as one setup |
 | [Settings](pages/settings.md) | Configuring editors, terminal behavior, templates, theme and backups |

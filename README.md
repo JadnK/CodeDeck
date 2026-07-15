@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/icon.png" alt="Code Deck icon" width="96" height="96">
+  <img src="public/icon.png" alt="Code Deck icon" width="96" height="96" style="border-radius: 15px;">
 </p>
 
 <h1 align="center">Code Deck</h1>

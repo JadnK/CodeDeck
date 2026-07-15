@@ -19,6 +19,7 @@ type ProjectDetailsProps = {
   onUpdate: (project: Project) => void;
   onDelete: (projectId: string) => void;
   onOpenEditor: (project: Project, editorId?: string) => void;
+  onOpenTodos: (project: Project) => void;
   onOpenTerminal: (project: Project) => void;
   onOpenFileManager: (project: Project) => void;
   onRunCommand: (project: Project, command: ProjectCommand, workspaceId?: string) => void;
@@ -38,6 +39,7 @@ export function ProjectDetails({
   onUpdate,
   onDelete,
   onOpenEditor,
+  onOpenTodos,
   onOpenTerminal,
   onOpenFileManager,
   onRunCommand,
@@ -184,6 +186,9 @@ export function ProjectDetails({
             <button className="button button--primary" type="button" onClick={() => onOpenEditor(project)} disabled={!preferredEditor}>
               <Icon name="external" />
               {preferredEditor ? t(`In ${preferredEditor.name} öffnen`, `Open in ${preferredEditor.name}`) : t("IDE wählen", "Choose IDE")}
+            </button>
+            <button className="button button--secondary" type="button" onClick={() => onOpenTodos(project)}>
+              <Icon name="list" />{t("Todos", "Todos")}{project.todos.filter((todo) => todo.status !== "done").length > 0 && <span className="button-count">{project.todos.filter((todo) => todo.status !== "done").length}</span>}
             </button>
             <button className="button button--secondary" type="button" onClick={() => onOpenTerminal(project)}>
               <Icon name="terminal" />Terminal

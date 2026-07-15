@@ -8,6 +8,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Project-specific todo lists with status, priority and manual ordering.
+
 ### Changed
 
 - Removed user-defined tags from projects, workspaces and custom project templates. Framework detection remains available as read-only technology information.
