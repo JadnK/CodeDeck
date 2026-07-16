@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
+import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
 import type {
   Editor,
@@ -22,14 +23,6 @@ type WorkspacesPanelProps = {
   onError: (message: string) => void;
 };
 
-const actionLabels: Record<WorkspaceActionType, string> = {
-  openEditor: "Projekt in IDE öffnen",
-  openTerminal: "Terminal öffnen",
-  openFileManager: "Dateimanager öffnen",
-  runCommand: "Command starten",
-  openUrl: "URL öffnen",
-};
-
 function actionIcon(type: WorkspaceActionType) {
   if (type === "openEditor") return "code" as const;
   if (type === "openTerminal" || type === "runCommand") return "terminal" as const;
@@ -48,6 +41,14 @@ export function WorkspacesPanel({
   onStop,
   onError,
 }: WorkspacesPanelProps) {
+  const { t } = useI18n();
+  const actionLabels: Record<WorkspaceActionType, string> = {
+    openEditor: t("Projekt in IDE öffnen", "Open project in IDE"),
+    openTerminal: t("Terminal öffnen", "Open terminal"),
+    openFileManager: t("Dateimanager öffnen", "Open file manager"),
+    runCommand: t("Command starten", "Run command"),
+    openUrl: t("URL öffnen", "Open URL"),
+  };
   const [selectedId, setSelectedId] = useState<string>();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -89,7 +90,7 @@ export function WorkspacesPanel({
     const now = new Date().toISOString();
     const workspace: Workspace = {
       id: createId(),
-      name: "Neuer Workspace",
+      name: t("Neuer Workspace", "New workspace"),
       description: "",
       tags: [],
       actions: [],
@@ -116,15 +117,15 @@ export function WorkspacesPanel({
     event.preventDefault();
     if (!selected) return;
     if (actionType !== "openUrl" && !actionProjectId) {
-      onError("Bitte wähle ein Projekt für die Aktion aus.");
+      onError(t("Bitte wähle ein Projekt für die Aktion aus.", "Choose a project for this action."));
       return;
     }
     if (actionType === "openUrl" && !actionUrl.trim()) {
-      onError("Bitte gib eine URL ein.");
+      onError(t("Bitte gib eine URL ein.", "Enter a URL."));
       return;
     }
     if (actionType === "runCommand" && !actionCommandId && !actionCommand.trim()) {
-      onError("Bitte wähle einen gespeicherten Command oder gib einen Befehl ein.");
+      onError(t("Bitte wähle einen gespeicherten Command oder gib einen Befehl ein.", "Choose a saved command or enter a custom command."));
       return;
     }
     const action: WorkspaceAction = {
@@ -173,7 +174,7 @@ export function WorkspacesPanel({
 
   function deleteWorkspace() {
     if (!selected) return;
-    if (!window.confirm(`Workspace „${selected.name}“ wirklich löschen?`)) return;
+    if (!window.confirm(t(`Workspace „${selected.name}“ wirklich löschen?`, `Delete workspace “${selected.name}”?`))) return;
     const next = workspaces.filter((workspace) => workspace.id !== selected.id);
     onChange(next);
     setSelectedId(next[0]?.id);
@@ -184,46 +185,46 @@ export function WorkspacesPanel({
     const project = action.projectId ? projectById.get(action.projectId) : undefined;
     if (action.type === "runCommand") {
       const command = project?.commands.find((entry) => entry.id === action.commandId);
-      return `${project?.name ?? "Projekt"} · ${command?.label ?? action.command ?? "Command"}`;
+      return `${project?.name ?? t("Projekt", "Project")} · ${command?.label ?? action.command ?? "Command"}`;
     }
     if (action.type === "openEditor") {
       const editor = editors.find((entry) => entry.id === action.editorId);
-      return `${project?.name ?? "Projekt"}${editor ? ` · ${editor.name}` : ""}`;
+      return `${project?.name ?? t("Projekt", "Project")}${editor ? ` · ${editor.name}` : ""}`;
     }
-    return project?.name ?? "Projekt";
+    return project?.name ?? t("Projekt", "Project");
   }
 
   return (
     <Modal open={open} onClose={onClose} title="Workspaces" size="large">
       <div className="workspace-layout">
         <aside className="workspace-sidebar">
-          <button className="button button--primary button--full" type="button" onClick={createWorkspace}><Icon name="plus" />Workspace erstellen</button>
+          <button className="button button--primary button--full" type="button" onClick={createWorkspace}><Icon name="plus" />{t("Workspace erstellen", "Create workspace")}</button>
           <div className="workspace-list">
             {workspaces.map((workspace) => (
               <button type="button" key={workspace.id} className={workspace.id === selectedId ? "active" : ""} onClick={() => setSelectedId(workspace.id)}>
                 <span className="workspace-list__icon"><Icon name="layers" /></span>
-                <span><strong>{workspace.name}</strong><small>{workspace.actions.length} Aktionen</small></span>
+                <span><strong>{workspace.name}</strong><small>{t(`${workspace.actions.length} Aktionen`, `${workspace.actions.length} actions`)}</small></span>
               </button>
             ))}
           </div>
-          {workspaces.length === 0 && <div className="empty-state empty-state--compact"><Icon name="layers" /><p>Noch keine Workspaces.</p></div>}
+          {workspaces.length === 0 && <div className="empty-state empty-state--compact"><Icon name="layers" /><p>{t("Noch keine Workspaces.", "No workspaces yet.")}</p></div>}
         </aside>
 
         {selected ? (
           <div className="workspace-content">
             <form className="workspace-meta" onSubmit={saveMeta}>
               <div className="form-grid form-grid--2">
-                <div className="form-field"><label htmlFor="workspace-name">Name</label><input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
+                <div className="form-field"><label htmlFor="workspace-name">{t("Name", "Name")}</label><input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
                 <div className="form-field"><label htmlFor="workspace-tags">Tags</label><input id="workspace-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="fullstack, kunde-a" /></div>
               </div>
-              <div className="form-field"><label htmlFor="workspace-description">Beschreibung</label><textarea id="workspace-description" rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></div>
-              <div className="form-actions form-actions--space-between"><button className="button button--danger button--small" type="button" onClick={deleteWorkspace}><Icon name="trash" />Löschen</button><button className="button button--secondary button--small" type="submit"><Icon name="check" />Metadaten speichern</button></div>
+              <div className="form-field"><label htmlFor="workspace-description">{t("Beschreibung", "Description")}</label><textarea id="workspace-description" rows={2} value={description} onChange={(event) => setDescription(event.target.value)} /></div>
+              <div className="form-actions form-actions--space-between"><button className="button button--danger button--small" type="button" onClick={deleteWorkspace}><Icon name="trash" />{t("Löschen", "Delete")}</button><button className="button button--secondary button--small" type="submit"><Icon name="check" />{t("Metadaten speichern", "Save metadata")}</button></div>
             </form>
 
             <section className="panel workspace-actions-panel">
               <div className="panel__header">
-                <div><p className="eyebrow">Startablauf</p><h3>Aktionen</h3></div>
-                <div className="button-row"><button className="button button--ghost button--small" type="button" onClick={() => onStop(selected)}><Icon name="square" />Alle stoppen</button><button className="button button--primary button--small" type="button" onClick={() => onStart(selected)} disabled={!selected.actions.length}><Icon name="play" />Workspace starten</button></div>
+                <div><p className="eyebrow">{t("Startablauf", "Startup flow")}</p><h3>{t("Aktionen", "Actions")}</h3></div>
+                <div className="button-row"><button className="button button--ghost button--small" type="button" onClick={() => onStop(selected)}><Icon name="square" />{t("Alle stoppen", "Stop all")}</button><button className="button button--primary button--small" type="button" onClick={() => onStart(selected)} disabled={!selected.actions.length}><Icon name="play" />{t("Workspace starten", "Start workspace")}</button></div>
               </div>
               {selected.actions.length ? (
                 <div className="workspace-action-list">
@@ -232,31 +233,31 @@ export function WorkspacesPanel({
                       <span className="workspace-action-list__order">{index + 1}</span>
                       <span className="workspace-action-list__icon"><Icon name={actionIcon(action.type)} /></span>
                       <div><strong>{actionLabels[action.type]}</strong><small>{describeAction(action)}</small></div>
-                      <span className="badge badge--muted">{action.runMode === "sequence" ? "Nacheinander" : "Parallel"}</span>
-                      <button className="icon-button icon-button--small" type="button" title="Aktion nach oben verschieben" aria-label="Aktion nach oben verschieben" onClick={() => moveAction(action.id, -1)} disabled={index === 0}>↑</button>
-                      <button className="icon-button icon-button--small" type="button" title="Aktion nach unten verschieben" aria-label="Aktion nach unten verschieben" onClick={() => moveAction(action.id, 1)} disabled={index === selected.actions.length - 1}>↓</button>
-                      <button className="icon-button icon-button--small icon-button--danger" type="button" title="Aktion entfernen" aria-label="Aktion entfernen" onClick={() => removeAction(action.id)}><Icon name="trash" /></button>
+                      <span className="badge badge--muted">{action.runMode === "sequence" ? t("Nacheinander", "Sequential") : t("Parallel", "Parallel")}</span>
+                      <button className="icon-button icon-button--small" type="button" title={t("Aktion nach oben verschieben", "Move action up")} aria-label={t("Aktion nach oben verschieben", "Move action up")} onClick={() => moveAction(action.id, -1)} disabled={index === 0}>↑</button>
+                      <button className="icon-button icon-button--small" type="button" title={t("Aktion nach unten verschieben", "Move action down")} aria-label={t("Aktion nach unten verschieben", "Move action down")} onClick={() => moveAction(action.id, 1)} disabled={index === selected.actions.length - 1}>↓</button>
+                      <button className="icon-button icon-button--small icon-button--danger" type="button" title={t("Aktion entfernen", "Remove action")} aria-label={t("Aktion entfernen", "Remove action")} onClick={() => removeAction(action.id)}><Icon name="trash" /></button>
                     </article>
                   ))}
                 </div>
-              ) : <div className="empty-state empty-state--compact"><Icon name="layers" /><p>Füge die ersten Aktionen für diesen Workspace hinzu.</p></div>}
+              ) : <div className="empty-state empty-state--compact"><Icon name="layers" /><p>{t("Füge die ersten Aktionen für diesen Workspace hinzu.", "Add the first actions for this workspace.")}</p></div>}
             </section>
 
             <form className="panel workspace-action-form" onSubmit={addAction}>
-              <div className="panel__header"><div><p className="eyebrow">Neue Aktion</p><h3>Schritt hinzufügen</h3></div></div>
+              <div className="panel__header"><div><p className="eyebrow">{t("Neue Aktion", "New action")}</p><h3>{t("Schritt hinzufügen", "Add step")}</h3></div></div>
               <div className="form-grid form-grid--3">
-                <div className="form-field"><label htmlFor="action-type">Typ</label><select id="action-type" value={actionType} onChange={(event) => setActionType(event.target.value as WorkspaceActionType)}>{Object.entries(actionLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
-                {actionType !== "openUrl" && <div className="form-field"><label htmlFor="action-project">Projekt</label><select id="action-project" value={actionProjectId} onChange={(event) => { setActionProjectId(event.target.value); setActionCommandId(""); }}><option value="">Projekt wählen</option>{projects.filter((project) => !project.archived).map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></div>}
-                <div className="form-field"><label htmlFor="action-mode">Startmodus</label><select id="action-mode" value={actionRunMode} onChange={(event) => setActionRunMode(event.target.value as "parallel" | "sequence")}><option value="parallel">Parallel</option><option value="sequence">Nacheinander</option></select></div>
+                <div className="form-field"><label htmlFor="action-type">{t("Typ", "Type")}</label><select id="action-type" value={actionType} onChange={(event) => setActionType(event.target.value as WorkspaceActionType)}>{Object.entries(actionLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
+                {actionType !== "openUrl" && <div className="form-field"><label htmlFor="action-project">{t("Projekt", "Project")}</label><select id="action-project" value={actionProjectId} onChange={(event) => { setActionProjectId(event.target.value); setActionCommandId(""); }}><option value="">{t("Projekt wählen", "Choose project")}</option>{projects.filter((project) => !project.archived).map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></div>}
+                <div className="form-field"><label htmlFor="action-mode">{t("Startmodus", "Start mode")}</label><select id="action-mode" value={actionRunMode} onChange={(event) => setActionRunMode(event.target.value as "parallel" | "sequence")}><option value="parallel">{t("Parallel", "Parallel")}</option><option value="sequence">{t("Nacheinander", "Sequential")}</option></select></div>
               </div>
-              {actionType === "runCommand" && <div className="form-grid form-grid--2"><div className="form-field"><label htmlFor="action-command-id">Gespeicherter Command</label><select id="action-command-id" value={actionCommandId} onChange={(event) => setActionCommandId(event.target.value)}><option value="">Eigener Befehl</option>{selectedProject?.commands.map((command) => <option value={command.id} key={command.id}>{command.label}</option>)}</select></div><div className="form-field"><label htmlFor="action-command">Eigener Befehl</label><input id="action-command" value={actionCommand} onChange={(event) => setActionCommand(event.target.value)} disabled={Boolean(actionCommandId)} placeholder="pnpm dev" /></div></div>}
+              {actionType === "runCommand" && <div className="form-grid form-grid--2"><div className="form-field"><label htmlFor="action-command-id">{t("Gespeicherter Command", "Saved command")}</label><select id="action-command-id" value={actionCommandId} onChange={(event) => setActionCommandId(event.target.value)}><option value="">{t("Eigener Befehl", "Custom command")}</option>{selectedProject?.commands.map((command) => <option value={command.id} key={command.id}>{command.label}</option>)}</select></div><div className="form-field"><label htmlFor="action-command">{t("Eigener Befehl", "Custom command")}</label><input id="action-command" value={actionCommand} onChange={(event) => setActionCommand(event.target.value)} disabled={Boolean(actionCommandId)} placeholder="pnpm dev" /></div></div>}
               {actionType === "openUrl" && <div className="form-field"><label htmlFor="action-url">URL</label><input id="action-url" value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="http://localhost:3000" /></div>}
-              {actionType === "openEditor" && <div className="form-field"><label htmlFor="action-editor">Alternative IDE (optional)</label><select id="action-editor" value={actionEditorId} onChange={(event) => setActionEditorId(event.target.value)}><option value="">Projektstandard</option>{editors.filter((editor) => editor.enabled).map((editor) => <option value={editor.id} key={editor.id}>{editor.name}</option>)}</select></div>}
-              <div className="form-actions"><button className="button button--primary" type="submit"><Icon name="plus" />Aktion hinzufügen</button></div>
+              {actionType === "openEditor" && <div className="form-field"><label htmlFor="action-editor">{t("Alternative IDE (optional)", "Alternative IDE (optional)")}</label><select id="action-editor" value={actionEditorId} onChange={(event) => setActionEditorId(event.target.value)}><option value="">{t("Projektstandard", "Project default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option value={editor.id} key={editor.id}>{editor.name}</option>)}</select></div>}
+              <div className="form-actions"><button className="button button--primary" type="submit"><Icon name="plus" />{t("Aktion hinzufügen", "Add action")}</button></div>
             </form>
           </div>
         ) : (
-          <div className="empty-state workspace-empty"><Icon name="layers" /><h3>Workspace erstellen</h3><p>Gruppiere Frontend, Backend, Docker und URLs zu einem gemeinsamen Startablauf.</p><button className="button button--primary" type="button" onClick={createWorkspace}><Icon name="plus" />Ersten Workspace erstellen</button></div>
+          <div className="empty-state workspace-empty"><Icon name="layers" /><h3>{t("Workspace erstellen", "Create workspace")}</h3><p>{t("Gruppiere Frontend, Backend, Docker und URLs zu einem gemeinsamen Startablauf.", "Group frontend, backend, Docker and URLs into one startup flow.")}</p><button className="button button--primary" type="button" onClick={createWorkspace}><Icon name="plus" />{t("Ersten Workspace erstellen", "Create first workspace")}</button></div>
         )}
       </div>
     </Modal>

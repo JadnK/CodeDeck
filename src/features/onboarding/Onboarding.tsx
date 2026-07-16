@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
+import { useI18n } from "../../shared/i18n/I18n";
 
 type OnboardingProps = {
   open: boolean;
@@ -20,27 +21,40 @@ export function Onboarding({
   onComplete,
 }: OnboardingProps) {
   const [step, setStep] = useState(0);
+  const { t } = useI18n();
   const steps = [
     {
-      title: "Willkommen bei CodeDeck",
-      text: "Verwalte lokale Projekte, öffne sie in der passenden IDE und starte wiederkehrende Commands an einem Ort.",
-      action: "Einrichtung starten",
+      title: t("Willkommen bei CodeDeck", "Welcome to CodeDeck"),
+      text: t(
+        "Verwalte lokale Projekte, öffne sie in der passenden IDE und starte wiederkehrende Commands an einem Ort.",
+        "Manage local projects, open them in the right IDE and run recurring commands from one place.",
+      ),
+      action: t("Einrichtung starten", "Start setup"),
       run: () => setStep(1),
     },
     {
-      title: "IDE prüfen",
+      title: t("IDE prüfen", "Check your IDE"),
       text: hasEditors
-        ? "Mindestens eine IDE ist bereits eingerichtet. Du kannst die Einträge später jederzeit in den Einstellungen ändern."
-        : "Lege eine IDE mit einem Command-Template an, zum Beispiel code \"{projectPath}\".",
-      action: hasEditors ? "Weiter" : "Einstellungen öffnen",
+        ? t(
+            "Mindestens eine IDE ist bereits eingerichtet. Du kannst die Einträge später jederzeit in den Einstellungen ändern.",
+            "At least one IDE is already configured. You can change the entries later in Settings.",
+          )
+        : t(
+            'Lege eine IDE mit einem Command-Template an, zum Beispiel code "{projectPath}".',
+            'Add an IDE with a command template, for example code "{projectPath}".',
+          ),
+      action: hasEditors ? t("Weiter", "Continue") : t("Einstellungen öffnen", "Open settings"),
       run: () => hasEditors ? setStep(2) : onOpenSettings(),
     },
     {
-      title: "Projekt hinzufügen",
+      title: t("Projekt hinzufügen", "Add a project"),
       text: hasProjects
-        ? "Ein Projekt ist bereits vorhanden. Die Einrichtung ist abgeschlossen."
-        : "Füge einen vorhandenen Ordner hinzu oder erstelle ein Grundgerüst für Node.js, React, Spring Boot, Python oder Rust.",
-      action: hasProjects ? "CodeDeck öffnen" : "Projekt hinzufügen",
+        ? t("Ein Projekt ist bereits vorhanden. Die Einrichtung ist abgeschlossen.", "A project already exists. Setup is complete.")
+        : t(
+            "Füge einen vorhandenen Ordner hinzu oder erstelle ein Grundgerüst für Node.js, React, Spring Boot, Python oder Rust.",
+            "Add an existing folder or create a starter for Node.js, React, Spring Boot, Python or Rust.",
+          ),
+      action: hasProjects ? t("CodeDeck öffnen", "Open CodeDeck") : t("Projekt hinzufügen", "Add project"),
       run: () => hasProjects ? onComplete() : onAddProject(),
     },
   ];
@@ -51,12 +65,12 @@ export function Onboarding({
       <div className="onboarding">
         <div className="onboarding__brand">
           <img src="/icon.png" alt="" />
-          <div><strong>CodeDeck</strong><span>Ersteinrichtung</span></div>
+          <div><strong>CodeDeck</strong><span>{t("Ersteinrichtung", "First-time setup")}</span></div>
         </div>
-        <div className="onboarding__progress" aria-label={`Schritt ${step + 1} von ${steps.length}`}>
+        <div className="onboarding__progress" aria-label={t(`Schritt ${step + 1} von ${steps.length}`, `Step ${step + 1} of ${steps.length}`)}>
           {steps.map((_, index) => <span key={index} className={index <= step ? "active" : ""} />)}
         </div>
-        <p className="onboarding__step">Schritt {step + 1} von {steps.length}</p>
+        <p className="onboarding__step">{t(`Schritt ${step + 1} von ${steps.length}`, `Step ${step + 1} of ${steps.length}`)}</p>
         <h2>{current.title}</h2>
         <p className="onboarding__text">{current.text}</p>
         <div className="onboarding__actions">
@@ -64,7 +78,7 @@ export function Onboarding({
             <span>{current.action}</span>
             <Icon name="external" />
           </button>
-          <button className="text-button" type="button" onClick={onComplete}>Überspringen</button>
+          <button className="text-button" type="button" onClick={onComplete}>{t("Überspringen", "Skip")}</button>
         </div>
       </div>
     </Modal>

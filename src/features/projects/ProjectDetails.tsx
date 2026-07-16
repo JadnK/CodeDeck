@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
+import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
 import type {
   Editor,
@@ -28,13 +29,6 @@ type ProjectDetailsProps = {
 
 type Tab = "overview" | "commands" | "git" | "edit";
 
-function formatDate(value?: string) {
-  if (!value) return "–";
-  return new Intl.DateTimeFormat("de-DE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 export function ProjectDetails({
   project,
@@ -51,6 +45,19 @@ export function ProjectDetails({
   onRefreshInspection,
   onError,
 }: ProjectDetailsProps) {
+  const { t, locale } = useI18n();
+  const formatDate = (value?: string) => {
+    if (!value) return "–";
+    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  };
+  const statusLabel = (status: ProcessRun["status"]) => ({
+    starting: t("Startet", "Starting"),
+    running: t("Läuft", "Running"),
+    success: t("Erfolgreich", "Successful"),
+    failed: t("Fehlgeschlagen", "Failed"),
+    stopping: t("Wird beendet", "Stopping"),
+    stopped: t("Beendet", "Stopped"),
+  })[status];
   const [tab, setTab] = useState<Tab>("overview");
   const [commandLabel, setCommandLabel] = useState("");
   const [commandValue, setCommandValue] = useState("");
@@ -84,7 +91,7 @@ export function ProjectDetails({
   function saveCommand(event: React.FormEvent) {
     event.preventDefault();
     if (!commandLabel.trim() || !commandValue.trim()) {
-      onError("Command-Name und Befehl dürfen nicht leer sein.");
+      onError(t("Command-Name und Befehl dürfen nicht leer sein.", "Command name and command must not be empty."));
       return;
     }
     const commands = editingCommandId
@@ -139,14 +146,14 @@ export function ProjectDetails({
   function saveProject(event: React.FormEvent) {
     event.preventDefault();
     if (!currentDraft.name.trim() || !currentDraft.path.trim()) {
-      onError("Name und Projektpfad dürfen nicht leer sein.");
+      onError(t("Name und Projektpfad dürfen nicht leer sein.", "Name and project path must not be empty."));
       return;
     }
     onUpdate({ ...currentDraft, updatedAt: new Date().toISOString() });
   }
 
   function confirmDelete() {
-    if (window.confirm(`„${currentProject.name}“ wirklich aus Code Deck entfernen? Die Projektdateien bleiben unverändert.`)) {
+    if (window.confirm(t(`„${currentProject.name}“ wirklich aus Code Deck entfernen? Die Projektdateien bleiben unverändert.`, `Remove “${currentProject.name}” from Code Deck? The project files will remain unchanged.`))) {
       onDelete(currentProject.id);
       onClose();
     }
@@ -163,7 +170,7 @@ export function ProjectDetails({
             <div>
               <div className="project-detail__title-row">
                 <h2>{project.name}</h2>
-                {project.archived && <span className="badge badge--warning">Archiviert</span>}
+                {project.archived && <span className="badge badge--warning">{t("Archiviert", "Archived")}</span>}
               </div>
               <p>{project.path}</p>
               <div className="badge-row">
@@ -176,23 +183,23 @@ export function ProjectDetails({
           <div className="project-detail__quick-actions">
             <button className="button button--primary" type="button" onClick={() => onOpenEditor(project)} disabled={!preferredEditor}>
               <Icon name="external" />
-              {preferredEditor ? `In ${preferredEditor.name} öffnen` : "IDE wählen"}
+              {preferredEditor ? t(`In ${preferredEditor.name} öffnen`, `Open in ${preferredEditor.name}`) : t("IDE wählen", "Choose IDE")}
             </button>
             <button className="button button--secondary" type="button" onClick={() => onOpenTerminal(project)}>
               <Icon name="terminal" />Terminal
             </button>
             <button className="button button--secondary" type="button" onClick={() => onOpenFileManager(project)}>
-              <Icon name="folder" />Ordner
+              <Icon name="folder" />{t("Ordner", "Folder")}
             </button>
-            <button className="icon-button" type="button" onClick={onClose} aria-label="Schließen"><Icon name="x" /></button>
+            <button className="icon-button" type="button" onClick={onClose} aria-label={t("Schließen", "Close")}><Icon name="x" /></button>
           </div>
         </header>
 
-        <nav className="tab-list" aria-label="Projektdetails">
-          <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")} type="button">Übersicht</button>
-          <button className={tab === "commands" ? "active" : ""} onClick={() => setTab("commands")} type="button">Commands <span>{project.commands.length}</span></button>
-          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">Git & Historie</button>
-          <button className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")} type="button">Bearbeiten</button>
+        <nav className="tab-list" aria-label={t("Projektdetails", "Project details")}>
+          <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")} type="button">{t("Übersicht", "Overview")}</button>
+          <button className={tab === "commands" ? "active" : ""} onClick={() => setTab("commands")} type="button">{t("Commands", "Commands")} <span>{project.commands.length}</span></button>
+          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">{t("Git & Historie", "Git & history")}</button>
+          <button className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")} type="button">{t("Bearbeiten", "Edit")}</button>
         </nav>
 
         <div className="project-detail__content">
@@ -200,22 +207,22 @@ export function ProjectDetails({
             <div className="detail-grid">
               <section className="panel panel--wide">
                 <div className="panel__header">
-                  <div><p className="eyebrow">Projektstatus</p><h3>Erkannte Umgebung</h3></div>
+                  <div><p className="eyebrow">{t("Projektstatus", "Project status")}</p><h3>{t("Erkannte Umgebung", "Detected environment")}</h3></div>
                   <button className="button button--ghost button--small" type="button" onClick={refresh} disabled={refreshing}>
-                    <Icon name="refresh" />{refreshing ? "Analysiere…" : "Aktualisieren"}
+                    <Icon name="refresh" />{refreshing ? t("Analysiere…", "Inspecting…") : t("Aktualisieren", "Refresh")}
                   </button>
                 </div>
                 <div className="stat-grid">
-                  <div className="stat"><span>Frameworks</span><strong>{inspection?.frameworks.join(", ") || "Nicht erkannt"}</strong></div>
-                  <div className="stat"><span>Paketmanager</span><strong>{inspection?.packageManager || "–"}</strong></div>
-                  <div className="stat"><span>Git</span><strong>{inspection?.isGit ? inspection.branch || "Repository" : "Kein Repository"}</strong></div>
-                  <div className="stat"><span>Docker</span><strong>{inspection?.hasDocker ? "Vorhanden" : "Nicht erkannt"}</strong></div>
+                  <div className="stat"><span>Frameworks</span><strong>{inspection?.frameworks.join(", ") || t("Nicht erkannt", "Not detected")}</strong></div>
+                  <div className="stat"><span>{t("Paketmanager", "Package manager")}</span><strong>{inspection?.packageManager || "–"}</strong></div>
+                  <div className="stat"><span>Git</span><strong>{inspection?.isGit ? inspection.branch || "Repository" : t("Kein Repository", "No repository")}</strong></div>
+                  <div className="stat"><span>Docker</span><strong>{inspection?.hasDocker ? t("Vorhanden", "Detected") : t("Nicht erkannt", "Not detected")}</strong></div>
                 </div>
                 {project.description && <p className="detail-description">{project.description}</p>}
               </section>
 
               <section className="panel">
-                <div className="panel__header"><div><p className="eyebrow">Schnellstart</p><h3>Projekt-Commands</h3></div></div>
+                <div className="panel__header"><div><p className="eyebrow">{t("Schnellstart", "Quick start")}</p><h3>{t("Projekt-Commands", "Project commands")}</h3></div></div>
                 {project.commands.length ? (
                   <div className="quick-command-list">
                     {project.commands.slice(0, 5).map((command) => (
@@ -226,7 +233,7 @@ export function ProjectDetails({
                     ))}
                   </div>
                 ) : (
-                  <div className="empty-state empty-state--compact"><Icon name="command" /><p>Noch keine Commands angelegt.</p><button className="text-button" type="button" onClick={() => setTab("commands")}>Command hinzufügen</button></div>
+                  <div className="empty-state empty-state--compact"><Icon name="command" /><p>{t("Noch keine Commands angelegt.", "No commands saved yet.")}</p><button className="text-button" type="button" onClick={() => setTab("commands")}>{t("Command hinzufügen", "Add command")}</button></div>
                 )}
               </section>
 
@@ -239,14 +246,14 @@ export function ProjectDetails({
                       return (
                         <div key={script.name}>
                           <span><strong>{script.name}</strong><code>{script.command}</code></span>
-                          <button className="button button--ghost button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? "Bereits als Command gespeichert" : "Dieses Script als Schnellaktion speichern"}>
-                            <Icon name={exists ? "check" : "plus"} />{exists ? "Gespeichert" : "Als Command"}
+                          <button className="button button--ghost button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? t("Bereits als Command gespeichert", "Already saved as a command") : t("Dieses Script als Schnellaktion speichern", "Save this script as a quick action")}>
+                            <Icon name={exists ? "check" : "plus"} />{exists ? t("Gespeichert", "Saved") : t("Als Command", "Save command")}
                           </button>
                         </div>
                       );
                     })}
                   </div>
-                ) : <div className="empty-state empty-state--compact"><Icon name="file" /><p>Keine package.json-Scripts erkannt.</p></div>}
+                ) : <div className="empty-state empty-state--compact"><Icon name="file" /><p>{t("Keine package.json-Scripts erkannt.", "No package.json scripts detected.")}</p></div>}
               </section>
             </div>
           )}
@@ -254,31 +261,31 @@ export function ProjectDetails({
           {tab === "commands" && (
             <div className="commands-layout">
               <section className="panel panel--wide">
-                <div className="panel__header"><div><p className="eyebrow">Command Runner</p><h3>Gespeicherte Commands</h3></div></div>
+                <div className="panel__header"><div><p className="eyebrow">Command Runner</p><h3>{t("Gespeicherte Commands", "Saved commands")}</h3></div></div>
                 {project.commands.length ? (
                   <div className="command-table">
                     {project.commands.map((command) => (
                       <article key={command.id}>
                         <div className="command-table__icon"><Icon name="terminal" /></div>
-                        <div className="command-table__content"><strong>{command.label}</strong><code>{command.command}</code>{command.imported && !command.trusted && <span className="badge badge--warning">Importiert · Bestätigung nötig</span>}</div>
+                        <div className="command-table__content"><strong>{command.label}</strong><code>{command.command}</code>{command.imported && !command.trusted && <span className="badge badge--warning">{t("Importiert · Bestätigung nötig", "Imported · confirmation required")}</span>}</div>
                         <div className="command-table__actions">
-                          <button className="button button--primary button--small" type="button" onClick={() => onRunCommand(project, command)}><Icon name="play" />Starten</button>
-                          <button className="button button--ghost button--small" type="button" onClick={() => editCommand(command)}><Icon name="edit" />Bearbeiten</button>
-                          <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onUpdate({ ...project, commands: project.commands.filter((entry) => entry.id !== command.id), updatedAt: new Date().toISOString() })}><Icon name="trash" />Entfernen</button>
+                          <button className="button button--primary button--small" type="button" onClick={() => onRunCommand(project, command)}><Icon name="play" />{t("Starten", "Run")}</button>
+                          <button className="button button--ghost button--small" type="button" onClick={() => editCommand(command)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button>
+                          <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onUpdate({ ...project, commands: project.commands.filter((entry) => entry.id !== command.id), updatedAt: new Date().toISOString() })}><Icon name="trash" />{t("Entfernen", "Remove")}</button>
                         </div>
                       </article>
                     ))}
                   </div>
-                ) : <div className="empty-state"><Icon name="terminal" /><h3>Noch keine Commands</h3><p>Lege wiederkehrende Befehle wie Dev-Server, Tests oder Builds an.</p></div>}
+                ) : <div className="empty-state"><Icon name="terminal" /><h3>{t("Noch keine Commands", "No commands yet")}</h3><p>{t("Lege wiederkehrende Befehle wie Dev-Server, Tests oder Builds an.", "Add recurring commands such as dev servers, tests or builds.")}</p></div>}
               </section>
               <form className="panel command-form" onSubmit={saveCommand}>
-                <div className="panel__header"><div><p className="eyebrow">{editingCommandId ? "Bearbeiten" : "Neu"}</p><h3>{editingCommandId ? "Command ändern" : "Command hinzufügen"}</h3></div></div>
-                <div className="form-field"><label htmlFor="command-label">Name</label><input id="command-label" value={commandLabel} onChange={(event) => setCommandLabel(event.target.value)} placeholder="Dev Server" /></div>
-                <div className="form-field"><label htmlFor="command-value">Befehl</label><textarea id="command-value" value={commandValue} onChange={(event) => setCommandValue(event.target.value)} placeholder="pnpm dev" rows={4} /></div>
-                <div className="notice"><Icon name="info" /><p>Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr erscheinen unter Prozesse.</p></div>
+                <div className="panel__header"><div><p className="eyebrow">{editingCommandId ? t("Bearbeiten", "Edit") : t("Neu", "New")}</p><h3>{editingCommandId ? t("Command ändern", "Edit command") : t("Command hinzufügen", "Add command")}</h3></div></div>
+                <div className="form-field"><label htmlFor="command-label">{t("Name", "Name")}</label><input id="command-label" value={commandLabel} onChange={(event) => setCommandLabel(event.target.value)} placeholder="Dev Server" /></div>
+                <div className="form-field"><label htmlFor="command-value">{t("Befehl", "Command")}</label><textarea id="command-value" value={commandValue} onChange={(event) => setCommandValue(event.target.value)} placeholder="pnpm dev" rows={4} /></div>
+                <div className="notice"><Icon name="info" /><p>{t("Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr erscheinen unter Prozesse.", "Commands only run after a click and always inside the project folder. stdout and stderr appear under Processes.")}</p></div>
                 <div className="form-actions">
-                  {editingCommandId && <button className="button button--ghost" type="button" onClick={() => { setEditingCommandId(undefined); setCommandLabel(""); setCommandValue(""); }}>Abbrechen</button>}
-                  <button className="button button--primary" type="submit"><Icon name={editingCommandId ? "check" : "plus"} />{editingCommandId ? "Änderungen speichern" : "Command hinzufügen"}</button>
+                  {editingCommandId && <button className="button button--ghost" type="button" onClick={() => { setEditingCommandId(undefined); setCommandLabel(""); setCommandValue(""); }}>{t("Abbrechen", "Cancel")}</button>}
+                  <button className="button button--primary" type="submit"><Icon name={editingCommandId ? "check" : "plus"} />{editingCommandId ? t("Änderungen speichern", "Save changes") : t("Command hinzufügen", "Add command")}</button>
                 </div>
               </form>
             </div>
@@ -287,18 +294,18 @@ export function ProjectDetails({
           {tab === "git" && (
             <div className="detail-grid">
               <section className="panel">
-                <div className="panel__header"><div><p className="eyebrow">Git</p><h3>Repository-Status</h3></div><button className="button button--ghost button--small" type="button" onClick={refresh}><Icon name="refresh" />Status aktualisieren</button></div>
+                <div className="panel__header"><div><p className="eyebrow">Git</p><h3>{t("Repository-Status", "Repository status")}</h3></div><button className="button button--ghost button--small" type="button" onClick={refresh}><Icon name="refresh" />{t("Status aktualisieren", "Refresh status")}</button></div>
                 {inspection?.isGit ? (
                   <div className="git-status">
                     <div><span>Branch</span><strong>{inspection.branch || "–"}</strong></div>
-                    <div><span>Geänderte Dateien</span><strong className={inspection.changedFiles ? "status-warning" : "status-good"}>{inspection.changedFiles}</strong></div>
-                    <div><span>Letzter Commit</span><strong>{inspection.lastCommit?.message || "–"}</strong><small>{inspection.lastCommit ? `${inspection.lastCommit.hash} · ${inspection.lastCommit.date}` : ""}</small></div>
+                    <div><span>{t("Geänderte Dateien", "Changed files")}</span><strong className={inspection.changedFiles ? "status-warning" : "status-good"}>{inspection.changedFiles}</strong></div>
+                    <div><span>{t("Letzter Commit", "Latest commit")}</span><strong>{inspection.lastCommit?.message || "–"}</strong><small>{inspection.lastCommit ? `${inspection.lastCommit.hash} · ${inspection.lastCommit.date}` : ""}</small></div>
                     <div className="button-row"><button className="button button--secondary" type="button" onClick={() => onRunRawCommand(project, "Git Fetch", "git fetch --prune")}><Icon name="download" />Fetch</button><button className="button button--secondary" type="button" onClick={() => onRunRawCommand(project, "Git Pull", "git pull")}><Icon name="refresh" />Pull</button></div>
                   </div>
-                ) : <div className="empty-state"><Icon name="git" /><h3>Kein Git-Repository erkannt</h3><p>Der Ordner enthält kein .git-Verzeichnis oder Git ist nicht verfügbar.</p></div>}
+                ) : <div className="empty-state"><Icon name="git" /><h3>{t("Kein Git-Repository erkannt", "No Git repository detected")}</h3><p>{t("Der Ordner enthält kein .git-Verzeichnis oder Git ist nicht verfügbar.", "The folder does not contain a .git directory or Git is unavailable.")}</p></div>}
               </section>
               <section className="panel panel--wide">
-                <div className="panel__header"><div><p className="eyebrow">Historie</p><h3>Letzte Ausführungen</h3></div></div>
+                <div className="panel__header"><div><p className="eyebrow">{t("Historie", "History")}</p><h3>{t("Letzte Ausführungen", "Recent runs")}</h3></div></div>
                 {runs.length ? (
                   <div className="history-list">
                     {runs.map((run) => (
@@ -306,30 +313,30 @@ export function ProjectDetails({
                         <span className={`process-dot process-dot--${run.status}`} />
                         <div><strong>{run.label}</strong><code>{run.command}</code></div>
                         <span>{formatDate(run.startedAt)}</span>
-                        <b>{run.status}</b>
+                        <b>{statusLabel(run.status)}</b>
                       </article>
                     ))}
                   </div>
-                ) : <div className="empty-state"><Icon name="history" /><h3>Noch keine Ausführungen</h3><p>Gestartete Commands werden hier lokal protokolliert.</p></div>}
+                ) : <div className="empty-state"><Icon name="history" /><h3>{t("Noch keine Ausführungen", "No runs yet")}</h3><p>{t("Gestartete Commands werden hier lokal protokolliert.", "Started commands are logged locally here.")}</p></div>}
               </section>
             </div>
           )}
 
           {tab === "edit" && (
             <form className="panel edit-project-form" onSubmit={saveProject}>
-              <div className="panel__header"><div><p className="eyebrow">Metadaten</p><h3>Projekt bearbeiten</h3></div></div>
+              <div className="panel__header"><div><p className="eyebrow">{t("Metadaten", "Metadata")}</p><h3>{t("Projekt bearbeiten", "Edit project")}</h3></div></div>
               <div className="form-grid form-grid--2">
-                <div className="form-field"><label htmlFor="edit-name">Name</label><input id="edit-name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div>
-                <div className="form-field"><label htmlFor="edit-editor">Bevorzugte IDE</label><select id="edit-editor" value={draft.preferredEditorId ?? ""} onChange={(event) => setDraft({ ...draft, preferredEditorId: event.target.value || undefined })}><option value="">Keine IDE</option>{editors.filter((editor) => editor.enabled).map((editor) => <option value={editor.id} key={editor.id}>{editor.name}</option>)}</select></div>
+                <div className="form-field"><label htmlFor="edit-name">{t("Name", "Name")}</label><input id="edit-name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></div>
+                <div className="form-field"><label htmlFor="edit-editor">{t("Bevorzugte IDE", "Preferred IDE")}</label><select id="edit-editor" value={draft.preferredEditorId ?? ""} onChange={(event) => setDraft({ ...draft, preferredEditorId: event.target.value || undefined })}><option value="">{t("Keine IDE", "No IDE")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option value={editor.id} key={editor.id}>{editor.name}</option>)}</select></div>
               </div>
-              <div className="form-field"><label htmlFor="edit-path">Projektpfad</label><input id="edit-path" value={draft.path} onChange={(event) => setDraft({ ...draft, path: event.target.value })} /></div>
-              <div className="form-field"><label htmlFor="edit-description">Beschreibung</label><textarea id="edit-description" rows={4} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
+              <div className="form-field"><label htmlFor="edit-path">{t("Projektpfad", "Project path")}</label><input id="edit-path" value={draft.path} onChange={(event) => setDraft({ ...draft, path: event.target.value })} /></div>
+              <div className="form-field"><label htmlFor="edit-description">{t("Beschreibung", "Description")}</label><textarea id="edit-description" rows={4} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
               <div className="form-field"><label htmlFor="edit-tags">Tags</label><input id="edit-tags" value={draft.tags.join(", ")} onChange={(event) => setDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) })} /></div>
               <div className="form-grid form-grid--2">
-                <label className="checkbox-row"><input type="checkbox" checked={draft.favorite} onChange={(event) => setDraft({ ...draft, favorite: event.target.checked })} /><span><strong>Favorit</strong><small>Oben in der Projektliste anzeigen.</small></span></label>
-                <label className="checkbox-row"><input type="checkbox" checked={draft.archived} onChange={(event) => setDraft({ ...draft, archived: event.target.checked })} /><span><strong>Archiviert</strong><small>Aus der normalen Ansicht ausblenden.</small></span></label>
+                <label className="checkbox-row"><input type="checkbox" checked={draft.favorite} onChange={(event) => setDraft({ ...draft, favorite: event.target.checked })} /><span><strong>{t("Favorit", "Favorite")}</strong><small>{t("Oben in der Projektliste anzeigen.", "Show near the top of the project list.")}</small></span></label>
+                <label className="checkbox-row"><input type="checkbox" checked={draft.archived} onChange={(event) => setDraft({ ...draft, archived: event.target.checked })} /><span><strong>{t("Archiviert", "Archived")}</strong><small>{t("Aus der normalen Ansicht ausblenden.", "Hide from the normal view.")}</small></span></label>
               </div>
-              <div className="form-actions form-actions--space-between"><button className="button button--danger" type="button" onClick={confirmDelete}><Icon name="trash" />Aus Code Deck entfernen</button><button className="button button--primary" type="submit"><Icon name="check" />Änderungen speichern</button></div>
+              <div className="form-actions form-actions--space-between"><button className="button button--danger" type="button" onClick={confirmDelete}><Icon name="trash" />{t("Aus Code Deck entfernen", "Remove from Code Deck")}</button><button className="button button--primary" type="submit"><Icon name="check" />{t("Änderungen speichern", "Save changes")}</button></div>
             </form>
           )}
         </div>
