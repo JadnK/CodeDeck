@@ -3,9 +3,11 @@ import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import { getBuiltInProjectTemplates } from "../../shared/lib/projectTemplates";
+import { suggestBuildCommand, suggestDevPort, suggestRunCommand } from "../../shared/lib/projectRuntime";
 import { createId } from "../../shared/lib/storage";
 import {
   chooseDirectory,
+  cloneRepository,
   createProjectFromTemplate,
   inspectProject,
 } from "../../shared/lib/tauri";
@@ -27,7 +29,7 @@ type ProjectCreateModalProps = {
   onError: (message: string) => void;
 };
 
-type CreateMode = "existing" | "new";
+type CreateMode = "existing" | "new" | "clone";
 
 function folderName(path: string, fallback: string) {
   return path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || fallback;
@@ -37,6 +39,10 @@ function joinPreview(parent: string, name: string) {
   if (!parent.trim()) return name.trim();
   const separator = parent.includes("\\") && !parent.includes("/") ? "\\" : "/";
   return `${parent.replace(/[\\/]+$/, "")}${separator}${name.trim() || "my-project"}`;
+}
+
+function repositoryName(url: string) {
+  return url.trim().replace(/[\\/]+$/, "").split(/[\\/:]/).pop()?.replace(/\.git$/i, "") ?? "";
 }
 
 export function ProjectCreateModal({
@@ -53,6 +59,10 @@ export function ProjectCreateModal({
   const builtInProjectTemplates = getBuiltInProjectTemplates(language);
   const [mode, setMode] = useState<CreateMode>("new");
   const [existingPath, setExistingPath] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [cloneDirectoryName, setCloneDirectoryName] = useState("");
+  const [cloneBranch, setCloneBranch] = useState("");
+  const [shallowClone, setShallowClone] = useState(false);
   const [parentPath, setParentPath] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -76,6 +86,10 @@ export function ProjectCreateModal({
     if (!open) return;
     setMode("new");
     setExistingPath("");
+    setRepositoryUrl("");
+    setCloneDirectoryName("");
+    setCloneBranch("");
+    setShallowClone(false);
     setParentPath(defaultProjectDir);
     setName("");
     setDescription("");
@@ -132,11 +146,11 @@ export function ProjectCreateModal({
     }
   }
 
-  function buildProject(path: string, projectInspection: ProjectInspection): Project {
+  function buildProject(path: string, projectInspection: ProjectInspection, projectName = name.trim()): Project {
     const now = new Date().toISOString();
     return {
       id: createId(),
-      name: name.trim(),
+      name: projectName,
       path,
       description: description.trim(),
       favorite,
@@ -153,11 +167,51 @@ export function ProjectCreateModal({
       createdAt: now,
       updatedAt: now,
       inspection: projectInspection,
+      buildCommand: suggestBuildCommand(projectInspection),
+      runCommand: suggestRunCommand(projectInspection),
+      devPort: suggestDevPort(projectInspection),
     };
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+
+    if (mode === "clone") {
+      if (!repositoryUrl.trim()) {
+        onError(t("Bitte gib eine Repository-URL ein.", "Enter a repository URL."));
+        return;
+      }
+      if (!parentPath.trim()) {
+        onError(t("Bitte wähle einen Zielordner für das Repository.", "Choose a destination folder for the repository."));
+        return;
+      }
+      const inferredName = cloneDirectoryName.trim() || repositoryName(repositoryUrl);
+      if (!inferredName) {
+        onError(t("Bitte gib einen Ordnernamen für das Repository ein.", "Enter a folder name for the repository."));
+        return;
+      }
+      setLoading(true);
+      try {
+        const created = await cloneRepository(
+          repositoryUrl.trim(),
+          parentPath.trim(),
+          cloneDirectoryName.trim() || undefined,
+          cloneBranch.trim() || undefined,
+          shallowClone,
+        );
+        const result = await inspectProject(created.path);
+        const displayName = name.trim() || created.name;
+        setName(displayName);
+        onCreate(buildProject(created.path, result, displayName));
+        onClose();
+      } catch (error) {
+        onError(error instanceof Error ? error.message : String(error));
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!name.trim()) {
       onError(t("Bitte gib einen Projektnamen ein.", "Enter a project name."));
       return;
@@ -222,6 +276,10 @@ export function ProjectCreateModal({
           <button type="button" className={mode === "existing" ? "active" : ""} onClick={() => setMode("existing")}>
             <Icon name="folder" />
             <span><strong>{t("Vorhandenen Ordner hinzufügen", "Add existing folder")}</strong><small>{t("Ein bereits existierendes Projekt nur verwalten.", "Manage a project that already exists.")}</small></span>
+          </button>
+          <button type="button" className={mode === "clone" ? "active" : ""} onClick={() => { setMode("clone"); setName((current) => current || repositoryName(repositoryUrl)); }}>
+            <Icon name="download" />
+            <span><strong>{t("Repository klonen", "Clone repository")}</strong><small>{t("Ein Git-Repository herunterladen und direkt hinzufügen.", "Download a Git repository and add it immediately.")}</small></span>
           </button>
         </div>
 
@@ -299,7 +357,7 @@ export function ProjectCreateModal({
               </label>
             </section>
           </>
-        ) : (
+        ) : mode === "existing" ? (
           <section className="creation-section">
             <div className="creation-section__header"><div><p className="eyebrow">{t("Projektordner", "Project folder")}</p><h3>{t("Vorhandenes Projekt auswählen", "Select existing project")}</h3><p>{t("Code Deck liest nur Metadaten und verändert keine Projektdateien.", "Code Deck only reads metadata and does not change project files.")}</p></div></div>
             <div className="form-field">
@@ -320,11 +378,47 @@ export function ProjectCreateModal({
               </div>
             )}
           </section>
+        ) : (
+          <section className="creation-section clone-section">
+            <div className="creation-section__header"><div><p className="eyebrow">Git Clone</p><h3>{t("Repository herunterladen", "Download repository")}</h3><p>{t("HTTPS-, SSH- und lokale Git-URLs werden unterstützt. Zugangsdaten werden nicht in Code Deck gespeichert.", "HTTPS, SSH and local Git URLs are supported. Credentials are not stored by Code Deck.")}</p></div></div>
+            <div className="form-field">
+              <label htmlFor="clone-repository-url">{t("Repository-URL", "Repository URL")}</label>
+              <input
+                id="clone-repository-url"
+                value={repositoryUrl}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setRepositoryUrl(value);
+                  const inferred = repositoryName(value);
+                  setCloneDirectoryName((current) => current || inferred);
+                  setName((current) => current || inferred);
+                }}
+                placeholder="https://github.com/owner/repository.git"
+                autoFocus
+                spellCheck={false}
+              />
+            </div>
+            <div className="form-grid form-grid--2">
+              <div className="form-field">
+                <label htmlFor="clone-parent">{t("Zielordner", "Destination folder")}</label>
+                <div className="input-action-row"><input id="clone-parent" value={parentPath} onChange={(event) => setParentPath(event.target.value)} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browseParent}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div>
+              </div>
+              <div className="form-field">
+                <label htmlFor="clone-directory-name">{t("Ordnername", "Folder name")}</label>
+                <input id="clone-directory-name" value={cloneDirectoryName} onChange={(event) => { setCloneDirectoryName(event.target.value); setName(event.target.value); }} placeholder={repositoryName(repositoryUrl) || "repository"} />
+              </div>
+            </div>
+            <div className="form-grid form-grid--2">
+              <div className="form-field"><label htmlFor="clone-branch">{t("Branch oder Tag (optional)", "Branch or tag (optional)")}</label><input id="clone-branch" value={cloneBranch} onChange={(event) => setCloneBranch(event.target.value)} placeholder="main" /></div>
+              <label className="checkbox-row"><input type="checkbox" checked={shallowClone} onChange={(event) => setShallowClone(event.target.checked)} /><span><strong>{t("Nur neuesten Stand klonen", "Clone latest revision only")}</strong><small><code>git clone --depth 1</code> {t("spart Zeit und Speicherplatz, enthält aber keine vollständige Historie.", "saves time and disk space but omits the full history.")}</small></span></label>
+            </div>
+            <div className="path-preview"><Icon name="folder" /><span><small>{t("Repository-Pfad", "Repository path")}</small><code>{joinPreview(parentPath, cloneDirectoryName || repositoryName(repositoryUrl))}</code></span></div>
+          </section>
         )}
 
         <section className="creation-section creation-section--compact">
           <div className="creation-section__header"><div><p className="eyebrow">{t("3. Anzeige in Code Deck", "3. Display in Code Deck")}</p><h3>{t("Metadaten und Standardaktion", "Metadata and default action")}</h3><p>{t("Diese Angaben kannst du später in den Projektdetails ändern.", "You can change these values later in the project details.")}</p></div></div>
-          {mode === "existing" && (
+          {mode !== "new" && (
             <div className="form-field"><label htmlFor="project-name">{t("Anzeigename", "Display name")}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Portfolio Website" /></div>
           )}
           <div className="form-field">
@@ -340,15 +434,15 @@ export function ProjectCreateModal({
         </section>
 
         <div className="creation-summary">
-          <Icon name={mode === "new" ? "plus" : "folder"} />
-          <span><strong>{mode === "new" ? t("Code Deck erstellt Dateien und nimmt das Projekt direkt auf.", "Code Deck creates the files and adds the project immediately.") : t("Code Deck nimmt den Ordner auf und erkennt verfügbare Aktionen.", "Code Deck adds the folder and detects available actions.")}</strong><small>{mode === "new" ? t("Pakete wie npm-Dependencies oder Maven-Artefakte installierst du anschließend über die erkannten Commands.", "Install packages such as npm dependencies or Maven artifacts afterwards using the detected commands.") : t("Es werden keine Dateien im ausgewählten Projekt verändert.", "No files in the selected project are changed.")}</small></span>
+          <Icon name={mode === "new" ? "plus" : mode === "clone" ? "download" : "folder"} />
+          <span><strong>{mode === "new" ? t("Code Deck erstellt Dateien und nimmt das Projekt direkt auf.", "Code Deck creates the files and adds the project immediately.") : mode === "clone" ? t("Code Deck klont das Repository und erkennt danach Git, Scripts und Technologien.", "Code Deck clones the repository and then detects Git, scripts and technologies.") : t("Code Deck nimmt den Ordner auf und erkennt verfügbare Aktionen.", "Code Deck adds the folder and detects available actions.")}</strong><small>{mode === "new" ? t("Pakete wie npm-Dependencies oder Maven-Artefakte installierst du anschließend über die erkannten Commands.", "Install packages such as npm dependencies or Maven artifacts afterwards using the detected commands.") : mode === "clone" ? t("Der Clone startet nur nach deinem Klick. Zugangsdaten werden von Git beziehungsweise deinem Credential Manager verarbeitet.", "Cloning only starts after your click. Credentials are handled by Git or your credential manager.") : t("Es werden keine Dateien im ausgewählten Projekt verändert.", "No files in the selected project are changed.")}</small></span>
         </div>
 
         <div className="form-actions">
           <button className="button button--ghost" type="button" onClick={onClose}>{t("Abbrechen", "Cancel")}</button>
           <button className="button button--primary" type="submit" disabled={loading}>
-            <Icon name={mode === "new" ? "plus" : "folder"} />
-            {loading ? t("Bitte warten…", "Please wait…") : mode === "new" ? t("Projekt erstellen", "Create project") : t("Ordner zu Code Deck hinzufügen", "Add folder to Code Deck")}
+            <Icon name={mode === "new" ? "plus" : mode === "clone" ? "download" : "folder"} />
+            {loading ? t("Bitte warten…", "Please wait…") : mode === "new" ? t("Projekt erstellen", "Create project") : mode === "clone" ? t("Repository klonen", "Clone repository") : t("Ordner zu Code Deck hinzufügen", "Add folder to Code Deck")}
           </button>
         </div>
       </form>

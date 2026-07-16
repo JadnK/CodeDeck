@@ -21,9 +21,11 @@
 
 - Keep local projects in one searchable dashboard
 - Open projects in the correct IDE
-- Run and stop development commands
+- Clone Git repositories or create projects from built-in and custom templates
+- Build, run and stop projects with a configurable development port
+- Manage branches, diffs, staging, commits, remotes and merge conflicts
 - Keep project-specific todos with status, priority and manual ordering
-- Create projects from built-in or custom templates
+- Stay available from the system tray and report finished commands through desktop notifications
 - Start complete multi-project workspaces
 
 The interface is available in German and English. This README uses the German labels where that makes the controls easier to find.
@@ -41,11 +43,11 @@ __If CodeDeck saves you time, consider starring the repository.__
 |---|---|---|
 | Project search | Search field at the top | Searches names, paths, frameworks and branches |
 | Favorites | **Favoriten** filter and star on each card | Keeps frequently used projects at the top |
-| Add a project | **Neues Projekt** | Creates a starter project or adds an existing folder |
+| Add a project | **Neues Projekt** | Creates a starter, adds a folder or clones a Git repository |
 | Scan folders | **Ordner scannen** | Looks below a base folder for Git repositories and known project files |
-| Project actions | **Details** on a project card | IDE, terminal, commands, Git status and project settings |
+| Project actions | **Details** on a project card | IDE, terminal, build/run configuration, Git workbench and project settings |
 | Project todos | **Todos** on a project row or in the project details | Create, prioritize, reorder and complete tasks for one project |
-| Running commands | **Prozesse** in the top bar | Live output, status, history and stop buttons |
+| Running commands | Terminal icon in the top-right actions | Live output, status, history and stop buttons |
 | Multi-project setup | **Workspaces** in the top bar | Starts several project actions together |
 | App configuration | **Einstellungen** in the top bar | IDE commands, templates, theme, folders and import/export |
 
@@ -68,7 +70,7 @@ For a detailed explanation of every page and feature, see the full user guide:
 
 ## Adding projects
 
-Click **Neues Projekt** on the dashboard. There are two modes.
+Click **Neues Projekt** on the dashboard. There are three modes.
 
 ### Create a new project
 
@@ -106,6 +108,10 @@ Dockerfile
 
 Detected package scripts are added as command suggestions. The project files themselves are not changed.
 
+### Clone a repository
+
+Choose **Repository klonen**, enter an HTTPS, SSH or local Git URL and select the destination folder. You can optionally choose a branch or tag and create a shallow clone. After cloning, CodeDeck detects the project metadata and adds the repository without running any project commands.
+
 ### Scan a projects folder
 
 Use **Ordner scannen** when you already have many repositories below one folder, for example:
@@ -129,7 +135,9 @@ The detail view contains the project-specific functions:
 - **Ordner öffnen** opens Explorer, Finder or the Linux file manager
 - **Status aktualisieren** scans frameworks, scripts, Docker files and Git data again
 - **Commands** stores commands such as `pnpm dev`, `mvn test` or `cargo run`
-- **Git status** shows the current branch, changed-file count and latest commit
+- **Build & Run** stores the project build command, run command and development port
+- **Git** shows diffs, branches, staging, commits, fetch, pull, push and active conflicts
+- the conflict resolver can use the current version, incoming version, both versions or a manual result
 - project name, description, favorite state and preferred IDE can be edited here
 - archiving hides the project from the normal dashboard without deleting its files
 
@@ -149,7 +157,7 @@ Each run shows:
 - stdout and stderr output
 - a stop button for active processes
 
-Finished entries can be removed from the history without touching the project.
+Finished entries can be removed from the history without touching the project. Optional desktop notifications report command success or failure, and closing the main window keeps CodeDeck available from the system tray.
 
 ## Workspaces
 
@@ -353,7 +361,7 @@ src-tauri/tauri.conf.json
 Then create and push the matching tag:
 
 ```bash
-VERSION=1.0.1
+VERSION=1.1.0
 git tag -a "v${VERSION}" -m "CodeDeck v${VERSION}"
 git push origin "v${VERSION}"
 ```
@@ -365,9 +373,8 @@ The release workflow builds the platform packages and creates a GitHub release d
 The next useful additions are:
 
 - SQLite storage instead of browser-backed local storage
-- better Git actions such as fetch and pull
 - Docker Compose controls
-- port and process overview
+- a richer port and process overview
 - workspace templates
 - a command palette
 

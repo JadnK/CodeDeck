@@ -14,6 +14,35 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.1.0] - 2026-07-16
+
+### Added
+
+- Added direct Git repository cloning with optional branch or tag selection and shallow clones.
+- Added per-project build and run commands with a configurable development port and quick localhost access.
+- Added a full project Git workbench with branch switching and creation, fetch, pull, push, staging, unstaging, commits and text diffs.
+- Added an integrated merge-conflict resolver with current, incoming, combined and manually edited results.
+- Added controls to continue or abort merge, rebase, cherry-pick and revert operations.
+- Added a system tray menu for opening, hiding and quitting CodeDeck.
+- Added optional desktop notifications when commands, builds or runs finish.
+
+### Changed
+
+- Project details now keep all detected package scripts visible instead of limiting the list.
+- Project runtime settings automatically suggest common build, run and development-port defaults.
+- Vite, Astro, Angular, Nuxt, SvelteKit and Next.js runs automatically receive the configured port when possible.
+- Closing the main window now keeps CodeDeck available in the system tray.
+
+### Fixed
+
+- Improved long script and command layouts so actions remain readable in smaller windows.
+- Git state refreshes after failed operations so newly created conflicts become visible immediately.
+
+### Security
+
+- Repository file operations validate paths before reading, writing, staging or resolving conflicts.
+- Cloned repositories and detected commands are never executed automatically.
+
 ## [1.0.1] - 2026-07-16
 
 ### Added
@@ -184,7 +213,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/JadnK/CodeDeck/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/JadnK/CodeDeck/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...v1.0.0
 [0.2.2]: https://github.com/JadnK/CodeDeck/compare/v0.2.1...v0.2.2

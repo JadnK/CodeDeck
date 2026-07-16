@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
+import { GitProjectPanel } from "../git/GitProjectPanel";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
 import { getDetectedTechnologies } from "../../shared/lib/projectInspection";
 import type {
   Editor,
-  ProcessRun,
   Project,
   ProjectCommand,
   ProjectInspection,
@@ -15,7 +15,6 @@ import type {
 type ProjectDetailsProps = {
   project?: Project;
   editors: Editor[];
-  processHistory: ProcessRun[];
   onClose: () => void;
   onUpdate: (project: Project) => void;
   onDelete: (projectId: string) => void;
@@ -24,8 +23,11 @@ type ProjectDetailsProps = {
   onOpenTerminal: (project: Project) => void;
   onOpenFileManager: (project: Project) => void;
   onRunCommand: (project: Project, command: ProjectCommand, workspaceId?: string) => void;
-  onRunRawCommand: (project: Project, label: string, command: string) => void;
+  onBuildProject: (project: Project) => void;
+  onRunProject: (project: Project) => void;
+  onOpenProjectUrl: (project: Project) => void;
   onRefreshInspection: (project: Project) => Promise<ProjectInspection | undefined>;
+  onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
 
@@ -35,7 +37,6 @@ type Tab = "overview" | "commands" | "git" | "edit";
 export function ProjectDetails({
   project,
   editors,
-  processHistory,
   onClose,
   onUpdate,
   onDelete,
@@ -44,29 +45,21 @@ export function ProjectDetails({
   onOpenTerminal,
   onOpenFileManager,
   onRunCommand,
-  onRunRawCommand,
+  onBuildProject,
+  onRunProject,
+  onOpenProjectUrl,
   onRefreshInspection,
+  onSuccess,
   onError,
 }: ProjectDetailsProps) {
-  const { t, locale } = useI18n();
-  const formatDate = (value?: string) => {
-    if (!value) return "–";
-    return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-  };
-  const statusLabel = (status: ProcessRun["status"]) => ({
-    starting: t("Startet", "Starting"),
-    running: t("Läuft", "Running"),
-    success: t("Erfolgreich", "Successful"),
-    failed: t("Fehlgeschlagen", "Failed"),
-    stopping: t("Wird beendet", "Stopping"),
-    stopped: t("Beendet", "Stopped"),
-  })[status];
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>("overview");
   const [commandLabel, setCommandLabel] = useState("");
   const [commandValue, setCommandValue] = useState("");
   const [editingCommandId, setEditingCommandId] = useState<string>();
   const [refreshing, setRefreshing] = useState(false);
   const [draft, setDraft] = useState<Project>();
+  const [runtimeDraft, setRuntimeDraft] = useState({ buildCommand: "", runCommand: "", devPort: "" });
 
   useEffect(() => {
     setTab("overview");
@@ -77,12 +70,14 @@ export function ProjectDetails({
 
   useEffect(() => {
     setDraft(project ? structuredClone(project) : undefined);
+    setRuntimeDraft({
+      buildCommand: project?.buildCommand ?? "",
+      runCommand: project?.runCommand ?? "",
+      devPort: project?.devPort ? String(project.devPort) : "",
+    });
   }, [project]);
 
-  const runs = useMemo(
-    () => processHistory.filter((run) => run.projectId === project?.id).slice(0, 15),
-    [processHistory, project?.id],
-  );
+
 
   if (!project || !draft) return null;
 
@@ -159,6 +154,23 @@ export function ProjectDetails({
     onUpdate({ ...currentDraft, updatedAt: new Date().toISOString() });
   }
 
+  function saveRuntimeSettings(event: React.FormEvent) {
+    event.preventDefault();
+    const port = runtimeDraft.devPort.trim() ? Number(runtimeDraft.devPort) : undefined;
+    if (port !== undefined && (!Number.isInteger(port) || port < 1 || port > 65535)) {
+      onError(t("Der Port muss zwischen 1 und 65535 liegen.", "The port must be between 1 and 65535."));
+      return;
+    }
+    onUpdate({
+      ...currentProject,
+      buildCommand: runtimeDraft.buildCommand.trim(),
+      runCommand: runtimeDraft.runCommand.trim(),
+      devPort: port,
+      updatedAt: new Date().toISOString(),
+    });
+    onSuccess(t("Build-, Run- und Port-Einstellungen wurden gespeichert.", "Build, run and port settings were saved."));
+  }
+
   function confirmDelete() {
     if (window.confirm(t(`„${currentProject.name}“ wirklich aus Code Deck entfernen? Die Projektdateien bleiben unverändert.`, `Remove “${currentProject.name}” from Code Deck? The project files will remain unchanged.`))) {
       onDelete(currentProject.id);
@@ -176,7 +188,7 @@ export function ProjectDetails({
             </div>
             <div>
               <div className="project-detail__title-row">
-                <h2 className="project-name selectable-text">{project.name}</h2>
+                <h2>{project.name}</h2>
                 {project.archived && <span className="badge badge--warning">{t("Archiviert", "Archived")}</span>}
               </div>
               <p>{project.path}</p>
@@ -191,6 +203,12 @@ export function ProjectDetails({
             <button className="button button--primary" type="button" onClick={() => onOpenEditor(project)} disabled={!preferredEditor}>
               <Icon name="external" />
               {preferredEditor ? t(`In ${preferredEditor.name} öffnen`, `Open in ${preferredEditor.name}`) : t("IDE wählen", "Choose IDE")}
+            </button>
+            <button className="button button--secondary" type="button" onClick={() => onBuildProject(project)} disabled={!project.buildCommand}>
+              <Icon name="box" />Build
+            </button>
+            <button className="button button--secondary" type="button" onClick={() => onRunProject(project)} disabled={!project.runCommand}>
+              <Icon name="play" />Run
             </button>
             <button className="button button--secondary" type="button" onClick={() => onOpenTodos(project)}>
               <Icon name="list" />{t("Todos", "Todos")}{project.todos.filter((todo) => todo.status !== "done").length > 0 && <span className="button-count">{project.todos.filter((todo) => todo.status !== "done").length}</span>}
@@ -237,8 +255,8 @@ export function ProjectDetails({
                   <div className="quick-command-list">
                     {project.commands.slice(0, 5).map((command) => (
                       <button type="button" key={command.id} onClick={() => onRunCommand(project, command)}>
-                        <Icon name="play" />
-                        <span><b>{command.label}</b><code>{command.command}</code></span>
+                        <span><Icon name="play" /><b>{command.label}</b></span>
+                        <code>{command.command}</code>
                       </button>
                     ))}
                   </div>
@@ -254,10 +272,10 @@ export function ProjectDetails({
                     {inspection.scripts.map((script) => {
                       const exists = project.commands.some((entry) => entry.command === script.command);
                       return (
-                        <div className="script-list__row" key={script.name}>
-                          <span className="script-list__content"><strong>{script.name}</strong><code>{script.command}</code></span>
+                        <div key={script.name}>
+                          <span><strong>{script.name}</strong><code>{script.command}</code></span>
                           <button className="button button--ghost button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? t("Bereits als Command gespeichert", "Already saved as a command") : t("Dieses Script als Schnellaktion speichern", "Save this script as a quick action")}>
-                            <Icon name={exists ? "check" : "plus"} /><span>{exists ? t("Gespeichert", "Saved") : t("Speichern", "Save")}</span>
+                            <Icon name={exists ? "check" : "plus"} />{exists ? t("Gespeichert", "Saved") : t("Als Command", "Save command")}
                           </button>
                         </div>
                       );
@@ -270,6 +288,22 @@ export function ProjectDetails({
 
           {tab === "commands" && (
             <div className="commands-layout">
+              <form className="panel panel--wide runtime-panel" onSubmit={saveRuntimeSettings}>
+                <div className="panel__header">
+                  <div><p className="eyebrow">Build & Run</p><h3>{t("Projekt starten und bauen", "Run and build project")}</h3></div>
+                  <div className="button-row">
+                    {project.devPort && <button className="button button--ghost button--small" type="button" onClick={() => onOpenProjectUrl(project)}><Icon name="external" />localhost:{project.devPort}</button>}
+                    <button className="button button--secondary button--small" type="button" onClick={() => onBuildProject(project)} disabled={!project.buildCommand}><Icon name="box" />Build</button>
+                    <button className="button button--primary button--small" type="button" onClick={() => onRunProject(project)} disabled={!project.runCommand}><Icon name="play" />Run</button>
+                  </div>
+                </div>
+                <div className="form-grid runtime-form-grid">
+                  <div className="form-field"><label htmlFor="runtime-build-command">{t("Build-Command", "Build command")}</label><input id="runtime-build-command" value={runtimeDraft.buildCommand} onChange={(event) => setRuntimeDraft({ ...runtimeDraft, buildCommand: event.target.value })} placeholder="pnpm build" /></div>
+                  <div className="form-field"><label htmlFor="runtime-run-command">{t("Run-Command", "Run command")}</label><input id="runtime-run-command" value={runtimeDraft.runCommand} onChange={(event) => setRuntimeDraft({ ...runtimeDraft, runCommand: event.target.value })} placeholder="pnpm dev -- --port {port}" /><small>{t("Nutze optional {port}. Zusätzlich setzt Code Deck PORT, SERVER_PORT und VITE_PORT.", "Optionally use {port}. Code Deck also sets PORT, SERVER_PORT and VITE_PORT.")}</small></div>
+                  <div className="form-field"><label htmlFor="runtime-port">{t("Entwicklungs-Port", "Development port")}</label><input id="runtime-port" inputMode="numeric" value={runtimeDraft.devPort} onChange={(event) => setRuntimeDraft({ ...runtimeDraft, devPort: event.target.value.replace(/\D/g, "") })} placeholder="5173" /></div>
+                </div>
+                <div className="form-actions"><button className="button button--secondary" type="submit"><Icon name="check" />{t("Run-Konfiguration speichern", "Save run configuration")}</button></div>
+              </form>
               <section className="panel panel--wide">
                 <div className="panel__header"><div><p className="eyebrow">Command Runner</p><h3>{t("Gespeicherte Commands", "Saved commands")}</h3></div></div>
                 {project.commands.length ? (
@@ -292,7 +326,7 @@ export function ProjectDetails({
                 <div className="panel__header"><div><p className="eyebrow">{editingCommandId ? t("Bearbeiten", "Edit") : t("Neu", "New")}</p><h3>{editingCommandId ? t("Command ändern", "Edit command") : t("Command hinzufügen", "Add command")}</h3></div></div>
                 <div className="form-field"><label htmlFor="command-label">{t("Name", "Name")}</label><input id="command-label" value={commandLabel} onChange={(event) => setCommandLabel(event.target.value)} placeholder="Dev Server" /></div>
                 <div className="form-field"><label htmlFor="command-value">{t("Befehl", "Command")}</label><textarea id="command-value" value={commandValue} onChange={(event) => setCommandValue(event.target.value)} placeholder="pnpm dev" rows={4} /></div>
-                <div className="notice"><Icon name="info" /><p>{t("Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr findest du über die Anzeige für aktive Commands im Kopfbereich.", "Commands only run after a click and always inside the project folder. Use the active-command indicator in the header to view stdout and stderr.")}</p></div>
+                <div className="notice"><Icon name="info" /><p>{t("Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr erscheinen unter Prozesse.", "Commands only run after a click and always inside the project folder. stdout and stderr appear under Processes.")}</p></div>
                 <div className="form-actions">
                   {editingCommandId && <button className="button button--ghost" type="button" onClick={() => { setEditingCommandId(undefined); setCommandLabel(""); setCommandValue(""); }}>{t("Abbrechen", "Cancel")}</button>}
                   <button className="button button--primary" type="submit"><Icon name={editingCommandId ? "check" : "plus"} />{editingCommandId ? t("Änderungen speichern", "Save changes") : t("Command hinzufügen", "Add command")}</button>
@@ -302,34 +336,12 @@ export function ProjectDetails({
           )}
 
           {tab === "git" && (
-            <div className="detail-grid">
-              <section className="panel">
-                <div className="panel__header"><div><p className="eyebrow">Git</p><h3>{t("Repository-Status", "Repository status")}</h3></div><button className="button button--ghost button--small" type="button" onClick={refresh}><Icon name="refresh" />{t("Status aktualisieren", "Refresh status")}</button></div>
-                {inspection?.isGit ? (
-                  <div className="git-status">
-                    <div><span>Branch</span><strong>{inspection.branch || "–"}</strong></div>
-                    <div><span>{t("Geänderte Dateien", "Changed files")}</span><strong className={inspection.changedFiles ? "status-warning" : "status-good"}>{inspection.changedFiles}</strong></div>
-                    <div><span>{t("Letzter Commit", "Latest commit")}</span><strong>{inspection.lastCommit?.message || "–"}</strong><small>{inspection.lastCommit ? `${inspection.lastCommit.hash} · ${inspection.lastCommit.date}` : ""}</small></div>
-                    <div className="button-row"><button className="button button--secondary" type="button" onClick={() => onRunRawCommand(project, "Git Fetch", "git fetch --prune")}><Icon name="download" />Fetch</button><button className="button button--secondary" type="button" onClick={() => onRunRawCommand(project, "Git Pull", "git pull")}><Icon name="refresh" />Pull</button></div>
-                  </div>
-                ) : <div className="empty-state"><Icon name="git" /><h3>{t("Kein Git-Repository erkannt", "No Git repository detected")}</h3><p>{t("Der Ordner enthält kein .git-Verzeichnis oder Git ist nicht verfügbar.", "The folder does not contain a .git directory or Git is unavailable.")}</p></div>}
-              </section>
-              <section className="panel panel--wide">
-                <div className="panel__header"><div><p className="eyebrow">{t("Historie", "History")}</p><h3>{t("Letzte Ausführungen", "Recent runs")}</h3></div></div>
-                {runs.length ? (
-                  <div className="history-list">
-                    {runs.map((run) => (
-                      <article key={run.id}>
-                        <span className={`process-dot process-dot--${run.status}`} />
-                        <div><strong>{run.label}</strong><code>{run.command}</code></div>
-                        <span>{formatDate(run.startedAt)}</span>
-                        <b>{statusLabel(run.status)}</b>
-                      </article>
-                    ))}
-                  </div>
-                ) : <div className="empty-state"><Icon name="history" /><h3>{t("Noch keine Ausführungen", "No runs yet")}</h3><p>{t("Gestartete Commands werden hier lokal protokolliert.", "Started commands are logged locally here.")}</p></div>}
-              </section>
-            </div>
+            <GitProjectPanel
+              project={project}
+              onRefreshInspection={() => onRefreshInspection(project)}
+              onSuccess={onSuccess}
+              onError={onError}
+            />
           )}
 
           {tab === "edit" && (
