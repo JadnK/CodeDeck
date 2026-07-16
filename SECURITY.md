@@ -6,6 +6,8 @@ CodeDeck opens local folders, launches external applications and runs user-confi
 
 | Version | Supported |
 |---|---|
+| 1.2.x | Yes |
+| 1.1.x | Yes |
 | 1.0.x | Yes |
 | 0.2.x | No |
 | 0.1.x | No |

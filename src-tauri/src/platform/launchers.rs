@@ -375,6 +375,7 @@ fn flatpak_fallback_for_program(program: &str) -> Option<(PathBuf, &'static str)
     } else {
         None
     }
+}
 
 #[cfg(all(unix, not(target_os = "macos")))]
 fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
