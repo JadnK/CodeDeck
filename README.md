@@ -47,6 +47,22 @@ The current interface is in German. This README uses the exact German button nam
 | Multi-project setup | **Workspaces** in the top bar | Starts several project actions together |
 | App configuration | **Einstellungen** in the top bar | IDE commands, templates, theme, folders and import/export |
 
+## Documentation
+
+For a detailed explanation of every page and feature, see the full user guide:
+
+[Open the Code Deck documentation](docs/README.md)
+
+
+### Guides
+
+- [Dashboard](docs/pages/dashboard.md)
+- [New Project](docs/pages/new-project.md)
+- [Project Details](docs/pages/project-details.md)
+- [Processes](docs/pages/processes.md)
+- [Workspaces](docs/pages/workspaces.md)
+- [Settings](docs/pages/settings.md)
+
 ## Adding projects
 
 Click **Neues Projekt** on the dashboard. There are two modes.
