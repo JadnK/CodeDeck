@@ -1,285 +1,152 @@
 <p align="center">
-  <img src="public/icon.png" alt="Code Deck icon" width="96" height="96">
+  <img src="public/icon.png" alt="CodeDeck logo" width="96" height="96">
 </p>
 
-<h1 align="center">Code Deck</h1>
+<h1 align="center">CodeDeck</h1>
 
 <p align="center">
-  A desktop app for keeping local development projects, launch commands and IDE shortcuts in one place.
+  <strong>Your local development cockpit.</strong>
+  <br>
+  Organize projects, launch tools, run commands, manage Git, and start complete development setups from one desktop app.
 </p>
 
 <p align="center">
-  <a href="https://github.com/JadnK/CodeDeck/actions/workflows/ci.yml"><img src="https://github.com/JadnK/CodeDeck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/JadnK/CodeDeck/releases"><img src="https://img.shields.io/github/v/release/JadnK/CodeDeck?display_name=tag&sort=semver" alt="Latest release"></a>
+  <a href="https://github.com/JadnK/CodeDeck/releases/latest"><strong>Download CodeDeck</strong></a>
+  ·
+  <a href="docs/README.md">Documentation</a>
+  ·
+  <a href="https://github.com/JadnK/CodeDeck/issues">Report a bug</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/JadnK/CodeDeck/actions/workflows/ci.yml">
+    <img src="https://github.com/JadnK/CodeDeck/actions/workflows/ci.yml/badge.svg" alt="CI status">
+  </a>
+  <a href="https://github.com/JadnK/CodeDeck/releases/latest">
+    <img src="https://img.shields.io/github/v/release/JadnK/CodeDeck?display_name=tag&sort=semver" alt="Latest release">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/JadnK/CodeDeck" alt="License">
+  </a>
   <img src="https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&logoColor=white" alt="Tauri 2">
   <img src="https://img.shields.io/badge/React-TypeScript-3178C6?logo=react&logoColor=white" alt="React and TypeScript">
 </p>
 
-![Code Deck dashboard](docs/screenshots/dashboard.png)
+<p align="center">
+  <img src="docs/screenshots/animation.gif" alt="CodeDeck demo showing the main development workflow" width="100%">
+</p>
 
-## What CodeDeck does
+## Why CodeDeck?
 
-- Keep local projects in one searchable dashboard
-- Open projects in the correct IDE
-- Clone Git repositories or create projects from built-in and custom templates
-- Build, run and stop projects with a configurable development port
-- Manage branches, diffs, staging, commits, remotes and merge conflicts
-- Keep project-specific todos with status, priority and manual ordering
-- Stay available from the system tray and report finished commands through desktop notifications
-- Start complete multi-project workspaces
+A local development workflow is usually spread across project folders, terminals, editors, Git tools, and browser tabs. CodeDeck brings those repeated steps into one searchable desktop dashboard.
 
-The interface is available in German and English. This README uses the German labels where that makes the controls easier to find.
+Add an existing project, clone a repository, or create one from a template. Then open the correct IDE, run development commands, inspect Git changes, manage project tasks, and launch multi-project environments without rebuilding your setup every time.
+
+CodeDeck is local-first: no account or server is required, and the app configuration stays on your machine.
+
+## Features
+
+| | |
+|---|---|
+| **Project dashboard** | Search, favorite, archive, scan, and organize local development projects. |
+| **Project creation** | Add folders, clone HTTPS/SSH/local Git repositories, or create projects from built-in and custom templates. |
+| **IDE and terminal launchers** | Open each project in its preferred IDE, terminal, or system file manager. |
+| **Build and run** | Save commands, working directories, environment variables, build/run actions, and development ports. |
+| **Live processes** | Follow stdout and stderr, inspect command status, stop active processes, and receive optional desktop notifications. |
+| **Git workbench** | View diffs, manage branches, stage files, commit, fetch, pull, push, and resolve text merge conflicts. |
+| **Launch sets** | Start several projects, commands, terminals, IDEs, folders, and URLs in parallel or sequence. |
+| **Project todos** | Keep lightweight project-specific tasks with status, priority, and manual ordering. |
+| **Local configuration** | Import and export settings, use light/dark/system themes, and keep CodeDeck available in the system tray. |
+| **German and English UI** | Switch the application interface between German and English. |
+
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/project-details.png" alt="Project details and development actions">
+      <br>
+      <strong>Project details</strong>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/processes.png" alt="Running processes and live logs">
+      <br>
+      <strong>Processes and live logs</strong>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/workspaces.png" alt="Launch set configuration">
+      <br>
+      <strong>Launch sets</strong>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/todo.png" alt="Project todo management">
+      <br>
+      <strong>Project todos</strong>
+    </td>
+  </tr>
+</table>
 
 ## Download
 
-Download the latest version from
-[GitHub Releases](../../releases/latest).
+Download the latest build from [GitHub Releases](https://github.com/JadnK/CodeDeck/releases/latest).
 
-__If CodeDeck saves you time, consider starring the repository.__
-
-## Where everything is
-
-| Area | Where to find it | What it is for |
-|---|---|---|
-| Project search | Search field at the top | Searches names, paths, frameworks and branches |
-| Favorites | **Favoriten** filter and star on each card | Keeps frequently used projects at the top |
-| Add a project | **Neues Projekt** | Creates a starter, adds a folder or clones a Git repository |
-| Scan folders | **Ordner scannen** | Looks below a base folder for Git repositories and known project files |
-| Project actions | **Details** on a project card | IDE, terminal, build/run configuration, Git workbench and project settings |
-| Project todos | **Todos** on a project row or in the project details | Create, prioritize, reorder and complete tasks for one project |
-| Running commands | Terminal icon in the top-right actions | Live output, status, history and stop buttons |
-| Multi-project setup | **Launch sets** in the top bar | Starts several project actions together |
-| App configuration | **Einstellungen** in the top bar | IDE commands, templates, theme, folders and import/export |
-
-## Documentation
-
-For a detailed explanation of every page and feature, see the full user guide:
-
-[Open the Code Deck documentation](docs/README.md)
-
-
-### Guides
-
-- [Dashboard](docs/pages/dashboard.md)
-- [New Project](docs/pages/new-project.md)
-- [Project Details](docs/pages/project-details.md)
-- [Todos](docs/pages/todos.md) — create, prioritize, reorder and complete project tasks
-- [Processes](docs/pages/processes.md)
-- [Workspaces](docs/pages/workspaces.md)
-- [Settings](docs/pages/settings.md)
-
-## Adding projects
-
-Click **Neues Projekt** on the dashboard. There are three modes.
-
-### Create a new project
-
-Choose **Neues Projekt erstellen** and select a starter:
-
-- Empty project
-- Node.js
-- Node.js with TypeScript
-- React with Vite
-- Spring Boot with Maven and Java 21
-- Python
-- Rust CLI
-- one of your own local templates
-
-Then enter the project name and the parent folder. Code Deck shows the final path before it creates anything. Git initialization is optional.
-
-Dependencies are not installed automatically. For example, a generated React project still needs `pnpm install` or `npm install` afterwards.
-
-![New project dialog](docs/screenshots/new-project.png)
-
-### Add an existing project
-
-Choose **Vorhandenen Ordner hinzufügen** and select the project directory. Code Deck checks common files such as:
-
-```text
-.git
-package.json
-Cargo.toml
-pom.xml
-build.gradle
-pyproject.toml
-go.mod
-Dockerfile
-```
-
-Detected package scripts are added as command suggestions. The project files themselves are not changed.
-
-### Clone a repository
-
-Choose **Repository klonen**, enter an HTTPS, SSH or local Git URL and select the destination folder. You can optionally choose a branch or tag and create a shallow clone. After cloning, CodeDeck detects the project metadata and adds the repository without running any project commands.
-
-### Scan a projects folder
-
-Use **Ordner scannen** when you already have many repositories below one folder, for example:
-
-```text
-C:\Users\you\Projects
-```
-
-The scan lists likely projects first. You decide which ones are added.
-
-## Project details
-
-Open **Details** from a project card.
-
-![Project details](docs/screenshots/project-details.png)
-
-The detail view contains the project-specific functions:
-
-- **Open in …** starts the preferred IDE configured for the project
-- **Terminal öffnen** opens a terminal in the project directory
-- **Ordner öffnen** opens Explorer, Finder or the Linux file manager
-- **Status aktualisieren** scans frameworks, scripts, Docker files and Git data again
-- **Commands** stores commands such as `pnpm dev`, `mvn test` or `cargo run`
-- **Build & Run** stores the project build command, run command and development port
-- **Git** shows diffs, branches, staging, commits, fetch, pull, push and active conflicts
-- the conflict resolver can use the current version, incoming version, both versions or a manual result
-- project name, description, favorite state and preferred IDE can be edited here
-- archiving hides the project from the normal dashboard without deleting its files
-
-A command always runs with the project folder as its base directory. A custom working directory and environment variables can also be saved per command.
-
-## Processes and logs
-
-Starting a command opens the **Prozesse** panel. It stays available from the top bar afterwards.
-
-![Processes and live logs](docs/screenshots/processes.png)
-
-Each run shows:
-
-- project and command name
-- running, successful, failed or stopped state
-- start time and process ID when available
-- stdout and stderr output
-- a stop button for active processes
-
-Finished entries can be removed from the history without touching the project. Optional desktop notifications report command success or failure, and closing the main window keeps CodeDeck available from the system tray.
-
-## Launch sets
-
-A launch set is useful when one task needs several projects, for example a frontend, API and local browser URL. It is the streamlined successor to the former workspace view.
-
-![Launch set configuration](docs/screenshots/workspaces.png)
-
-Open **Launch sets**, create a set and add steps. Supported steps are:
-
-- open a project in an IDE
-- open a terminal
-- open the project folder
-- run a saved or custom command
-- open a URL
-
-Steps can run in parallel or in sequence. **Start** runs the complete launch set; **Stop all** stops processes that were started by that set.
-
-## Settings
-
-Open **Einstellungen** in the top-right corner.
-
-![Code Deck settings](docs/screenshots/settings.png)
-
-### Editors and IDEs
-
-Each editor has a name and a command template. Examples:
-
-```text
-VS Code:       code "{projectPath}"
-Cursor:        cursor "{projectPath}"
-IntelliJ IDEA: idea "{projectPath}"
-WebStorm:      webstorm "{projectPath}"
-```
-
-Available placeholders:
-
-```text
-{projectPath}
-{projectName}
-```
-
-Keep `{projectPath}` in quotes so paths containing spaces work correctly.
-
-### Terminal and default folder
-
-You can set:
-
-- the default folder used by project dialogs and folder scans
-- a custom terminal launch command when automatic terminal detection does not fit your setup
-
-Leaving the terminal command empty uses the platform-specific default.
-
-### Custom project templates
-
-Under **Eigene Projektvorlagen**, select a local folder and save it as a reusable template. When the template is used, Code Deck copies its files into the new project folder.
-
-Generated or repository-specific folders such as these are skipped:
-
-```text
-.git
-node_modules
-target
-dist
-build
-```
-
-### Appearance and backups
-
-Settings also contains:
-
-- light, dark and system theme
-- JSON export of projects, editors, launch sets and settings
-- JSON import with confirmation before the current configuration is replaced
-- an option to run the onboarding again
-
-Imported commands are marked as untrusted and require confirmation before their first run.
-
-## Keyboard shortcuts
-
-| Shortcut | Action |
-|---|---|
-| `Ctrl/Cmd + K` | Focus project search |
-| `Ctrl/Cmd + N` | Open the add-project dialog |
-| `Esc` | Close the active dialog |
-
-## Installation
-
-Download a build from [GitHub Releases](https://github.com/JadnK/CodeDeck/releases).
-
-| Platform | Package |
+| Platform | Packages |
 |---|---|
 | Windows | `.msi` or setup `.exe` |
 | macOS | `.dmg` |
 | Linux | `.AppImage` or `.deb` |
 
-Code Deck does not require an account or a server. The app configuration stays on the local machine.
+CodeDeck can check published releases and install signed updates from inside the application.
 
-## Running from source
+## Getting started
+
+1. Install and open CodeDeck.
+2. Add an existing project folder, scan a projects directory, clone a repository, or create a project from a template.
+3. Select the preferred IDE and configure saved commands or build/run actions.
+4. Use the project dashboard for daily work, or create a launch set for workflows that need multiple projects and tools.
+
+The complete page-by-page guide is available in [`docs/README.md`](docs/README.md).
+
+### User guides
+
+- [Dashboard](docs/pages/dashboard.md)
+- [Add or create a project](docs/pages/new-project.md)
+- [Project details and Git](docs/pages/project-details.md)
+- [Project todos](docs/pages/todos.md)
+- [Processes and logs](docs/pages/processes.md)
+- [Launch sets](docs/pages/workspaces.md)
+- [Settings](docs/pages/settings.md)
+
+## Run from source
 
 ### Requirements
 
 - Node.js 24
 - pnpm 10.33 or newer
-- stable Rust toolchain
-- the Tauri system dependencies for your operating system
+- Stable Rust toolchain
+- [Tauri system dependencies](https://v2.tauri.app/start/prerequisites/) for your operating system
 
 ### Development
 
 ```bash
+git clone https://github.com/JadnK/CodeDeck.git
+cd CodeDeck
+
 pnpm install --frozen-lockfile
 pnpm tauri:dev
 ```
 
-Frontend only:
+For frontend-only development:
 
 ```bash
 pnpm dev
 ```
 
-The frontend-only version is useful for UI work, but filesystem dialogs, process execution and IDE launching require the Tauri app.
+The frontend-only version is useful for interface work. Filesystem dialogs, process execution, IDE launching, system tray integration, and other native features require the Tauri application.
 
-### Checks and build
+### Checks and production build
 
 ```bash
 pnpm build
@@ -287,119 +154,86 @@ cargo check --manifest-path src-tauri/Cargo.toml
 pnpm tauri:build
 ```
 
-Tauri writes platform packages below:
+Generated platform packages are written to:
 
 ```text
 src-tauri/target/release/bundle/
 ```
 
-### Linux packages
+## Local data and command safety
 
-On Ubuntu or Debian:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y \
-  libwebkit2gtk-4.1-dev \
-  libappindicator3-dev \
-  librsvg2-dev \
-  patchelf
-```
-
-On macOS, install the Xcode command-line tools:
-
-```bash
-xcode-select --install
-```
-
-On Windows, install Microsoft C++ Build Tools with the **Desktop development with C++** workload.
+- Adding a project does not move its folder or silently rewrite its source files.
+- Cloning a repository does not automatically execute its project scripts.
+- Commands only start after an explicit user action and run with the permissions of the current operating-system user.
+- Imported commands are treated as untrusted and require confirmation before their first run.
+- Only import configurations and custom templates from sources you trust.
 
 ## Project structure
 
 ```text
 CodeDeck/
-├── src/
-│   ├── app/                  # Main application state and actions
-│   ├── features/
-│   │   ├── onboarding/       # First-start guide
-│   │   ├── processes/        # Process list and logs
-│   │   ├── projects/         # Cards, creation, scanning and details
-│   │   ├── settings/         # Editors, templates and app settings
-│   │   └── workspaces/       # Workspace editor and runner
-│   └── shared/
-│       ├── components/       # Shared modal, icons and toasts
-│       ├── lib/              # Storage, templates and Tauri bridge
-│       └── types/            # Shared TypeScript models
-├── src-tauri/
-│   ├── src/                  # Rust commands and OS integration
-│   ├── capabilities/         # Tauri permissions
-│   └── tauri.conf.json       # Window and bundle configuration
-├── docs/screenshots/         # Images used in this README
-├── .github/workflows/        # CI and release workflows
+├── src/                         # React and TypeScript frontend
+│   ├── app/                     # Application state and actions
+│   ├── features/                # Projects, processes, settings, onboarding, and launch sets
+│   └── shared/                  # Shared components, types, storage, and Tauri bridge
+├── src-tauri/                   # Rust backend and native integrations
+│   ├── src/
+│   ├── capabilities/
+│   └── tauri.conf.json
+├── docs/                        # User documentation and screenshots
+├── .github/workflows/           # CI and release workflows
 ├── CHANGELOG.md
 └── CONTRIBUTING.md
 ```
 
-## Local data and command safety
+## Roadmap
 
-Code Deck reads project metadata but does not silently rewrite source files.
+Current areas of interest include:
 
-Commands are only started after a click. They run with the permissions of the signed-in operating-system user, so the same care applies as when running a command manually in a terminal.
-
-Only import configurations and custom templates you trust.
-
-## Releases
-
-Before creating a release, keep the version in these files identical:
-
-```text
-package.json
-src-tauri/Cargo.toml
-src-tauri/tauri.conf.json
-```
-
-Then create and push the matching tag:
-
-```bash
-VERSION=1.1.0
-git tag -a "v${VERSION}" -m "CodeDeck v${VERSION}"
-git push origin "v${VERSION}"
-```
-
-The release workflow builds the platform packages and creates a GitHub release draft for review.
-
-## Current plans
-
-The next useful additions are:
-
-- SQLite storage instead of browser-backed local storage
+- SQLite-backed application storage
 - Docker Compose controls
-- a richer port and process overview
-- workspace templates
-- a command palette
+- A richer port and process overview
+- Reusable launch-set templates
+- A command palette
+
+Ideas, bug reports, and focused feature requests are welcome in [GitHub Issues](https://github.com/JadnK/CodeDeck/issues).
 
 ## Contributing
 
-For a small change, create a branch such as:
+Contributions are welcome.
 
-```text
-feature/project-icons
-fix/windows-terminal-launch
-```
+Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request and follow the [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) when participating in the project.
 
-Before opening a pull request, run:
+Before submitting changes, run:
 
 ```bash
 pnpm build
 cargo check --manifest-path src-tauri/Cargo.toml
 ```
 
-More details are in [CONTRIBUTING.md](CONTRIBUTING.md).
+Useful links:
+
+- [Open an issue](https://github.com/JadnK/CodeDeck/issues/new/choose)
+- [View open issues](https://github.com/JadnK/CodeDeck/issues)
+- [Read the changelog](CHANGELOG.md)
+- [Read the security policy](SECURITY.md)
+
+## Tech stack
+
+- [Tauri 2](https://v2.tauri.app/)
+- [Rust](https://www.rust-lang.org/)
+- [React](https://react.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [Vite](https://vite.dev/)
 
 ## License
 
-See [LICENSE](LICENSE).
+CodeDeck is available under the [MIT License](LICENSE).
 
-## Updates
+---
 
-CodeDeck checks published GitHub Releases on startup and can install signed updates directly inside the app. The updater is available from version 0.2.2 onward.
+<p align="center">
+  Built for developers who want less setup and more time inside their projects.
+  <br>
+  If CodeDeck helps your workflow, consider giving the repository a ⭐.
+</p>
