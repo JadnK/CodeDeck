@@ -26,7 +26,13 @@ pub(crate) fn send_system_notification(title: &str, body: &str) {
     );
     let mut command = Command::new("powershell");
     command
-        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"])
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+        ])
         .arg(&script)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

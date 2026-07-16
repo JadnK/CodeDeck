@@ -2,9 +2,7 @@ use std::collections::HashMap;
 
 use tauri::AppHandle;
 
-use crate::{
-    process::{manager, state::ProcessStarted},
-};
+use crate::process::{manager, state::ProcessStarted};
 
 #[tauri::command]
 pub(crate) fn start_process(

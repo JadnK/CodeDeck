@@ -136,10 +136,14 @@ fn windows_editor_direct_candidates(id: &str) -> Vec<PathBuf> {
         "vscode" => {
             if let Some(root) = &local_app_data {
                 candidates.push(root.join("Programs/Microsoft VS Code/Code.exe"));
-                candidates.push(root.join("Programs/Microsoft VS Code Insiders/Code - Insiders.exe"));
+                candidates
+                    .push(root.join("Programs/Microsoft VS Code Insiders/Code - Insiders.exe"));
                 candidates.push(root.join("Microsoft/WindowsApps/code.exe"));
             }
-            for root in [program_files.as_ref(), program_files_x86.as_ref()].into_iter().flatten() {
+            for root in [program_files.as_ref(), program_files_x86.as_ref()]
+                .into_iter()
+                .flatten()
+            {
                 candidates.push(root.join("Microsoft VS Code/Code.exe"));
                 candidates.push(root.join("Microsoft VS Code Insiders/Code - Insiders.exe"));
             }
@@ -161,7 +165,10 @@ fn windows_editor_direct_candidates(id: &str) -> Vec<PathBuf> {
             }
         }
         "sublime" => {
-            for root in [program_files.as_ref(), program_files_x86.as_ref()].into_iter().flatten() {
+            for root in [program_files.as_ref(), program_files_x86.as_ref()]
+                .into_iter()
+                .flatten()
+            {
                 candidates.push(root.join("Sublime Text/sublime_text.exe"));
             }
         }
@@ -209,7 +216,10 @@ fn find_windows_editor_executable(id: &str) -> Option<PathBuf> {
             .filter(|entry| entry.file_type().is_file())
         {
             let filename = entry.file_name().to_string_lossy();
-            if filenames.iter().any(|expected| filename.eq_ignore_ascii_case(expected)) {
+            if filenames
+                .iter()
+                .any(|expected| filename.eq_ignore_ascii_case(expected))
+            {
                 matches.push(entry.into_path());
             }
         }
@@ -222,9 +232,8 @@ fn find_windows_editor_executable(id: &str) -> Option<PathBuf> {
 #[cfg(target_os = "windows")]
 fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
     const EDITORS: &[&str] = &[
-        "vscode", "cursor", "windsurf", "zed", "sublime", "idea", "webstorm",
-        "pycharm", "rider", "clion", "goland", "phpstorm", "rubymine", "datagrip",
-        "fleet",
+        "vscode", "cursor", "windsurf", "zed", "sublime", "idea", "webstorm", "pycharm", "rider",
+        "clion", "goland", "phpstorm", "rubymine", "datagrip", "fleet",
     ];
 
     let mut found_ids = BTreeSet::new();
@@ -275,7 +284,10 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
                 let Some((name, filenames)) = windows_editor_metadata(id) else {
                     continue;
                 };
-                if filenames.iter().any(|expected| filename.eq_ignore_ascii_case(expected)) {
+                if filenames
+                    .iter()
+                    .any(|expected| filename.eq_ignore_ascii_case(expected))
+                {
                     push_editor_suggestion(
                         suggestions,
                         id,
@@ -363,11 +375,7 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
     // Flatpak applications are not exposed as normal executables to an
     // AppImage. Detect them by application ID and launch them through the
     // host flatpak CLI instead.
-    let flatpak_editors = [(
-        "vscode",
-        "VS Code (Flatpak)",
-        "com.visualstudio.code",
-    )];
+    let flatpak_editors = [("vscode", "VS Code (Flatpak)", "com.visualstudio.code")];
 
     for (id, name, app_id) in flatpak_editors {
         if flatpak_app_installed(&flatpak, app_id) {
@@ -404,7 +412,10 @@ fn flatpak_app_installed(flatpak: &Path, app_id: &str) -> bool {
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
-    command.status().map(|status| status.success()).unwrap_or(false)
+    command
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -665,15 +676,12 @@ pub(crate) fn launch_template(
         .stdout(Stdio::null())
         .stderr(Stdio::null());
     hide_console_window(&mut command);
-    command
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| {
-            format!(
-                "IDE '{}' konnte nicht gestartet werden: {error}",
-                display_path(&resolved_program)
-            )
-        })
+    command.spawn().map(|_| ()).map_err(|error| {
+        format!(
+            "IDE '{}' konnte nicht gestartet werden: {error}",
+            display_path(&resolved_program)
+        )
+    })
 }
 
 pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> Result<(), String> {

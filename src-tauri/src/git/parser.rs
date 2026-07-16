@@ -49,7 +49,10 @@ pub(crate) fn parse_git_status_files(raw: &str) -> Vec<GitFileStatus> {
         let work_tree_status = bytes[1] as char;
         let path = entry[3..].to_string();
         let pair = format!("{index_status}{work_tree_status}");
-        let conflicted = matches!(pair.as_str(), "DD" | "AU" | "UD" | "UA" | "DU" | "AA" | "UU");
+        let conflicted = matches!(
+            pair.as_str(),
+            "DD" | "AU" | "UD" | "UA" | "DU" | "AA" | "UU"
+        );
         let untracked = pair == "??";
         files.push(GitFileStatus {
             path,
