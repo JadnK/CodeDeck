@@ -6,10 +6,7 @@ use std::{
 };
 use walkdir::WalkDir;
 
-use crate::{
-    git::repository::command_output,
-    projects::validation::should_skip,
-};
+use crate::{git::repository::command_output, projects::validation::should_skip};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -307,7 +304,8 @@ pub(crate) fn inspect_project_path(root: &Path) -> ProjectInspection {
         languages.insert("Java".to_string());
         tools.insert("Maven".to_string());
         let pom = fs::read_to_string(root.join("pom.xml")).unwrap_or_default();
-        let is_spring_boot = pom.contains("spring-boot") || pom.contains("org.springframework.boot");
+        let is_spring_boot =
+            pom.contains("spring-boot") || pom.contains("org.springframework.boot");
         if is_spring_boot {
             frameworks.insert("Spring Boot".to_string());
             scripts.push(DetectedScript {

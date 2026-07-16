@@ -45,9 +45,12 @@ pub fn run() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
 
-                let show_item = MenuItem::with_id(app, "show", "Code Deck öffnen", true, None::<&str>)?;
-                let hide_item = MenuItem::with_id(app, "hide", "Fenster ausblenden", true, None::<&str>)?;
-                let quit_item = MenuItem::with_id(app, "quit", "Code Deck beenden", true, None::<&str>)?;
+                let show_item =
+                    MenuItem::with_id(app, "show", "Code Deck öffnen", true, None::<&str>)?;
+                let hide_item =
+                    MenuItem::with_id(app, "hide", "Fenster ausblenden", true, None::<&str>)?;
+                let quit_item =
+                    MenuItem::with_id(app, "quit", "Code Deck beenden", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
                 let mut tray = TrayIconBuilder::new()
                     .tooltip("Code Deck")

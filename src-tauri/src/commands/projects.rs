@@ -57,19 +57,33 @@ pub(crate) fn clone_repository(
         return Err("Die Repository-URL darf nicht leer sein.".to_string());
     }
     if which::which("git").is_err() {
-        return Err("Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string());
+        return Err(
+            "Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string(),
+        );
     }
 
     let parent = PathBuf::from(parent_path.trim());
     if !parent.is_dir() {
-        return Err(format!("Der Zielordner wurde nicht gefunden: {}", display_path(&parent)));
+        return Err(format!(
+            "Der Zielordner wurde nicht gefunden: {}",
+            display_path(&parent)
+        ));
     }
-    let inferred_name = repository_name_from_url(repository_url)
-        .ok_or_else(|| "Aus der Repository-URL konnte kein Ordnername ermittelt werden.".to_string())?;
-    let name = safe_project_name(directory_name.as_deref().filter(|value| !value.trim().is_empty()).unwrap_or(&inferred_name))?;
+    let inferred_name = repository_name_from_url(repository_url).ok_or_else(|| {
+        "Aus der Repository-URL konnte kein Ordnername ermittelt werden.".to_string()
+    })?;
+    let name = safe_project_name(
+        directory_name
+            .as_deref()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or(&inferred_name),
+    )?;
     let destination = parent.join(&name);
     if destination.exists() {
-        return Err(format!("Der Zielordner existiert bereits: {}", display_path(&destination)));
+        return Err(format!(
+            "Der Zielordner existiert bereits: {}",
+            display_path(&destination)
+        ));
     }
 
     let mut args = vec!["clone".to_string(), "--progress".to_string()];
@@ -196,10 +210,7 @@ pub(crate) fn launch_template(
 }
 
 #[tauri::command]
-pub(crate) fn open_terminal(
-    project_path: String,
-    terminal_command: String,
-) -> Result<(), String> {
+pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> Result<(), String> {
     launchers::open_terminal(project_path, terminal_command)
 }
 

@@ -23,7 +23,9 @@ pub(crate) fn command_output(path: &Path, program: &str, args: &[&str]) -> Optio
 
 pub(crate) fn run_git(root: &Path, args: &[String]) -> Result<String, String> {
     if which::which("git").is_err() {
-        return Err("Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string());
+        return Err(
+            "Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string(),
+        );
     }
     let mut command = Command::new("git");
     command
@@ -46,7 +48,13 @@ pub(crate) fn run_git(root: &Path, args: &[String]) -> Result<String, String> {
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
         let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        Err(if !stderr.is_empty() { stderr } else if !stdout.is_empty() { stdout } else { format!("Git wurde mit Status {} beendet.", output.status) })
+        Err(if !stderr.is_empty() {
+            stderr
+        } else if !stdout.is_empty() {
+            stdout
+        } else {
+            format!("Git wurde mit Status {} beendet.", output.status)
+        })
     }
 }
 
@@ -67,7 +75,11 @@ fn git_path_exists(root: &Path, name: &str) -> bool {
     command_output(root, "git", &["rev-parse", "--git-path", name])
         .map(|value| {
             let path = PathBuf::from(value);
-            if path.is_absolute() { path.exists() } else { root.join(path).exists() }
+            if path.is_absolute() {
+                path.exists()
+            } else {
+                root.join(path).exists()
+            }
         })
         .unwrap_or(false)
 }
@@ -90,7 +102,12 @@ pub(crate) fn safe_repo_path(root: &Path, relative: &str) -> Result<PathBuf, Str
     use std::path::Component;
     let relative_path = Path::new(relative);
     if relative_path.is_absolute()
-        || relative_path.components().any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+        || relative_path.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
     {
         return Err("Ungültiger Repository-Pfad.".to_string());
     }
@@ -121,7 +138,11 @@ pub(crate) fn safe_repo_path(root: &Path, relative: &str) -> Result<PathBuf, Str
     Ok(target)
 }
 
-pub(crate) fn read_git_stage(root: &Path, stage: u8, file_path: &str) -> Result<(Option<String>, bool), String> {
+pub(crate) fn read_git_stage(
+    root: &Path,
+    stage: u8,
+    file_path: &str,
+) -> Result<(Option<String>, bool), String> {
     let spec = format!(":{stage}:{file_path}");
     let mut command = Command::new("git");
     command

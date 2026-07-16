@@ -15,7 +15,10 @@ use crate::{
 pub(crate) fn git_init_repository(project_path: String) -> Result<(), String> {
     let root = PathBuf::from(project_path.trim());
     if !root.is_dir() {
-        return Err(format!("Projektordner nicht gefunden: {}", display_path(&root)));
+        return Err(format!(
+            "Projektordner nicht gefunden: {}",
+            display_path(&root)
+        ));
     }
     run_git(&root, &["init".to_string()]).map(|_| ())
 }
@@ -29,12 +32,23 @@ pub(crate) fn git_status(project_path: String) -> Result<GitRepositoryStatus, St
     let upstream = command_output(
         &root,
         "git",
-        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+        &[
+            "rev-parse",
+            "--abbrev-ref",
+            "--symbolic-full-name",
+            "@{upstream}",
+        ],
     )
     .filter(|value| !value.is_empty());
     let (ahead, behind) = upstream
         .as_ref()
-        .and_then(|_| command_output(&root, "git", &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]))
+        .and_then(|_| {
+            command_output(
+                &root,
+                "git",
+                &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"],
+            )
+        })
         .and_then(|value| {
             let mut parts = value.split_whitespace();
             Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
@@ -42,7 +56,12 @@ pub(crate) fn git_status(project_path: String) -> Result<GitRepositoryStatus, St
         .unwrap_or((0, 0));
     let raw = run_git(
         &root,
-        &["status".to_string(), "--short".to_string(), "-z".to_string(), "--untracked-files=all".to_string()],
+        &[
+            "status".to_string(),
+            "--short".to_string(),
+            "-z".to_string(),
+            "--untracked-files=all".to_string(),
+        ],
     )?;
 
     Ok(GitRepositoryStatus {
@@ -60,7 +79,10 @@ pub(crate) fn git_branches(project_path: String) -> Result<Vec<String>, String> 
     let root = git_project_root(&project_path)?;
     let output = run_git(
         &root,
-        &["branch".to_string(), "--format=%(refname:short)".to_string()],
+        &[
+            "branch".to_string(),
+            "--format=%(refname:short)".to_string(),
+        ],
     )?;
     Ok(output
         .lines()
@@ -71,7 +93,11 @@ pub(crate) fn git_branches(project_path: String) -> Result<Vec<String>, String> 
 }
 
 #[tauri::command]
-pub(crate) fn git_diff(project_path: String, file_path: String, staged: bool) -> Result<String, String> {
+pub(crate) fn git_diff(
+    project_path: String,
+    file_path: String,
+    staged: bool,
+) -> Result<String, String> {
     let root = git_project_root(&project_path)?;
     let _ = safe_repo_path(&root, &file_path)?;
     let mut args = vec!["diff".to_string()];
@@ -105,7 +131,11 @@ pub(crate) fn git_unstage(project_path: String, paths: Vec<String>) -> Result<()
     for path in &paths {
         let _ = safe_repo_path(&root, path)?;
     }
-    let mut args = vec!["restore".to_string(), "--staged".to_string(), "--".to_string()];
+    let mut args = vec![
+        "restore".to_string(),
+        "--staged".to_string(),
+        "--".to_string(),
+    ];
     args.extend(paths);
     run_git(&root, &args).map(|_| ())
 }
@@ -131,11 +161,7 @@ pub(crate) fn git_checkout_branch(project_path: String, branch: String) -> Resul
     if branch.is_empty() || branch.starts_with('-') {
         return Err("Ungültiger Branch-Name.".to_string());
     }
-    run_git(
-        &root,
-        &["switch".to_string(), branch.to_string()],
-    )
-    .map(|_| ())
+    run_git(&root, &["switch".to_string(), branch.to_string()]).map(|_| ())
 }
 
 #[tauri::command]
@@ -165,7 +191,10 @@ pub(crate) fn git_remote_action(project_path: String, action: String) -> Result<
 }
 
 #[tauri::command]
-pub(crate) fn git_conflict_content(project_path: String, file_path: String) -> Result<GitConflictContent, String> {
+pub(crate) fn git_conflict_content(
+    project_path: String,
+    file_path: String,
+) -> Result<GitConflictContent, String> {
     let root = git_project_root(&project_path)?;
     let target = safe_repo_path(&root, &file_path)?;
     let (base, base_binary) = read_git_stage(&root, 1, &file_path)?;
@@ -177,7 +206,11 @@ pub(crate) fn git_conflict_content(project_path: String, file_path: String) -> R
             Err(_) => (String::new(), true),
         },
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => (String::new(), false),
-        Err(error) => return Err(format!("Konfliktdatei konnte nicht gelesen werden: {error}")),
+        Err(error) => {
+            return Err(format!(
+                "Konfliktdatei konnte nicht gelesen werden: {error}"
+            ))
+        }
     };
     Ok(GitConflictContent {
         path: file_path,
@@ -190,7 +223,11 @@ pub(crate) fn git_conflict_content(project_path: String, file_path: String) -> R
 }
 
 #[tauri::command]
-pub(crate) fn git_resolve_conflict(project_path: String, file_path: String, contents: String) -> Result<(), String> {
+pub(crate) fn git_resolve_conflict(
+    project_path: String,
+    file_path: String,
+    contents: String,
+) -> Result<(), String> {
     let root = git_project_root(&project_path)?;
     let target = safe_repo_path(&root, &file_path)?;
     if let Some(parent) = target.parent() {
@@ -199,11 +236,7 @@ pub(crate) fn git_resolve_conflict(project_path: String, file_path: String, cont
     }
     fs::write(&target, contents)
         .map_err(|error| format!("Aufgelöste Datei konnte nicht gespeichert werden: {error}"))?;
-    run_git(
-        &root,
-        &["add".to_string(), "--".to_string(), file_path],
-    )
-    .map(|_| ())
+    run_git(&root, &["add".to_string(), "--".to_string(), file_path]).map(|_| ())
 }
 
 #[tauri::command]
