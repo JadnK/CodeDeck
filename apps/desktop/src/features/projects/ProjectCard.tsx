@@ -41,16 +41,17 @@ export function ProjectCard({
           className={`project-icon ${project.favorite ? "project-icon--favorite" : ""}`}
           type="button"
           onClick={onToggleFavorite}
+          title={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
           aria-label={project.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
         >
           <Icon name={project.favorite ? "star" : "code"} />
         </button>
-        <button className="icon-button icon-button--small" type="button" onClick={onOpenDetails} aria-label="Projektdetails öffnen">
-          <Icon name="more" />
+        <button className="button button--ghost button--small" type="button" onClick={onOpenDetails}>
+          <Icon name="more" />Details
         </button>
       </header>
 
-      <button className="project-card__main" type="button" onClick={onOpenDetails}>
+      <button className="project-card__main" type="button" onClick={onOpenDetails} title="Projektdetails öffnen">
         <h2>{project.name}</h2>
         <p className="project-card__path">{project.path}</p>
         {project.description && <p className="project-card__description">{project.description}</p>}
@@ -65,12 +66,12 @@ export function ProjectCard({
       </div>
 
       <div className="project-card__status">
-        <span>
+        <span title="Letztes Öffnen in einer IDE">
           <Icon name="history" />
           {relativeDate(project.lastOpenedAt)}
         </span>
         {inspection?.isGit && (
-          <span>
+          <span title="Aktueller Git-Branch und geänderte Dateien">
             <Icon name="git" />
             {inspection.branch || "Git"}
             {inspection.changedFiles > 0 && <b>{inspection.changedFiles}</b>}
@@ -78,14 +79,15 @@ export function ProjectCard({
         )}
       </div>
 
-      <footer className="project-card__footer">
+      <footer className="project-card__footer project-card__footer--clear">
         <button className="button button--primary button--grow" type="button" onClick={onOpenEditor} disabled={!editor}>
           <Icon name="external" />
-          {editor ? `In ${editor.name} öffnen` : "Keine IDE"}
+          {editor ? `In ${editor.name} öffnen` : "Zuerst IDE festlegen"}
         </button>
         {quickCommand && (
-          <button className="button button--ghost button--icon" type="button" onClick={() => onRunCommand(quickCommand)} title={quickCommand.label}>
+          <button className="button button--secondary button--grow" type="button" onClick={() => onRunCommand(quickCommand)} title={`Führt „${quickCommand.command}“ im Projektordner aus`}>
             <Icon name="play" />
+            {quickCommand.label} starten
           </button>
         )}
       </footer>

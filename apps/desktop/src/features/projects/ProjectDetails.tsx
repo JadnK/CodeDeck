@@ -239,8 +239,8 @@ export function ProjectDetails({
                       return (
                         <div key={script.name}>
                           <span><strong>{script.name}</strong><code>{script.command}</code></span>
-                          <button className="icon-button icon-button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? "Bereits hinzugefügt" : "Als Command hinzufügen"}>
-                            <Icon name={exists ? "check" : "plus"} />
+                          <button className="button button--ghost button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? "Bereits als Command gespeichert" : "Dieses Script als Schnellaktion speichern"}>
+                            <Icon name={exists ? "check" : "plus"} />{exists ? "Gespeichert" : "Als Command"}
                           </button>
                         </div>
                       );
@@ -263,8 +263,8 @@ export function ProjectDetails({
                         <div className="command-table__content"><strong>{command.label}</strong><code>{command.command}</code>{command.imported && !command.trusted && <span className="badge badge--warning">Importiert · Bestätigung nötig</span>}</div>
                         <div className="command-table__actions">
                           <button className="button button--primary button--small" type="button" onClick={() => onRunCommand(project, command)}><Icon name="play" />Starten</button>
-                          <button className="icon-button icon-button--small" type="button" onClick={() => editCommand(command)}><Icon name="edit" /></button>
-                          <button className="icon-button icon-button--small icon-button--danger" type="button" onClick={() => onUpdate({ ...project, commands: project.commands.filter((entry) => entry.id !== command.id), updatedAt: new Date().toISOString() })}><Icon name="trash" /></button>
+                          <button className="button button--ghost button--small" type="button" onClick={() => editCommand(command)}><Icon name="edit" />Bearbeiten</button>
+                          <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onUpdate({ ...project, commands: project.commands.filter((entry) => entry.id !== command.id), updatedAt: new Date().toISOString() })}><Icon name="trash" />Entfernen</button>
                         </div>
                       </article>
                     ))}
@@ -287,7 +287,7 @@ export function ProjectDetails({
           {tab === "git" && (
             <div className="detail-grid">
               <section className="panel">
-                <div className="panel__header"><div><p className="eyebrow">Git</p><h3>Repository-Status</h3></div><button className="icon-button icon-button--small" type="button" onClick={refresh}><Icon name="refresh" /></button></div>
+                <div className="panel__header"><div><p className="eyebrow">Git</p><h3>Repository-Status</h3></div><button className="button button--ghost button--small" type="button" onClick={refresh}><Icon name="refresh" />Status aktualisieren</button></div>
                 {inspection?.isGit ? (
                   <div className="git-status">
                     <div><span>Branch</span><strong>{inspection.branch || "–"}</strong></div>

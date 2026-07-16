@@ -4,7 +4,9 @@ Code Deck is a local desktop cockpit for developers. It keeps projects, IDE laun
 
 ## Features
 
-- Add projects by folder selection or scan a base directory for `.git`, `package.json`, `Cargo.toml`, `pyproject.toml`, `go.mod` and Flutter projects.
+- Create new projects from built-in offline templates for Node.js, Node.js + TypeScript, React + Vite, Spring Boot, Python, Rust or an empty starter.
+- Save local folders as reusable custom project templates; generated folders such as `.git`, `node_modules`, `target`, `dist` and `build` are excluded while copying.
+- Add existing projects by folder selection or scan a base directory for `.git`, `package.json`, `pom.xml`, `Cargo.toml`, `pyproject.toml`, `go.mod` and Flutter projects.
 - Search by name, path, description, tag, framework or Git branch; filter favorites and archived projects.
 - Configure any IDE with `{projectPath}` and `{projectName}` placeholders and open projects with one click.
 - Open a project in the native file manager or a configurable terminal.
@@ -20,7 +22,7 @@ All application data stays on the local machine. Code Deck never changes project
 
 ## Requirements
 
-- Node.js 20 or newer
+- Node.js 24 or newer
 - pnpm 10
 - Rust toolchain
 - Tauri system prerequisites for your operating system
@@ -60,14 +62,14 @@ src/
     onboarding/         First-run setup
     processes/          Live logs and process management
     projects/           Project cards, creation, scan and details
-    settings/           IDEs, terminal, theme and backup
+    settings/           IDEs, project templates, terminal, theme and backup
     workspaces/          Multi-project start workflows
   shared/
     components/         Reusable UI primitives
     lib/                Persistence and Tauri bridge
     types/              Application model
 src-tauri/
-  src/lib.rs            Filesystem, detection, Git, launcher and process core
+  src/lib.rs            Scaffolding, filesystem, detection, Git, launcher and process core
   capabilities/         Tauri permissions
 .github/workflows/      CI and tagged release builds
 ```
@@ -86,4 +88,4 @@ Do not import configuration files from sources you do not trust. A command has t
 
 ## Roadmap
 
-The current code covers the planned project management, launcher, command runner, detection, Git view, workspaces and settings scope. Future additions may include SQLite storage, Docker Compose controls, port management, a command palette, auto-update checks and a plugin system.
+The current code covers project scaffolding, project management, launcher, command runner, detection, Git view, workspaces and settings. Future additions may include SQLite storage, Docker Compose controls, port management, a command palette, auto-update checks and a plugin system.

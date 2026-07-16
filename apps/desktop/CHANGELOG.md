@@ -2,6 +2,27 @@
 
 All notable changes to Code Deck are documented here.
 
+## [0.2.0] - 2026-07-13
+
+### Added
+
+- New-project workflow with clear separation between creating a starter and adding an existing folder.
+- Offline starter templates for Node.js, Node.js + TypeScript, React + Vite, Spring Boot, Python, Rust and empty projects.
+- Reusable custom project templates backed by local folders.
+- Optional Git initialization for newly created projects.
+- Maven, Spring Boot, Gradle, Python and Cargo command detection.
+- Explanations and visible labels for previously ambiguous buttons and settings.
+
+### Changed
+
+- GitHub Actions now use Node 24-native actions, pinned macOS 15 runners and a lockfile-tolerant install step.
+- Project cards, settings and project creation use clearer action names and inline help.
+
+### Fixed
+
+- CI no longer fails inside `actions/setup-node` when `pnpm-lock.yaml` is absent from a commit.
+- Matrix jobs no longer get canceled after the first platform failure.
+
 ## [0.1.0] - 2026-07-13
 
 ### Added
