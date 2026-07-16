@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
@@ -14,8 +15,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    name: check (${{ matrix.platform }})
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          package-manager-cache: false
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript frontend
+        run: pnpm build
+
+  rust:
+    name: Rust checks (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -24,39 +57,24 @@ jobs:
           - windows-latest
           - macos-15
 
-    runs-on: ${{ matrix.platform }}
-
-
     steps:
-      - name: Repository auschecken
+      - name: Check out repository
         uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: pnpm einrichten
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.33.0
-          run_install: false
-
-      - name: Node.js 24 mit pnpm-Cache einrichten
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-          package-manager-cache: false
-
-      - name: Rust stable einrichten
+      - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-      - name: Rust-Buildcache einrichten
+      - name: Set up Rust build cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
           shared-key: ci-${{ matrix.platform }}
 
-      - name: Linux-Systempakete installieren
+      - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         run: |
@@ -68,11 +86,12 @@ jobs:
             patchelf \
             xdg-utils
 
-      - name: Frontend-Abhängigkeiten reproduzierbar installieren
-        run: pnpm install --frozen-lockfile
+      - name: Check Rust formatting
+        if: matrix.platform == 'ubuntu-22.04'
+        run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
 
-      - name: TypeScript und Frontend bauen
-        run: pnpm build
+      - name: Run Clippy
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked -- -D warnings
 
-      - name: Tauri/Rust prüfen
-        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml --all-targets --all-features --locked

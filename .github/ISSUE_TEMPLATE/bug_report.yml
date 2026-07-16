@@ -1,0 +1,119 @@
+name: Bug report
+description: Report a reproducible problem in CodeDeck
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve CodeDeck.
+
+        Before submitting, remove access tokens, usernames, private repository URLs,
+        personal file paths, and other sensitive information from logs and screenshots.
+
+  - type: input
+    id: version
+    attributes:
+      label: CodeDeck version
+      description: Enter the version shown in CodeDeck or on the downloaded release.
+      placeholder: "1.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Ubuntu
+        - Another Linux distribution
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: architecture
+    attributes:
+      label: System architecture
+      description: Enter your processor architecture when known.
+      placeholder: "x64, ARM64, Apple Silicon"
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Project dashboard
+        - Adding, cloning, or creating projects
+        - Project detection
+        - IDE or terminal launching
+        - Commands and processes
+        - Git workbench
+        - Launch sets
+        - Project todos
+        - Settings, import, or export
+        - Updates or installation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Clearly describe the problem.
+      placeholder: Tell us what CodeDeck did and where the problem appeared.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect CodeDeck to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence that triggers the problem.
+      placeholder: |
+        1. Open CodeDeck
+        2. Select ...
+        3. Click ...
+        4. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste relevant output after removing sensitive data.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add screenshots, project details, or anything else that may help.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched the existing issues for the same problem.
+          required: true
+        - label: I tested with the latest available CodeDeck release when possible.
+          required: true
+        - label: I removed secrets and private information from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
