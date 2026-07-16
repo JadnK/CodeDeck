@@ -13,6 +13,8 @@ import { Icon } from "../shared/components/Icon";
 import { ToastStack, type Toast } from "../shared/components/ToastStack";
 import { I18nProvider, translate } from "../shared/i18n/I18n";
 import { createId, loadData, normalizeData, saveData } from "../shared/lib/storage";
+import { editorNeedsPathRepair, mergeEditorSuggestions } from "../shared/lib/editors";
+import { getDetectionSearchTerms } from "../shared/lib/projectInspection";
 import {
   chooseConfigFile,
   chooseExportPath,
@@ -39,7 +41,6 @@ import {
 import type {
   AppData,
   Editor,
-  EditorSuggestion,
   ProcessRun,
   Project,
   ProjectCandidate,
@@ -56,18 +57,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function mergeDetectedEditors(editors: Editor[], suggestions: EditorSuggestion[]) {
-  const next = [...editors];
-  for (const suggestion of suggestions) {
-    const duplicate = next.some((editor) =>
-      editor.id === suggestion.id ||
-      editor.commandTemplate.toLowerCase() === suggestion.commandTemplate.toLowerCase(),
-    );
-    if (!duplicate) next.push({ ...suggestion, enabled: true, detected: true });
-  }
-  return next;
-}
-
 export function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [search, setSearch] = useState("");
@@ -82,7 +71,7 @@ export function App() {
   const [processesOpen, setProcessesOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [currentVersion, setCurrentVersion] = useState("0.2.2");
+  const [currentVersion, setCurrentVersion] = useState("1.0.0");
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AvailableAppUpdate>();
   const [updateOpen, setUpdateOpen] = useState(false);
@@ -110,7 +99,7 @@ export function App() {
           project.name,
           project.path,
           project.description,
-          ...(project.inspection?.frameworks ?? []),
+          ...getDetectionSearchTerms(project.inspection),
           project.inspection?.branch ?? "",
         ].some((value) => value.toLowerCase().includes(needle));
       })
@@ -127,14 +116,15 @@ export function App() {
   }, [data.settings.language]);
 
   useEffect(() => {
-    if (startupIdeScanStarted.current || data.settings.ideDetectionComplete || !isTauri()) return;
+    const needsRepair = data.editors.some(editorNeedsPathRepair);
+    if (startupIdeScanStarted.current || (!needsRepair && data.settings.ideDetectionComplete) || !isTauri()) return;
     startupIdeScanStarted.current = true;
 
     void detectEditors()
       .then((suggestions) => {
         setData((current) => ({
           ...current,
-          editors: mergeDetectedEditors(current.editors, suggestions),
+          editors: mergeEditorSuggestions(current.editors, suggestions),
           settings: { ...current.settings, ideDetectionComplete: true },
         }));
         if (suggestions.length > 0) {
@@ -625,6 +615,7 @@ export function App() {
         {visibleProjects.length ? (
           <section className="project-list" aria-label={t("Projektliste", "Project list")}>
             <div className="project-list__header" aria-hidden="true">
+              <span className="project-list__favorite-column" />
               <span>{t("Projekt", "Project")}</span>
               <span>{t("Technologien", "Technologies")}</span>
               <span>Git</span>

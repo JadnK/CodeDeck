@@ -8,20 +8,78 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Project-specific todo lists with status, priority and manual ordering.
-
 ### Changed
-
-- Removed user-defined tags from projects, workspaces and custom project templates. Framework detection remains available as read-only technology information.
-- Hid the CodeDeck wordmark and logo from the main navigation bar.
 
 ### Fixed
 
-- Fixed IDE launching so the configured command must use `{projectPath}`.
-- Normalized legacy VS Code and Cursor commands that used the project name instead of the project folder.
-- Validated and canonicalized project directories before launching an IDE, preventing editors from opening a blank file named after the project.
+### Security
+
+## [1.0.0] - 2026-07-16
+
+### Added
+
+- First stable CodeDeck release for Windows, macOS and Linux.
+- Local project dashboard with search, favorites, archiving and project details.
+- Built-in project starters for Node.js, Node.js with TypeScript, React with Vite, Spring Boot, Python and Rust.
+- Custom local project templates and configurable Spring Boot package roots.
+- Folder scanning and project import with language, framework, tool, package-script, Git and Docker detection.
+- Configurable IDE and terminal launchers with automatic IDE discovery.
+- Manual IDE rescan and test actions that open the Desktop folder.
+- Per-project commands with live stdout and stderr, stop support and execution history.
+- Git information including branch, changed files and latest commit details.
+- Workspaces that can open IDEs, start commands and open URLs in sequence or in parallel.
+- Per-project todo lists with title, description, status, priority and manual ordering.
+- German and English interface languages.
+- Light, dark and system appearance modes.
+- Local configuration import and export.
+- Signed in-app updates from published GitHub Releases.
+- Automatic update checks on startup, manual checks in Settings and installation progress in the app.
+- First-run onboarding for project folders and IDE setup.
+
+### Changed
+
+- Redesigned the interface as a compact desktop productivity tool with clearer navigation and action layouts.
+- Removed editable project, workspace and template tags.
+- Split detected project metadata into languages, frameworks and tools.
+- Docker and Docker Compose are now classified as tools instead of frameworks.
+- Improved project import detection for JavaScript, TypeScript, Java, Kotlin, Python, Rust, Go, Dart, C#, C/C++, PHP, Ruby, Swift, HTML and CSS.
+- Improved framework detection for React, Vue, Angular, Spring Boot, FastAPI, Flask, Django, Laravel, Symfony and Ruby on Rails.
+- Improved tool detection for Node.js, Maven, Gradle, Cargo, Composer, Bundler, CMake, .NET and Docker.
+- Reworked the project list so every row uses the same fixed column layout.
+- Updated the application and bundle icons with a larger transparent foreground mark.
+- Fresh installations no longer assume that VS Code or Cursor is installed.
+- Updated release automation to build signed updater artifacts and validate `latest.json`.
+
+### Fixed
+
+- Fixed VS Code, Cursor and JetBrains launchers opening a file named after the project instead of the project directory.
+- Fixed project launching to always pass the canonical project path through `{projectPath}`.
+- Fixed legacy editor templates that used `{projectName}` as the launch target.
+- Fixed IDE startup when commands such as `code` or `idea` are not available in `PATH`.
+- Added Windows installation-path discovery for VS Code, Cursor, Windsurf and JetBrains IDEs, including Toolbox installations.
+- Fixed project-table entries appearing under the wrong headings.
+- Fixed technology indicators not aligning with the Technologies column.
+- Fixed Docker being shown as a framework during project scanning.
+- Fixed incomplete language detection when importing existing projects.
+- Improved errors for missing, unreachable or invalid updater `latest.json` files.
+- Fixed release creation for existing Git tags by removing invalid `target_commitish` values.
+- Fixed release workflow validation for updater versions, platform URLs and signatures.
+- Fixed clipped, wrapped and uneven button labels across pages and dialogs.
+- Prevented release builds from opening an additional console window on Windows.
 
 ### Security
+
+- Commands only run after an explicit user action.
+- Imported configurations never start commands automatically.
+- Project inspection does not silently modify source files.
+- Update packages are verified with the embedded public key before installation.
+- Private updater signing keys remain outside the repository and are only used by the release workflow.
+
+### Known limitations
+
+- Windows SmartScreen and macOS Gatekeeper may warn because platform installers are not signed with paid platform certificates.
+- Portable or uncommon IDE installations may still require a manually configured executable path.
+- The first installation containing the updater must be installed manually; later releases can update in the app.
 
 ## [0.2.2]
 
@@ -100,7 +158,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...v1.0.0
 [0.2.2]: https://github.com/JadnK/CodeDeck/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JadnK/CodeDeck/compare/v0.1.0...v0.2.0
