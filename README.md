@@ -48,7 +48,7 @@ __If CodeDeck saves you time, consider starring the repository.__
 | Project actions | **Details** on a project card | IDE, terminal, build/run configuration, Git workbench and project settings |
 | Project todos | **Todos** on a project row or in the project details | Create, prioritize, reorder and complete tasks for one project |
 | Running commands | Terminal icon in the top-right actions | Live output, status, history and stop buttons |
-| Multi-project setup | **Workspaces** in the top bar | Starts several project actions together |
+| Multi-project setup | **Launch sets** in the top bar | Starts several project actions together |
 | App configuration | **Einstellungen** in the top bar | IDE commands, templates, theme, folders and import/export |
 
 ## Documentation
@@ -159,13 +159,13 @@ Each run shows:
 
 Finished entries can be removed from the history without touching the project. Optional desktop notifications report command success or failure, and closing the main window keeps CodeDeck available from the system tray.
 
-## Workspaces
+## Launch sets
 
-A workspace is useful when one task needs several projects, for example a frontend, API and local browser URL.
+A launch set is useful when one task needs several projects, for example a frontend, API and local browser URL. It is the streamlined successor to the former workspace view.
 
-![Workspace configuration](docs/screenshots/workspaces.png)
+![Launch set configuration](docs/screenshots/workspaces.png)
 
-Open **Workspaces**, create a workspace and add actions. Supported actions are:
+Open **Launch sets**, create a set and add steps. Supported steps are:
 
 - open a project in an IDE
 - open a terminal
@@ -173,7 +173,7 @@ Open **Workspaces**, create a workspace and add actions. Supported actions are:
 - run a saved or custom command
 - open a URL
 
-Actions can run in parallel or in sequence. **Start** runs the complete workspace; **Stop all** stops processes that were started by that workspace.
+Steps can run in parallel or in sequence. **Start** runs the complete launch set; **Stop all** stops processes that were started by that set.
 
 ## Settings
 
@@ -229,7 +229,7 @@ build
 Settings also contains:
 
 - light, dark and system theme
-- JSON export of projects, editors, workspaces and settings
+- JSON export of projects, editors, launch sets and settings
 - JSON import with confirmation before the current configuration is replaced
 - an option to run the onboarding again
 
