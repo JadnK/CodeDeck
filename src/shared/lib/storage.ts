@@ -1,4 +1,5 @@
 import type { AppData, CustomProjectTemplate, Editor, ProjectCommand, ProjectTodo } from "../types/models";
+import { suggestBuildCommand, suggestDevPort, suggestRunCommand } from "./projectRuntime";
 
 const STORAGE_KEY = "code-deck-data-v1";
 
@@ -64,6 +65,7 @@ export function createDefaultData(): AppData {
       confirmImportedCommands: true,
       checkForUpdatesOnStartup: true,
       ideDetectionComplete: false,
+      notifyOnCommandCompletion: true,
     },
   };
 }
@@ -162,6 +164,11 @@ export function normalizeData(input: unknown, imported = false): AppData {
           updatedAt: project.updatedAt ?? now(),
           lastOpenedAt: project.lastOpenedAt,
           inspection: normalizeInspection(project.inspection),
+          buildCommand: project.buildCommand ?? suggestBuildCommand(project.inspection),
+          runCommand: project.runCommand ?? suggestRunCommand(project.inspection),
+          devPort: Number.isInteger(project.devPort) && Number(project.devPort) > 0 && Number(project.devPort) <= 65535
+            ? Number(project.devPort)
+            : suggestDevPort(project.inspection),
         };
       })
     : [];

@@ -5,6 +5,8 @@ import type {
   BuiltInProjectTemplateId,
   CreatedProject,
   EditorSuggestion,
+  GitConflictContent,
+  GitRepositoryStatus,
   ProcessExitEvent,
   ProcessOutputEvent,
   ProjectCandidate,
@@ -76,6 +78,63 @@ export const createProjectFromTemplate = (
 export const inspectProject = (path: string) =>
   call<ProjectInspection>("inspect_project", { path });
 
+export const cloneRepository = (
+  repositoryUrl: string,
+  parentPath: string,
+  directoryName?: string,
+  branch?: string,
+  shallow = false,
+) =>
+  call<CreatedProject>("clone_repository", {
+    repositoryUrl,
+    parentPath,
+    directoryName: directoryName || null,
+    branch: branch || null,
+    shallow,
+  });
+
+export const initializeGitRepository = (projectPath: string) =>
+  call<void>("git_init_repository", { projectPath });
+
+export const getGitStatus = (projectPath: string) =>
+  call<GitRepositoryStatus>("git_status", { projectPath });
+
+export const getGitBranches = (projectPath: string) =>
+  call<string[]>("git_branches", { projectPath });
+
+export const getGitDiff = (projectPath: string, filePath: string, staged = false) =>
+  call<string>("git_diff", { projectPath, filePath, staged });
+
+export const gitStageFiles = (projectPath: string, paths: string[]) =>
+  call<void>("git_stage", { projectPath, paths });
+
+export const gitUnstageFiles = (projectPath: string, paths: string[]) =>
+  call<void>("git_unstage", { projectPath, paths });
+
+export const gitCommit = (projectPath: string, message: string) =>
+  call<void>("git_commit", { projectPath, message });
+
+export const gitCheckoutBranch = (projectPath: string, branch: string) =>
+  call<void>("git_checkout_branch", { projectPath, branch });
+
+export const gitCreateBranch = (projectPath: string, branch: string) =>
+  call<void>("git_create_branch", { projectPath, branch });
+
+export const gitRemoteAction = (projectPath: string, action: "fetch" | "pull" | "push") =>
+  call<string>("git_remote_action", { projectPath, action });
+
+export const getGitConflict = (projectPath: string, filePath: string) =>
+  call<GitConflictContent>("git_conflict_content", { projectPath, filePath });
+
+export const resolveGitConflict = (projectPath: string, filePath: string, contents: string) =>
+  call<void>("git_resolve_conflict", { projectPath, filePath, contents });
+
+export const continueGitOperation = (projectPath: string) =>
+  call<void>("git_continue_operation", { projectPath });
+
+export const abortGitOperation = (projectPath: string) =>
+  call<void>("git_abort_operation", { projectPath });
+
 export const scanProjects = (path: string) =>
   call<ProjectCandidate[]>("scan_projects", { path });
 
@@ -108,6 +167,8 @@ export const startProcess = (
   command: string,
   workingDir?: string,
   env: Record<string, string> = {},
+  label = command,
+  notifyOnExit = false,
 ) =>
   call<{ pid: number }>("start_process", {
     runId,
@@ -115,6 +176,8 @@ export const startProcess = (
     command,
     workingDir: workingDir || null,
     env,
+    label,
+    notifyOnExit,
   });
 
 export const stopProcess = (pid: number) =>

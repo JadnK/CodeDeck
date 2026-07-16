@@ -45,6 +45,36 @@ export type GitCommit = {
   date: string;
 };
 
+export type GitOperation = "merge" | "rebase" | "cherry-pick" | "revert";
+
+export type GitFileStatus = {
+  path: string;
+  indexStatus: string;
+  workTreeStatus: string;
+  staged: boolean;
+  unstaged: boolean;
+  untracked: boolean;
+  conflicted: boolean;
+};
+
+export type GitRepositoryStatus = {
+  branch?: string;
+  upstream?: string;
+  ahead: number;
+  behind: number;
+  operation?: GitOperation;
+  files: GitFileStatus[];
+};
+
+export type GitConflictContent = {
+  path: string;
+  base?: string;
+  current: string;
+  incoming: string;
+  workingTree: string;
+  binary: boolean;
+};
+
 export type ProjectInspection = {
   exists: boolean;
   languages?: string[];
@@ -74,6 +104,9 @@ export type Project = {
   updatedAt: string;
   lastOpenedAt?: string;
   inspection?: ProjectInspection;
+  buildCommand?: string;
+  runCommand?: string;
+  devPort?: number;
 };
 
 export type BuiltInProjectTemplateId =
@@ -160,6 +193,7 @@ export type AppSettings = {
   confirmImportedCommands: boolean;
   checkForUpdatesOnStartup: boolean;
   ideDetectionComplete: boolean;
+  notifyOnCommandCompletion: boolean;
 };
 
 export type AppData = {

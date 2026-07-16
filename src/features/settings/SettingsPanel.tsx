@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Icon, type IconName } from "../../shared/components/Icon";
+import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import {
@@ -17,8 +17,6 @@ import type {
   EditorSuggestion,
 } from "../../shared/types/models";
 
-export type SettingsSection = "general" | "editors" | "templates" | "projects" | "updates" | "backup";
-
 type SettingsPanelProps = {
   open: boolean;
   editors: Editor[];
@@ -26,7 +24,6 @@ type SettingsPanelProps = {
   settings: AppSettings;
   currentVersion: string;
   checkingForUpdates: boolean;
-  initialSection?: SettingsSection;
   onClose: () => void;
   onEditorsChange: (editors: Editor[]) => void;
   onProjectTemplatesChange: (templates: CustomProjectTemplate[]) => void;
@@ -39,13 +36,6 @@ type SettingsPanelProps = {
   onError: (message: string) => void;
 };
 
-type SettingsNavItem = {
-  id: SettingsSection;
-  icon: IconName;
-  label: string;
-  description: string;
-};
-
 export function SettingsPanel({
   open,
   editors,
@@ -53,7 +43,6 @@ export function SettingsPanel({
   settings,
   currentVersion,
   checkingForUpdates,
-  initialSection = "general",
   onClose,
   onEditorsChange,
   onProjectTemplatesChange,
@@ -66,7 +55,6 @@ export function SettingsPanel({
   onError,
 }: SettingsPanelProps) {
   const { t } = useI18n();
-  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const [name, setName] = useState("");
   const [template, setTemplate] = useState('code "{projectPath}"');
   const [editingId, setEditingId] = useState<string>();
@@ -81,53 +69,13 @@ export function SettingsPanel({
   const [projectTemplateEditorId, setProjectTemplateEditorId] = useState("");
   const [editingProjectTemplateId, setEditingProjectTemplateId] = useState<string>();
 
-  const navItems: SettingsNavItem[] = [
-    {
-      id: "general",
-      icon: "settings",
-      label: t("Allgemein", "General"),
-      description: t("Sprache & Darstellung", "Language & appearance"),
-    },
-    {
-      id: "editors",
-      icon: "code",
-      label: t("IDEs & Editoren", "IDEs & editors"),
-      description: t("Startbefehle verwalten", "Manage launch commands"),
-    },
-    {
-      id: "templates",
-      icon: "layers",
-      label: t("Projektvorlagen", "Project templates"),
-      description: t("Eigene Grundgerüste", "Custom starters"),
-    },
-    {
-      id: "projects",
-      icon: "terminal",
-      label: t("Projekte & Terminal", "Projects & terminal"),
-      description: t("Ordner und Standardwerte", "Folders and defaults"),
-    },
-    {
-      id: "updates",
-      icon: "refresh",
-      label: t("Updates", "Updates"),
-      description: t("Version & Aktualisierung", "Version & updates"),
-    },
-    {
-      id: "backup",
-      icon: "download",
-      label: t("Backup & Sicherheit", "Backup & security"),
-      description: t("Import, Export, Schutz", "Import, export, safety"),
-    },
-  ];
-
   useEffect(() => {
     if (!open) return;
-    setActiveSection(initialSection);
     resetEditorForm();
     resetProjectTemplateForm();
     setSuggestions([]);
     setDetectionFinished(false);
-  }, [open, initialSection]);
+  }, [open]);
 
   function resetEditorForm() {
     setName("");
@@ -284,173 +232,112 @@ export function SettingsPanel({
 
   return (
     <Modal open={open} onClose={onClose} title={t("Einstellungen", "Settings")} size="large">
-      <div className="settings-layout">
-        <aside className="settings-sidebar">
-          <div className="settings-sidebar__intro">
-            <strong>Code Deck</strong>
-            <small>{t("Anwendung konfigurieren", "Configure application")}</small>
+      <div className="settings-sections">
+        <section className="settings-section">
+          <div className="settings-section__header"><div><Icon name="settings" /><span><strong>{t("Oberfläche", "Interface")}</strong><small>{t("Sprache und Darstellung der Anwendung", "Application language and appearance")}</small></span></div></div>
+          <div className="form-grid form-grid--2 settings-preferences">
+            <div className="form-field">
+              <label htmlFor="app-language">{t("Sprache", "Language")}</label>
+              <select id="app-language" value={settings.language} onChange={(event) => onSettingsChange({ ...settings, language: event.target.value as AppSettings["language"] })}>
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
+              <small>{t("Die Oberfläche wird sofort umgestellt und die Auswahl lokal gespeichert.", "The interface updates immediately and the selection is stored locally.")}</small>
+            </div>
+            <div className="form-field">
+              <label>{t("Darstellung", "Appearance")}</label>
+              <div className="segmented-control">
+                {(["dark", "light", "system"] as const).map((theme) => (
+                  <button type="button" className={settings.theme === theme ? "active" : ""} key={theme} onClick={() => onSettingsChange({ ...settings, theme })}>
+                    <Icon name={theme === "light" ? "sun" : theme === "dark" ? "moon" : "settings"} />
+                    {theme === "dark" ? t("Dunkel", "Dark") : theme === "light" ? t("Hell", "Light") : t("System", "System")}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <nav className="settings-nav" aria-label={t("Einstellungsbereiche", "Settings sections")}>
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={activeSection === item.id ? "active" : ""}
-                onClick={() => setActiveSection(item.id)}
-                aria-current={activeSection === item.id ? "page" : undefined}
-              >
-                <Icon name={item.icon} />
-                <span><strong>{item.label}</strong><small>{item.description}</small></span>
-              </button>
-            ))}
-          </nav>
-          <div className="settings-sidebar__version">
-            <span>{t("Installiert", "Installed")}</span>
-            <strong>v{currentVersion}</strong>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header">
+            <div><Icon name="code" /><span><strong>{t("IDEs & Editoren", "IDEs & editors")}</strong><small>{t("Legt fest, womit der Button „In IDE öffnen“ ein Projekt startet", "Controls which application opens a project")}</small></span></div>
+            <button className="button button--ghost button--small" type="button" onClick={runDetection} disabled={detecting}><Icon name="refresh" />{detecting ? t("Installierte IDEs werden gesucht…", "Detecting installed IDEs…") : t("Installierte IDEs erkennen", "Detect installed IDEs")}</button>
           </div>
-        </aside>
+          <div className="settings-help"><Icon name="info" /><p><strong>{t("Command-Template", "Command template")}:</strong> {t("Ein Betriebssystem-Befehl, der den Projektpfad enthält. Beispiel:", "An operating-system command containing the project path. Example:")} <code>code "{'{projectPath}'}"</code>. {t("Code Deck ersetzt den Platzhalter beim Öffnen.", "Code Deck replaces the placeholder when opening the project.")}</p></div>
+          {suggestions.length > 0 && <div className="suggestion-row">{suggestions.map((suggestion) => <button key={suggestion.id} type="button" onClick={() => addSuggestion(suggestion)}><Icon name="plus" /><span><strong>{t(`${suggestion.name} hinzufügen`, `Add ${suggestion.name}`)}</strong><code>{suggestion.commandTemplate}</code></span></button>)}</div>}
+          {detectionFinished && suggestions.length === 0 && <div className="settings-inline-status"><Icon name="check" /><span>{t("IDE-Suche abgeschlossen. Gefundene Installationspfade wurden übernommen oder repariert.", "IDE scan completed. Detected installation paths were added or repaired.")}</span></div>}
+          <div className="editor-settings-grid">
+            <form className="settings-card" onSubmit={submitEditor}>
+              <h3>{editingId ? t("IDE bearbeiten", "Edit IDE") : t("Weitere IDE hinzufügen", "Add another IDE")}</h3>
+              <div className="form-field"><label htmlFor="editor-name">{t("Anzeigename", "Display name")}</label><input id="editor-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="VS Code" /></div>
+              <div className="form-field"><label htmlFor="editor-template">{t("Startbefehl", "Launch command")}</label><input id="editor-template" value={template} onChange={(event) => setTemplate(event.target.value)} placeholder={'code "{projectPath}"'} /><small>{t("Verfügbare Platzhalter", "Available placeholders")}: {'{projectPath}'} {t("und", "and")} {'{projectName}'}</small></div>
+              <div className="form-actions">{editingId && <button className="button button--ghost" type="button" onClick={resetEditorForm}>{t("Bearbeitung abbrechen", "Cancel editing")}</button>}<button className="button button--primary" type="submit"><Icon name={editingId ? "check" : "plus"} />{editingId ? t("IDE-Änderungen speichern", "Save IDE changes") : t("IDE hinzufügen", "Add IDE")}</button></div>
+            </form>
+            <div className="settings-card">
+              <h3>{t("Gespeicherte IDEs", "Saved IDEs")}</h3>
+              <div className="editor-list">
+                {editors.map((editor) => (
+                  <article key={editor.id} className="editor-row editor-row--clear">
+                    <label className="switch" title={editor.enabled ? t("IDE ist aktiv", "IDE is enabled") : t("IDE ist deaktiviert", "IDE is disabled")}><input type="checkbox" checked={editor.enabled} onChange={(event) => onEditorsChange(editors.map((entry) => entry.id === editor.id ? { ...entry, enabled: event.target.checked } : entry))} /><span /></label>
+                    <div><strong>{editor.name}</strong><code>{editor.commandTemplate}</code><small>{editor.enabled ? t("Kann Projekten zugeordnet werden", "Can be assigned to projects") : t("Wird bei der Projektauswahl ausgeblendet", "Hidden from project selection")}</small></div>
+                    <button className="button button--secondary button--small" type="button" onClick={() => void testEditor(editor)} disabled={testingEditorId === editor.id}><Icon name={testingEditorId === editor.id ? "refresh" : "play"} />{testingEditorId === editor.id ? t("Wird getestet…", "Testing…") : t("Testen", "Test")}</button>
+                    <button className="button button--ghost button--small" type="button" onClick={() => edit(editor)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button>
+                    <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onEditorsChange(editors.filter((entry) => entry.id !== editor.id))}><Icon name="trash" />{t("Entfernen", "Remove")}</button>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
 
-        <div className="settings-content">
-          {activeSection === "general" && (
-            <section className="settings-page">
-              <div className="settings-page__header">
-                <Icon name="settings" />
-                <div><p className="eyebrow">Code Deck</p><h3>{t("Allgemein", "General")}</h3><small>{t("Sprache und Darstellung der Anwendung", "Application language and appearance")}</small></div>
-              </div>
-              <div className="settings-section settings-section--plain">
-                <div className="form-grid form-grid--2 settings-preferences">
-                  <div className="form-field">
-                    <label htmlFor="app-language">{t("Sprache", "Language")}</label>
-                    <select id="app-language" value={settings.language} onChange={(event) => onSettingsChange({ ...settings, language: event.target.value as AppSettings["language"] })}>
-                      <option value="de">Deutsch</option>
-                      <option value="en">English</option>
-                    </select>
-                    <small>{t("Die Oberfläche wird sofort umgestellt und lokal gespeichert.", "The interface updates immediately and is stored locally.")}</small>
-                  </div>
-                  <div className="form-field">
-                    <label>{t("Darstellung", "Appearance")}</label>
-                    <div className="segmented-control">
-                      {(["dark", "light", "system"] as const).map((theme) => (
-                        <button type="button" className={settings.theme === theme ? "active" : ""} key={theme} onClick={() => onSettingsChange({ ...settings, theme })}>
-                          <Icon name={theme === "light" ? "sun" : theme === "dark" ? "moon" : "settings"} />
-                          {theme === "dark" ? t("Dunkel", "Dark") : theme === "light" ? t("Hell", "Light") : t("System", "System")}
-                        </button>
-                      ))}
-                    </div>
-                    <small>{t("System folgt automatisch der Darstellung des Betriebssystems.", "System automatically follows the operating-system appearance.")}</small>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
+        <section className="settings-section" id="project-template-settings">
+          <div className="settings-section__header"><div><Icon name="layers" /><span><strong>{t("Eigene Projektvorlagen", "Custom project templates")}</strong><small>{t("Einen lokalen Ordner als wiederverwendbares Projekt-Grundgerüst speichern", "Save a local folder as a reusable project starter")}</small></span></div></div>
+          <div className="settings-help"><Icon name="info" /><p>{t("Beim Erstellen eines Projekts kopiert Code Deck den Inhalt des Quellordners. Große oder generierte Ordner wie", "When creating a project, Code Deck copies the source folder contents. Large or generated folders such as")} <code>node_modules</code>, <code>.git</code>, <code>target</code>, <code>dist</code> {t("und", "and")} <code>build</code> {t("werden ausgelassen. Der Quellordner selbst bleibt unverändert.", "are skipped. The source folder itself remains unchanged.")}</p></div>
+          <div className="editor-settings-grid">
+            <form className="settings-card" onSubmit={submitProjectTemplate}>
+              <h3>{editingProjectTemplateId ? t("Projektvorlage bearbeiten", "Edit project template") : t("Projektvorlage anlegen", "Create project template")}</h3>
+              <div className="form-field"><label htmlFor="project-template-name">{t("Name der Vorlage", "Template name")}</label><input id="project-template-name" value={projectTemplateName} onChange={(event) => setProjectTemplateName(event.target.value)} placeholder="Meine Spring-Basis" /></div>
+              <div className="form-field"><label htmlFor="project-template-description">{t("Kurze Erklärung", "Short description")}</label><input id="project-template-description" value={projectTemplateDescription} onChange={(event) => setProjectTemplateDescription(event.target.value)} placeholder="Spring API mit Security und Docker Compose" /></div>
+              <div className="form-field"><label htmlFor="project-template-path">{t("Quellordner", "Source folder")}</label><div className="input-action-row"><input id="project-template-path" value={projectTemplatePath} onChange={(event) => setProjectTemplatePath(event.target.value)} placeholder="C:\\Users\\du\\Templates\\spring-api" /><button className="button button--secondary" type="button" onClick={browseTemplateDirectory}><Icon name="folder" />{t("Vorlagenordner wählen", "Choose template folder")}</button></div><small>{t("Dieser Ordner wird später in einen neuen Projektordner kopiert.", "This folder will be copied into a new project folder later.")}</small></div>
+              <div className="form-field"><label htmlFor="project-template-editor">{t("Standard-IDE", "Default IDE")}</label><select id="project-template-editor" value={projectTemplateEditorId} onChange={(event) => setProjectTemplateEditorId(event.target.value)}><option value="">{t("Keine Vorgabe", "No default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}</select></div>
+              <div className="form-actions">{editingProjectTemplateId && <button className="button button--ghost" type="button" onClick={resetProjectTemplateForm}>{t("Bearbeitung abbrechen", "Cancel editing")}</button>}<button className="button button--primary" type="submit"><Icon name={editingProjectTemplateId ? "check" : "plus"} />{editingProjectTemplateId ? t("Vorlage speichern", "Save template") : t("Vorlage hinzufügen", "Add template")}</button></div>
+            </form>
+            <div className="settings-card">
+              <h3>{t("Gespeicherte Projektvorlagen", "Saved project templates")}</h3>
+              {projectTemplates.length ? <div className="template-settings-list">{projectTemplates.map((templateEntry) => (
+                <article key={templateEntry.id}>
+                  <div className="template-settings-list__icon"><Icon name="layers" /></div>
+                  <div><strong>{templateEntry.name}</strong><small>{templateEntry.description || t("Keine Beschreibung", "No description")}</small><code>{templateEntry.sourcePath}</code></div>
+                  <div className="template-settings-list__actions"><button className="button button--ghost button--small" type="button" onClick={() => editProjectTemplate(templateEntry)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button><button className="button button--ghost button--small button--danger-text" type="button" onClick={() => deleteProjectTemplate(templateEntry)}><Icon name="trash" />{t("Entfernen", "Remove")}</button></div>
+                </article>
+              ))}</div> : <div className="empty-state empty-state--compact"><Icon name="layers" /><p>{t("Noch keine eigene Vorlage gespeichert.", "No custom template saved yet.")}</p><small>{t("Die eingebauten Vorlagen Node.js, React, Spring Boot, Python und Rust stehen trotzdem immer zur Verfügung.", "The built-in Node.js, React, Spring Boot, Python and Rust templates are always available.")}</small></div>}
+            </div>
+          </div>
+        </section>
 
-          {activeSection === "editors" && (
-            <section className="settings-page">
-              <div className="settings-page__header settings-page__header--actions">
-                <Icon name="code" />
-                <div><p className="eyebrow">Launcher</p><h3>{t("IDEs & Editoren", "IDEs & editors")}</h3><small>{t("Legt fest, womit Projekte geöffnet werden", "Controls which applications open projects")}</small></div>
-                <button className="button button--ghost button--small" type="button" onClick={runDetection} disabled={detecting}><Icon name="refresh" />{detecting ? t("Suche läuft…", "Detecting…") : t("IDEs erkennen", "Detect IDEs")}</button>
-              </div>
-              <div className="settings-help"><Icon name="info" /><p><strong>{t("Command-Template", "Command template")}:</strong> {t("Ein Startbefehl mit dem Platzhalter", "A launch command containing the placeholder")} <code>{'{projectPath}'}</code>, {t("zum Beispiel", "for example")} <code>code "{'{projectPath}'}"</code>.</p></div>
-              {suggestions.length > 0 && <div className="suggestion-row">{suggestions.map((suggestion) => <button key={suggestion.id} type="button" onClick={() => addSuggestion(suggestion)}><Icon name="plus" /><span><strong>{t(`${suggestion.name} hinzufügen`, `Add ${suggestion.name}`)}</strong><code>{suggestion.commandTemplate}</code></span></button>)}</div>}
-              {detectionFinished && suggestions.length === 0 && <div className="settings-inline-status"><Icon name="check" /><span>{t("IDE-Suche abgeschlossen. Gefundene Pfade wurden übernommen oder repariert.", "IDE scan completed. Detected paths were added or repaired.")}</span></div>}
-              <div className="editor-settings-grid">
-                <form className="settings-card" onSubmit={submitEditor}>
-                  <h3>{editingId ? t("IDE bearbeiten", "Edit IDE") : t("Weitere IDE hinzufügen", "Add another IDE")}</h3>
-                  <div className="form-field"><label htmlFor="editor-name">{t("Anzeigename", "Display name")}</label><input id="editor-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="VS Code" /></div>
-                  <div className="form-field"><label htmlFor="editor-template">{t("Startbefehl", "Launch command")}</label><input id="editor-template" value={template} onChange={(event) => setTemplate(event.target.value)} placeholder={'code "{projectPath}"'} /><small>{t("Platzhalter", "Placeholders")}: {'{projectPath}'} {t("und", "and")} {'{projectName}'}</small></div>
-                  <div className="form-actions">{editingId && <button className="button button--ghost" type="button" onClick={resetEditorForm}>{t("Abbrechen", "Cancel")}</button>}<button className="button button--primary" type="submit"><Icon name={editingId ? "check" : "plus"} />{editingId ? t("Speichern", "Save") : t("IDE hinzufügen", "Add IDE")}</button></div>
-                </form>
-                <div className="settings-card">
-                  <h3>{t("Gespeicherte IDEs", "Saved IDEs")}</h3>
-                  <div className="editor-list">
-                    {editors.map((editor) => (
-                      <article key={editor.id} className="editor-row editor-row--clear">
-                        <label className="switch" title={editor.enabled ? t("IDE ist aktiv", "IDE is enabled") : t("IDE ist deaktiviert", "IDE is disabled")}><input type="checkbox" checked={editor.enabled} onChange={(event) => onEditorsChange(editors.map((entry) => entry.id === editor.id ? { ...entry, enabled: event.target.checked } : entry))} /><span /></label>
-                        <div><strong>{editor.name}</strong><code>{editor.commandTemplate}</code><small>{editor.enabled ? t("Kann Projekten zugeordnet werden", "Can be assigned to projects") : t("Bei der Projektauswahl ausgeblendet", "Hidden from project selection")}</small></div>
-                        <button className="button button--secondary button--small" type="button" onClick={() => void testEditor(editor)} disabled={testingEditorId === editor.id}><Icon name={testingEditorId === editor.id ? "refresh" : "play"} />{testingEditorId === editor.id ? t("Test läuft…", "Testing…") : t("Testen", "Test")}</button>
-                        <button className="button button--ghost button--small" type="button" onClick={() => edit(editor)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button>
-                        <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onEditorsChange(editors.filter((entry) => entry.id !== editor.id))}><Icon name="trash" />{t("Entfernen", "Remove")}</button>
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
+        <section className="settings-section">
+          <div className="settings-section__header"><div><Icon name="terminal" /><span><strong>{t("Terminal & Projektordner", "Terminal & project folders")}</strong><small>{t("Standardwerte für neue und vorhandene Projekte", "Defaults for new and existing projects")}</small></span></div></div>
+          <div className="form-grid form-grid--2">
+            <div className="form-field"><label htmlFor="default-project-dir">{t("Standard-Projektordner", "Default project folder")}</label><div className="input-action-row"><input id="default-project-dir" value={settings.defaultProjectDir} onChange={(event) => onSettingsChange({ ...settings, defaultProjectDir: event.target.value })} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browseDefaultDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Dieser Ordner wird beim Erstellen neuer Projekte vorausgewählt.", "This folder is preselected when creating new projects.")}</small></div>
+            <div className="form-field"><label htmlFor="terminal-command">{t("Terminal-Startbefehl (optional)", "Terminal launch command (optional)")}</label><input id="terminal-command" value={settings.terminalCommand} onChange={(event) => onSettingsChange({ ...settings, terminalCommand: event.target.value })} placeholder={'wt.exe -d "{projectPath}"'} /><small>{t("Leer lassen, um das Standardterminal des Betriebssystems zu verwenden.", "Leave empty to use the operating system default terminal.")}</small></div>
+          </div>
+          <label className="checkbox-row"><input type="checkbox" checked={settings.notifyOnCommandCompletion} onChange={(event) => onSettingsChange({ ...settings, notifyOnCommandCompletion: event.target.checked })} /><span><strong>{t("Desktop-Benachrichtigung nach Commands", "Desktop notification after commands")}</strong><small>{t("Code Deck meldet erfolgreiche und fehlgeschlagene Builds oder Runs über das Betriebssystem.", "Code Deck reports successful and failed builds or runs through the operating system.")}</small></span></label>
+        </section>
 
-          {activeSection === "templates" && (
-            <section className="settings-page" id="project-template-settings">
-              <div className="settings-page__header">
-                <Icon name="layers" />
-                <div><p className="eyebrow">Scaffolding</p><h3>{t("Eigene Projektvorlagen", "Custom project templates")}</h3><small>{t("Lokale Ordner als wiederverwendbare Grundgerüste", "Reusable starters from local folders")}</small></div>
-              </div>
-              <div className="settings-help"><Icon name="info" /><p>{t("Beim Erstellen kopiert Code Deck den Inhalt des Quellordners. Generierte Ordner wie", "When creating a project, Code Deck copies the source folder. Generated folders such as")} <code>node_modules</code>, <code>.git</code>, <code>target</code>, <code>dist</code> {t("und", "and")} <code>build</code> {t("werden ausgelassen.", "are skipped.")}</p></div>
-              <div className="editor-settings-grid">
-                <form className="settings-card" onSubmit={submitProjectTemplate}>
-                  <h3>{editingProjectTemplateId ? t("Projektvorlage bearbeiten", "Edit project template") : t("Projektvorlage anlegen", "Create project template")}</h3>
-                  <div className="form-field"><label htmlFor="project-template-name">{t("Name der Vorlage", "Template name")}</label><input id="project-template-name" value={projectTemplateName} onChange={(event) => setProjectTemplateName(event.target.value)} placeholder="Meine Spring-Basis" /></div>
-                  <div className="form-field"><label htmlFor="project-template-description">{t("Kurze Erklärung", "Short description")}</label><input id="project-template-description" value={projectTemplateDescription} onChange={(event) => setProjectTemplateDescription(event.target.value)} placeholder="Spring API mit Security und Docker Compose" /></div>
-                  <div className="form-field"><label htmlFor="project-template-path">{t("Quellordner", "Source folder")}</label><div className="input-action-row"><input id="project-template-path" value={projectTemplatePath} onChange={(event) => setProjectTemplatePath(event.target.value)} placeholder="C:\\Users\\du\\Templates\\spring-api" /><button className="button button--secondary" type="button" onClick={browseTemplateDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Der Quellordner selbst bleibt unverändert.", "The source folder itself remains unchanged.")}</small></div>
-                  <div className="form-field"><label htmlFor="project-template-editor">{t("Standard-IDE", "Default IDE")}</label><select id="project-template-editor" value={projectTemplateEditorId} onChange={(event) => setProjectTemplateEditorId(event.target.value)}><option value="">{t("Keine Vorgabe", "No default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}</select></div>
-                  <div className="form-actions">{editingProjectTemplateId && <button className="button button--ghost" type="button" onClick={resetProjectTemplateForm}>{t("Abbrechen", "Cancel")}</button>}<button className="button button--primary" type="submit"><Icon name={editingProjectTemplateId ? "check" : "plus"} />{editingProjectTemplateId ? t("Vorlage speichern", "Save template") : t("Vorlage hinzufügen", "Add template")}</button></div>
-                </form>
-                <div className="settings-card">
-                  <h3>{t("Gespeicherte Projektvorlagen", "Saved project templates")}</h3>
-                  {projectTemplates.length ? <div className="template-settings-list">{projectTemplates.map((templateEntry) => (
-                    <article key={templateEntry.id}>
-                      <div className="template-settings-list__icon"><Icon name="layers" /></div>
-                      <div><strong>{templateEntry.name}</strong><small>{templateEntry.description || t("Keine Beschreibung", "No description")}</small><code>{templateEntry.sourcePath}</code></div>
-                      <div className="template-settings-list__actions"><button className="button button--ghost button--small" type="button" onClick={() => editProjectTemplate(templateEntry)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button><button className="button button--ghost button--small button--danger-text" type="button" onClick={() => deleteProjectTemplate(templateEntry)}><Icon name="trash" />{t("Entfernen", "Remove")}</button></div>
-                    </article>
-                  ))}</div> : <div className="empty-state empty-state--compact"><Icon name="layers" /><p>{t("Noch keine eigene Vorlage gespeichert.", "No custom template saved yet.")}</p><small>{t("Die eingebauten Vorlagen bleiben immer verfügbar.", "Built-in templates remain available.")}</small></div>}
-                </div>
-              </div>
-            </section>
-          )}
+        <section className="settings-section">
+          <div className="settings-section__header"><div><Icon name="refresh" /><span><strong>{t("Updates", "Updates")}</strong><small>{t("Neue Versionen sicher über GitHub Releases installieren", "Install new versions securely through GitHub Releases")}</small></span></div></div>
+          <div className="update-settings-row">
+            <div className="update-settings-row__version"><span>{t("Installierte Version", "Installed version")}</span><strong>{currentVersion}</strong></div>
+            <label className="checkbox-row checkbox-row--compact"><input type="checkbox" checked={settings.checkForUpdatesOnStartup} onChange={(event) => onSettingsChange({ ...settings, checkForUpdatesOnStartup: event.target.checked })} /><span><strong>{t("Bei jedem Start nach Updates suchen", "Check for updates on every launch")}</strong><small>{t("Nur veröffentlichte und signierte Releases werden angeboten.", "Only published and signed releases are offered.")}</small></span></label>
+            <button className="button button--secondary" type="button" onClick={onCheckForUpdates} disabled={checkingForUpdates}><Icon name="refresh" />{checkingForUpdates ? t("Update wird gesucht…", "Checking for update…") : t("Jetzt nach Updates suchen", "Check for updates now")}</button>
+          </div>
+        </section>
 
-          {activeSection === "projects" && (
-            <section className="settings-page">
-              <div className="settings-page__header">
-                <Icon name="terminal" />
-                <div><p className="eyebrow">Defaults</p><h3>{t("Projekte & Terminal", "Projects & terminal")}</h3><small>{t("Standardordner und Terminal-Startbefehl", "Default folder and terminal launch command")}</small></div>
-              </div>
-              <div className="settings-section settings-section--plain">
-                <div className="form-field"><label htmlFor="default-project-dir">{t("Standard-Projektordner", "Default project folder")}</label><div className="input-action-row"><input id="default-project-dir" value={settings.defaultProjectDir} onChange={(event) => onSettingsChange({ ...settings, defaultProjectDir: event.target.value })} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browseDefaultDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Dieser Ordner wird beim Erstellen neuer Projekte vorausgewählt.", "This folder is preselected when creating new projects.")}</small></div>
-                <div className="form-field"><label htmlFor="terminal-command">{t("Terminal-Startbefehl (optional)", "Terminal launch command (optional)")}</label><input id="terminal-command" value={settings.terminalCommand} onChange={(event) => onSettingsChange({ ...settings, terminalCommand: event.target.value })} placeholder={'wt.exe -d "{projectPath}"'} /><small>{t("Leer lassen, um das Standardterminal des Betriebssystems zu verwenden.", "Leave empty to use the operating-system default terminal.")}</small></div>
-              </div>
-            </section>
-          )}
-
-          {activeSection === "updates" && (
-            <section className="settings-page">
-              <div className="settings-page__header">
-                <Icon name="refresh" />
-                <div><p className="eyebrow">Release</p><h3>{t("Updates", "Updates")}</h3><small>{t("Neue Versionen sicher über GitHub Releases installieren", "Install new versions securely through GitHub Releases")}</small></div>
-              </div>
-              <div className="settings-section settings-section--plain">
-                <div className="update-settings-row">
-                  <div className="update-settings-row__version"><span>{t("Installierte Version", "Installed version")}</span><strong>{currentVersion}</strong></div>
-                  <label className="checkbox-row checkbox-row--compact"><input type="checkbox" checked={settings.checkForUpdatesOnStartup} onChange={(event) => onSettingsChange({ ...settings, checkForUpdatesOnStartup: event.target.checked })} /><span><strong>{t("Bei jedem Start nach Updates suchen", "Check for updates on every launch")}</strong><small>{t("Nur veröffentlichte und signierte Releases werden angeboten.", "Only published and signed releases are offered.")}</small></span></label>
-                  <button className="button button--secondary" type="button" onClick={onCheckForUpdates} disabled={checkingForUpdates}><Icon name="refresh" />{checkingForUpdates ? t("Update wird gesucht…", "Checking for update…") : t("Jetzt prüfen", "Check now")}</button>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {activeSection === "backup" && (
-            <section className="settings-page">
-              <div className="settings-page__header">
-                <Icon name="download" />
-                <div><p className="eyebrow">Local data</p><h3>{t("Backup & Sicherheit", "Backup & security")}</h3><small>{t("Projekte, IDEs, Startsets und Vorlagen sichern", "Back up projects, IDEs, launch sets and templates")}</small></div>
-              </div>
-              <div className="settings-section settings-section--plain">
-                <label className="checkbox-row"><input type="checkbox" checked={settings.confirmImportedCommands} onChange={(event) => onSettingsChange({ ...settings, confirmImportedCommands: event.target.checked })} /><span><strong>{t("Importierte Commands vor dem ersten Start bestätigen", "Confirm imported commands before first run")}</strong><small>{t("Verhindert, dass unbekannte Befehle versehentlich ausgeführt werden.", "Prevents unknown commands from being run accidentally.")}</small></span></label>
-                <div className="settings-backup-actions"><button className="button button--secondary" type="button" onClick={onExport}><Icon name="download" />{t("JSON exportieren", "Export JSON")}</button><button className="button button--secondary" type="button" onClick={onImport}><Icon name="upload" />{t("JSON importieren", "Import JSON")}</button><button className="button button--ghost" type="button" onClick={onResetOnboarding}><Icon name="refresh" />{t("Einführung erneut anzeigen", "Show onboarding again")}</button></div>
-              </div>
-            </section>
-          )}
-        </div>
+        <section className="settings-section">
+          <div className="settings-section__header"><div><Icon name="download" /><span><strong>{t("Backup & Sicherheit", "Backup & security")}</strong><small>{t("Alle Projekte, IDEs, Workspaces und Vorlagen sichern", "Back up projects, IDEs, workspaces and templates")}</small></span></div></div>
+          <label className="checkbox-row"><input type="checkbox" checked={settings.confirmImportedCommands} onChange={(event) => onSettingsChange({ ...settings, confirmImportedCommands: event.target.checked })} /><span><strong>{t("Importierte Commands vor dem ersten Start bestätigen", "Confirm imported commands before first run")}</strong><small>{t("Verhindert, dass unbekannte Befehle versehentlich ausgeführt werden.", "Prevents unknown commands from being run accidentally.")}</small></span></label>
+          <div className="button-row"><button className="button button--secondary" type="button" onClick={onExport}><Icon name="download" />{t("Backup als JSON exportieren", "Export JSON backup")}</button><button className="button button--secondary" type="button" onClick={onImport}><Icon name="upload" />{t("Backup aus JSON importieren", "Import JSON backup")}</button><button className="button button--ghost" type="button" onClick={onResetOnboarding}><Icon name="refresh" />{t("Einführung erneut anzeigen", "Show onboarding again")}</button></div>
+        </section>
       </div>
     </Modal>
   );

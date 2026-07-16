@@ -7,7 +7,7 @@ use std::{
     process::{Command, Stdio},
     thread,
 };
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 use walkdir::WalkDir;
 
 #[cfg(target_os = "windows")]
@@ -21,6 +21,69 @@ fn hide_console_window(command: &mut Command) {
 
 #[cfg(not(target_os = "windows"))]
 fn hide_console_window(_command: &mut Command) {}
+
+#[cfg(target_os = "windows")]
+fn send_system_notification(title: &str, body: &str) {
+    let escape = |value: &str| {
+        value
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('\'', "&apos;")
+            .replace('"', "&quot;")
+    };
+    let title = escape(title);
+    let body = escape(body);
+    let script = format!(
+        "$ErrorActionPreference='SilentlyContinue'; \
+         [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
+         [Windows.UI.Notifications.ToastNotification, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; \
+         [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] > $null; \
+         $xml = New-Object Windows.Data.Xml.Dom.XmlDocument; \
+         $xml.LoadXml('<toast><visual><binding template=\"ToastGeneric\"><text>{title}</text><text>{body}</text></binding></visual></toast>'); \
+         $toast = [Windows.UI.Notifications.ToastNotification]::new($xml); \
+         [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Code Deck').Show($toast);"
+    );
+    let mut command = Command::new("powershell");
+    command
+        .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command"])
+        .arg(&script)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    hide_console_window(&mut command);
+    let _ = command.spawn();
+}
+
+#[cfg(target_os = "macos")]
+fn send_system_notification(title: &str, body: &str) {
+    let escape = |value: &str| value.replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!(
+        "display notification \"{}\" with title \"{}\"",
+        escape(body),
+        escape(title)
+    );
+    let _ = Command::new("osascript")
+        .arg("-e")
+        .arg(&script)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
+
+#[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+fn send_system_notification(title: &str, body: &str) {
+    if which::which("notify-send").is_err() {
+        return;
+    }
+    let _ = Command::new("notify-send")
+        .args([title, body])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -102,6 +165,40 @@ struct CreatedProject {
     path: String,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GitFileStatus {
+    path: String,
+    index_status: String,
+    work_tree_status: String,
+    staged: bool,
+    unstaged: bool,
+    untracked: bool,
+    conflicted: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GitRepositoryStatus {
+    branch: Option<String>,
+    upstream: Option<String>,
+    ahead: usize,
+    behind: usize,
+    operation: Option<String>,
+    files: Vec<GitFileStatus>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GitConflictContent {
+    path: String,
+    base: Option<String>,
+    current: String,
+    incoming: String,
+    working_tree: String,
+    binary: bool,
+}
+
 fn display_path(path: &Path) -> String {
     path.to_string_lossy().to_string()
 }
@@ -172,6 +269,106 @@ fn command_output(path: &Path, program: &str, args: &[&str]) -> Option<String> {
         .status
         .success()
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+fn run_git(root: &Path, args: &[String]) -> Result<String, String> {
+    if which::which("git").is_err() {
+        return Err("Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string());
+    }
+    let mut command = Command::new("git");
+    command
+        .args(args)
+        .current_dir(root)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_EDITOR", "true")
+        .env("GIT_SEQUENCE_EDITOR", "true")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console_window(&mut command);
+    let output = command
+        .output()
+        .map_err(|error| format!("Git konnte nicht gestartet werden: {error}"))?;
+    if output.status.success() {
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        Ok(if stdout.is_empty() { stderr } else { stdout })
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        Err(if !stderr.is_empty() { stderr } else if !stdout.is_empty() { stdout } else { format!("Git wurde mit Status {} beendet.", output.status) })
+    }
+}
+
+fn git_project_root(project_path: &str) -> Result<PathBuf, String> {
+    let root = PathBuf::from(project_path);
+    if !root.is_dir() {
+        return Err(format!("Projektordner nicht gefunden: {project_path}"));
+    }
+    let is_git = command_output(&root, "git", &["rev-parse", "--is-inside-work-tree"])
+        .is_some_and(|value| value == "true");
+    if !is_git {
+        return Err("Der Projektordner ist kein Git-Repository.".to_string());
+    }
+    Ok(root)
+}
+
+fn git_path_exists(root: &Path, name: &str) -> bool {
+    command_output(root, "git", &["rev-parse", "--git-path", name])
+        .map(|value| {
+            let path = PathBuf::from(value);
+            if path.is_absolute() { path.exists() } else { root.join(path).exists() }
+        })
+        .unwrap_or(false)
+}
+
+fn current_git_operation(root: &Path) -> Option<String> {
+    if git_path_exists(root, "MERGE_HEAD") {
+        Some("merge".to_string())
+    } else if git_path_exists(root, "rebase-merge") || git_path_exists(root, "rebase-apply") {
+        Some("rebase".to_string())
+    } else if git_path_exists(root, "CHERRY_PICK_HEAD") {
+        Some("cherry-pick".to_string())
+    } else if git_path_exists(root, "REVERT_HEAD") {
+        Some("revert".to_string())
+    } else {
+        None
+    }
+}
+
+fn safe_repo_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
+    use std::path::Component;
+    let relative_path = Path::new(relative);
+    if relative_path.is_absolute()
+        || relative_path.components().any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return Err("Ungültiger Repository-Pfad.".to_string());
+    }
+    let canonical_root = root
+        .canonicalize()
+        .map_err(|error| format!("Projektpfad konnte nicht geprüft werden: {error}"))?;
+    let target = canonical_root.join(relative_path);
+    let mut existing_ancestor = target.parent().unwrap_or(&canonical_root);
+    while !existing_ancestor.exists() {
+        existing_ancestor = existing_ancestor
+            .parent()
+            .ok_or_else(|| "Dateipfad konnte nicht geprüft werden.".to_string())?;
+    }
+    let canonical_ancestor = existing_ancestor
+        .canonicalize()
+        .map_err(|error| format!("Dateipfad konnte nicht geprüft werden: {error}"))?;
+    if !canonical_ancestor.starts_with(&canonical_root) {
+        return Err("Der Dateipfad liegt außerhalb des Projekts.".to_string());
+    }
+    if target.exists() {
+        let canonical_target = target
+            .canonicalize()
+            .map_err(|error| format!("Dateipfad konnte nicht geprüft werden: {error}"))?;
+        if !canonical_target.starts_with(&canonical_root) {
+            return Err("Die Datei verweist auf einen Pfad außerhalb des Projekts.".to_string());
+        }
+    }
+    Ok(target)
 }
 
 fn package_manager(path: &Path) -> Option<String> {
@@ -939,6 +1136,85 @@ fn create_project_from_template(
     })
 }
 
+fn repository_name_from_url(repository_url: &str) -> Option<String> {
+    let trimmed = repository_url
+        .trim()
+        .trim_end_matches(|character| character == '/' || character == '\\');
+    let segment = trimmed
+        .rsplit(|character| matches!(character, '/' | '\\' | ':'))
+        .next()?
+        .trim_end_matches(".git")
+        .trim();
+    (!segment.is_empty()).then(|| segment.to_string())
+}
+
+#[tauri::command]
+fn clone_repository(
+    repository_url: String,
+    parent_path: String,
+    directory_name: Option<String>,
+    branch: Option<String>,
+    shallow: bool,
+) -> Result<CreatedProject, String> {
+    let repository_url = repository_url.trim();
+    if repository_url.is_empty() {
+        return Err("Die Repository-URL darf nicht leer sein.".to_string());
+    }
+    if which::which("git").is_err() {
+        return Err("Git wurde nicht gefunden. Installiere Git und starte Code Deck neu.".to_string());
+    }
+
+    let parent = PathBuf::from(parent_path.trim());
+    if !parent.is_dir() {
+        return Err(format!("Der Zielordner wurde nicht gefunden: {}", display_path(&parent)));
+    }
+    let inferred_name = repository_name_from_url(repository_url)
+        .ok_or_else(|| "Aus der Repository-URL konnte kein Ordnername ermittelt werden.".to_string())?;
+    let name = safe_project_name(directory_name.as_deref().filter(|value| !value.trim().is_empty()).unwrap_or(&inferred_name))?;
+    let destination = parent.join(&name);
+    if destination.exists() {
+        return Err(format!("Der Zielordner existiert bereits: {}", display_path(&destination)));
+    }
+
+    let mut args = vec!["clone".to_string(), "--progress".to_string()];
+    if shallow {
+        args.extend(["--depth".to_string(), "1".to_string()]);
+    }
+    if let Some(branch) = branch.filter(|value| !value.trim().is_empty()) {
+        let branch = branch.trim();
+        if branch.starts_with('-') {
+            return Err("Ungültiger Branch- oder Tag-Name.".to_string());
+        }
+        args.extend(["--branch".to_string(), branch.to_string()]);
+    }
+    args.push("--".to_string());
+    args.push(repository_url.to_string());
+    args.push(name.clone());
+
+    let mut command = Command::new("git");
+    command
+        .args(&args)
+        .current_dir(&parent)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    hide_console_window(&mut command);
+    let output = command
+        .output()
+        .map_err(|error| format!("Repository konnte nicht geklont werden: {error}"))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        return Err(if !stderr.is_empty() { stderr } else { stdout });
+    }
+
+    Ok(CreatedProject {
+        name,
+        path: display_path(&destination),
+    })
+}
+
 fn inspect_project_path(root: &Path) -> ProjectInspection {
     let markers = marker_names(root);
     let source_languages = detected_source_languages(root);
@@ -1236,6 +1512,288 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
     }
 
     Ok(inspect_project_path(&root))
+}
+
+fn parse_git_status_files(raw: &str) -> Vec<GitFileStatus> {
+    let entries: Vec<&str> = raw.split('\0').filter(|entry| !entry.is_empty()).collect();
+    let mut files = Vec::new();
+    let mut index = 0usize;
+    while index < entries.len() {
+        let entry = entries[index];
+        let bytes = entry.as_bytes();
+        if bytes.len() < 4 {
+            index += 1;
+            continue;
+        }
+        let index_status = bytes[0] as char;
+        let work_tree_status = bytes[1] as char;
+        let path = entry[3..].to_string();
+        let pair = format!("{index_status}{work_tree_status}");
+        let conflicted = matches!(pair.as_str(), "DD" | "AU" | "UD" | "UA" | "DU" | "AA" | "UU");
+        let untracked = pair == "??";
+        files.push(GitFileStatus {
+            path,
+            index_status: index_status.to_string(),
+            work_tree_status: work_tree_status.to_string(),
+            staged: !untracked && index_status != ' ' && index_status != '?',
+            unstaged: !untracked && work_tree_status != ' ' && work_tree_status != '?',
+            untracked,
+            conflicted,
+        });
+        index += 1;
+        if matches!(index_status, 'R' | 'C') && index < entries.len() {
+            index += 1;
+        }
+    }
+    files.sort_by(|left, right| left.path.to_lowercase().cmp(&right.path.to_lowercase()));
+    files
+}
+
+#[tauri::command]
+fn git_init_repository(project_path: String) -> Result<(), String> {
+    let root = PathBuf::from(project_path.trim());
+    if !root.is_dir() {
+        return Err(format!("Projektordner nicht gefunden: {}", display_path(&root)));
+    }
+    run_git(&root, &["init".to_string()]).map(|_| ())
+}
+
+#[tauri::command]
+fn git_status(project_path: String) -> Result<GitRepositoryStatus, String> {
+    let root = git_project_root(&project_path)?;
+    let branch = command_output(&root, "git", &["branch", "--show-current"])
+        .filter(|value| !value.is_empty())
+        .or_else(|| command_output(&root, "git", &["rev-parse", "--short", "HEAD"]));
+    let upstream = command_output(
+        &root,
+        "git",
+        &["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+    )
+    .filter(|value| !value.is_empty());
+    let (ahead, behind) = upstream
+        .as_ref()
+        .and_then(|_| command_output(&root, "git", &["rev-list", "--left-right", "--count", "HEAD...@{upstream}"]))
+        .and_then(|value| {
+            let mut parts = value.split_whitespace();
+            Some((parts.next()?.parse().ok()?, parts.next()?.parse().ok()?))
+        })
+        .unwrap_or((0, 0));
+    let raw = run_git(
+        &root,
+        &["status".to_string(), "--short".to_string(), "-z".to_string(), "--untracked-files=all".to_string()],
+    )?;
+
+    Ok(GitRepositoryStatus {
+        branch,
+        upstream,
+        ahead,
+        behind,
+        operation: current_git_operation(&root),
+        files: parse_git_status_files(&raw),
+    })
+}
+
+#[tauri::command]
+fn git_branches(project_path: String) -> Result<Vec<String>, String> {
+    let root = git_project_root(&project_path)?;
+    let output = run_git(
+        &root,
+        &["branch".to_string(), "--format=%(refname:short)".to_string()],
+    )?;
+    Ok(output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(ToString::to_string)
+        .collect())
+}
+
+#[tauri::command]
+fn git_diff(project_path: String, file_path: String, staged: bool) -> Result<String, String> {
+    let root = git_project_root(&project_path)?;
+    let _ = safe_repo_path(&root, &file_path)?;
+    let mut args = vec!["diff".to_string()];
+    if staged {
+        args.push("--cached".to_string());
+    }
+    args.extend(["--".to_string(), file_path]);
+    run_git(&root, &args)
+}
+
+#[tauri::command]
+fn git_stage(project_path: String, paths: Vec<String>) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    if paths.is_empty() {
+        return Err("Wähle mindestens eine Datei aus.".to_string());
+    }
+    for path in &paths {
+        let _ = safe_repo_path(&root, path)?;
+    }
+    let mut args = vec!["add".to_string(), "--".to_string()];
+    args.extend(paths);
+    run_git(&root, &args).map(|_| ())
+}
+
+#[tauri::command]
+fn git_unstage(project_path: String, paths: Vec<String>) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    if paths.is_empty() {
+        return Err("Wähle mindestens eine Datei aus.".to_string());
+    }
+    for path in &paths {
+        let _ = safe_repo_path(&root, path)?;
+    }
+    let mut args = vec!["restore".to_string(), "--staged".to_string(), "--".to_string()];
+    args.extend(paths);
+    run_git(&root, &args).map(|_| ())
+}
+
+#[tauri::command]
+fn git_commit(project_path: String, message: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let message = message.trim();
+    if message.is_empty() {
+        return Err("Die Commit-Nachricht darf nicht leer sein.".to_string());
+    }
+    run_git(
+        &root,
+        &["commit".to_string(), "-m".to_string(), message.to_string()],
+    )
+    .map(|_| ())
+}
+
+#[tauri::command]
+fn git_checkout_branch(project_path: String, branch: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let branch = branch.trim();
+    if branch.is_empty() || branch.starts_with('-') {
+        return Err("Ungültiger Branch-Name.".to_string());
+    }
+    run_git(
+        &root,
+        &["switch".to_string(), branch.to_string()],
+    )
+    .map(|_| ())
+}
+
+#[tauri::command]
+fn git_create_branch(project_path: String, branch: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let branch = branch.trim();
+    if branch.is_empty() || branch.starts_with('-') || branch.chars().any(char::is_whitespace) {
+        return Err("Ungültiger Branch-Name.".to_string());
+    }
+    run_git(
+        &root,
+        &["switch".to_string(), "-c".to_string(), branch.to_string()],
+    )
+    .map(|_| ())
+}
+
+#[tauri::command]
+fn git_remote_action(project_path: String, action: String) -> Result<String, String> {
+    let root = git_project_root(&project_path)?;
+    let args = match action.as_str() {
+        "fetch" => vec!["fetch".to_string(), "--prune".to_string()],
+        "pull" => vec!["pull".to_string()],
+        "push" => vec!["push".to_string()],
+        _ => return Err("Unbekannte Git-Aktion.".to_string()),
+    };
+    run_git(&root, &args)
+}
+
+fn read_git_stage(root: &Path, stage: u8, file_path: &str) -> Result<(Option<String>, bool), String> {
+    let spec = format!(":{stage}:{file_path}");
+    let mut command = Command::new("git");
+    command
+        .args(["show", &spec])
+        .current_dir(root)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    hide_console_window(&mut command);
+    let output = command
+        .output()
+        .map_err(|error| format!("Konfliktversion konnte nicht gelesen werden: {error}"))?;
+    if !output.status.success() {
+        return Ok((None, false));
+    }
+    match String::from_utf8(output.stdout) {
+        Ok(value) => Ok((Some(value), false)),
+        Err(_) => Ok((None, true)),
+    }
+}
+
+#[tauri::command]
+fn git_conflict_content(project_path: String, file_path: String) -> Result<GitConflictContent, String> {
+    let root = git_project_root(&project_path)?;
+    let target = safe_repo_path(&root, &file_path)?;
+    let (base, base_binary) = read_git_stage(&root, 1, &file_path)?;
+    let (current, current_binary) = read_git_stage(&root, 2, &file_path)?;
+    let (incoming, incoming_binary) = read_git_stage(&root, 3, &file_path)?;
+    let (working_tree, working_binary) = match fs::read(&target) {
+        Ok(bytes) => match String::from_utf8(bytes) {
+            Ok(value) => (value, false),
+            Err(_) => (String::new(), true),
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => (String::new(), false),
+        Err(error) => return Err(format!("Konfliktdatei konnte nicht gelesen werden: {error}")),
+    };
+    Ok(GitConflictContent {
+        path: file_path,
+        base,
+        current: current.unwrap_or_default(),
+        incoming: incoming.unwrap_or_default(),
+        working_tree,
+        binary: base_binary || current_binary || incoming_binary || working_binary,
+    })
+}
+
+#[tauri::command]
+fn git_resolve_conflict(project_path: String, file_path: String, contents: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let target = safe_repo_path(&root, &file_path)?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|error| format!("Zielordner konnte nicht erstellt werden: {error}"))?;
+    }
+    fs::write(&target, contents)
+        .map_err(|error| format!("Aufgelöste Datei konnte nicht gespeichert werden: {error}"))?;
+    run_git(
+        &root,
+        &["add".to_string(), "--".to_string(), file_path],
+    )
+    .map(|_| ())
+}
+
+#[tauri::command]
+fn git_continue_operation(project_path: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let operation = current_git_operation(&root)
+        .ok_or_else(|| "Es läuft keine fortsetzbare Git-Operation.".to_string())?;
+    let args = match operation.as_str() {
+        "merge" => vec!["merge".to_string(), "--continue".to_string()],
+        "rebase" => vec!["rebase".to_string(), "--continue".to_string()],
+        "cherry-pick" => vec!["cherry-pick".to_string(), "--continue".to_string()],
+        "revert" => vec!["revert".to_string(), "--continue".to_string()],
+        _ => return Err("Unbekannte Git-Operation.".to_string()),
+    };
+    run_git(&root, &args).map(|_| ())
+}
+
+#[tauri::command]
+fn git_abort_operation(project_path: String) -> Result<(), String> {
+    let root = git_project_root(&project_path)?;
+    let operation = current_git_operation(&root)
+        .ok_or_else(|| "Es läuft keine abbrechbare Git-Operation.".to_string())?;
+    let args = match operation.as_str() {
+        "merge" => vec!["merge".to_string(), "--abort".to_string()],
+        "rebase" => vec!["rebase".to_string(), "--abort".to_string()],
+        "cherry-pick" => vec!["cherry-pick".to_string(), "--abort".to_string()],
+        "revert" => vec!["revert".to_string(), "--abort".to_string()],
+        _ => return Err("Unbekannte Git-Operation.".to_string()),
+    };
+    run_git(&root, &args).map(|_| ())
 }
 
 fn should_skip(entry: &walkdir::DirEntry) -> bool {
@@ -2034,6 +2592,8 @@ fn start_process(
     command: String,
     working_dir: Option<String>,
     env: HashMap<String, String>,
+    label: String,
+    notify_on_exit: bool,
 ) -> Result<ProcessStarted, String> {
     if command.trim().is_empty() {
         return Err("Der Command ist leer.".to_string());
@@ -2124,6 +2684,17 @@ fn start_process(
                 success,
             },
         );
+        if notify_on_exit {
+            let body = if success {
+                format!("{label} wurde erfolgreich beendet.")
+            } else {
+                match exit_code {
+                    Some(code) => format!("{label} ist mit Exit-Code {code} fehlgeschlagen."),
+                    None => format!("{label} wurde unerwartet beendet."),
+                }
+            };
+            send_system_notification("Code Deck", &body);
+        }
     });
 
     Ok(ProcessStarted { pid })
@@ -2190,13 +2761,74 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
             #[cfg(desktop)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            {
+                use tauri::{
+                    menu::{Menu, MenuItem},
+                    tray::TrayIconBuilder,
+                };
+
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+                let show_item = MenuItem::with_id(app, "show", "Code Deck öffnen", true, None::<&str>)?;
+                let hide_item = MenuItem::with_id(app, "hide", "Fenster ausblenden", true, None::<&str>)?;
+                let quit_item = MenuItem::with_id(app, "quit", "Code Deck beenden", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
+                let mut tray = TrayIconBuilder::new()
+                    .tooltip("Code Deck")
+                    .menu(&menu)
+                    .show_menu_on_left_click(true)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "hide" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                        }
+                        "quit" => app.exit(0),
+                        _ => {}
+                    });
+                if let Some(icon) = app.default_window_icon() {
+                    tray = tray.icon(icon.clone());
+                }
+                tray.build(app)?;
+
+                if let Some(window) = app.get_webview_window("main") {
+                    let window_for_close = window.clone();
+                    window.on_window_event(move |event| {
+                        if let WindowEvent::CloseRequested { api, .. } = event {
+                            api.prevent_close();
+                            let _ = window_for_close.hide();
+                        }
+                    });
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             create_project_from_template,
+            clone_repository,
             inspect_project,
+            git_init_repository,
+            git_status,
+            git_branches,
+            git_diff,
+            git_stage,
+            git_unstage,
+            git_commit,
+            git_checkout_branch,
+            git_create_branch,
+            git_remote_action,
+            git_conflict_content,
+            git_resolve_conflict,
+            git_continue_operation,
+            git_abort_operation,
             scan_projects,
             detect_editors,
             get_desktop_directory,
