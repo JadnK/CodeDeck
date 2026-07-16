@@ -43,10 +43,10 @@ export function ProcessesPanel({
   }).format(new Date(value));
 
   return (
-    <Modal open={open} onClose={onClose} title={t(`Prozesse · ${active.length} aktiv`, `Processes · ${active.length} active`)} size="large">
+    <Modal open={open} onClose={onClose} title={t(`Commands · ${active.length} aktiv`, `Commands · ${active.length} active`)} size="large">
       <div className="processes-panel">
         {processes.length === 0 ? (
-          <div className="empty-state"><Icon name="terminal" /><h3>{t("Keine Prozesse", "No processes")}</h3><p>{t("Gestartete Commands erscheinen hier mit Live-Logs und Stop-Funktion.", "Started commands appear here with live logs and a stop action.")}</p></div>
+          <div className="empty-state"><Icon name="terminal" /><h3>{t("Keine Commands", "No commands")}</h3><p>{t("Gestartete Commands erscheinen hier mit Live-Logs und Stop-Funktion.", "Started commands appear here with live logs and a stop action.")}</p></div>
         ) : (
           <>
             {active.length > 0 && <p className="section-label">{t("Läuft gerade", "Running now")}</p>}
