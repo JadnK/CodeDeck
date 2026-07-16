@@ -1,10 +1,12 @@
 use serde::Serialize;
+#[cfg(target_os = "windows")]
+use std::collections::BTreeSet;
 use std::{
-    collections::BTreeSet,
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
+#[cfg(target_os = "windows")]
 use walkdir::WalkDir;
 
 use crate::projects::validation::{display_path, project_name};
@@ -63,6 +65,7 @@ fn editor_candidate(
     }
 }
 
+#[cfg(not(target_os = "macos"))]
 fn executable_template(path: &Path) -> String {
     format!(
         "\"{}\" \"{{projectPath}}\"",
@@ -466,7 +469,7 @@ pub(crate) fn detect_editors() -> Vec<EditorSuggestion> {
     for (id, name, executable, template) in candidates {
         editor_candidate(&mut suggestions, id, name, executable, template);
     }
-    suggestions.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
+    suggestions.sort_by_key(|entry| entry.name.to_lowercase());
     suggestions
 }
 

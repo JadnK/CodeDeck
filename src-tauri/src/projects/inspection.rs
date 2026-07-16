@@ -78,7 +78,8 @@ pub(crate) fn marker_names(path: &Path) -> Vec<String> {
 
     let mut markers: Vec<String> = candidates
         .iter()
-        .filter_map(|(entry, label)| path.join(entry).exists().then(|| (*label).to_string()))
+        .filter(|&(entry, _)| path.join(entry).exists())
+        .map(|(_, label)| (*label).to_string())
         .collect();
 
     if let Ok(entries) = fs::read_dir(path) {

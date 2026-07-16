@@ -68,6 +68,6 @@ pub(crate) fn parse_git_status_files(raw: &str) -> Vec<GitFileStatus> {
             index += 1;
         }
     }
-    files.sort_by(|left, right| left.path.to_lowercase().cmp(&right.path.to_lowercase()));
+    files.sort_by_key(|file| file.path.to_lowercase());
     files
 }

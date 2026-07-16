@@ -7,15 +7,15 @@ use std::{
 };
 use tauri::{AppHandle, Emitter};
 
+#[cfg(target_os = "windows")]
+use crate::platform::launchers::hide_console_window;
 use crate::{
-    platform::{
-        launchers::{hide_console_window, shell_command},
-        notifications::send_system_notification,
-    },
+    platform::{launchers::shell_command, notifications::send_system_notification},
     process::state::{ProcessExitEvent, ProcessOutputEvent, ProcessStarted},
     projects::validation::display_path,
 };
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn start_process(
     app: AppHandle,
     run_id: String,

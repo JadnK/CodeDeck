@@ -1,5 +1,6 @@
 use std::process::{Command, Stdio};
 
+#[cfg(target_os = "windows")]
 use crate::platform::launchers::hide_console_window;
 
 #[cfg(target_os = "windows")]
