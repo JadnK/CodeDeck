@@ -6,10 +6,11 @@ CodeDeck opens local folders, launches external applications and runs user-confi
 
 | Version | Supported |
 |---|---|
-| 0.2.x | Yes |
+| 1.0.x | Yes |
+| 0.2.x | No |
 | 0.1.x | No |
 
-Only the latest minor release receives security fixes during early development.
+Only the latest stable release line receives security fixes.
 
 ## Reporting a vulnerability
 
