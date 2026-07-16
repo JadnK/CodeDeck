@@ -70,6 +70,22 @@ body {
   overflow-x: hidden;
   color: var(--text);
   background: var(--bg);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input,
+textarea,
+code,
+pre,
+.selectable-text,
+.project-name {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.project-name {
+  cursor: text;
 }
 
 button,
@@ -1592,7 +1608,7 @@ svg {
 
 .quick-command-list > button {
   display: grid;
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -1609,6 +1625,18 @@ svg {
 }
 
 .quick-command-list span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.quick-command-list span b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-command-list span code {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1635,20 +1663,37 @@ svg {
   white-space: nowrap;
 }
 
-.script-list > div {
+.script-list__row {
   display: grid;
-  grid-template-columns: minmax(100px, 0.6fr) minmax(0, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  gap: 12px;
+  padding: 10px 0;
 }
 
-.script-list > div > span {
+.script-list__content {
+  display: grid;
   min-width: 0;
+  gap: 4px;
 }
 
 .script-list strong {
+  overflow: hidden;
   font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-list__content code {
+  overflow: visible;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.script-list__row .button {
+  min-width: 96px;
 }
 
 .empty-state {
@@ -3383,6 +3428,327 @@ svg {
   }
 }
 
+/* Interaction and navigation refinements */
+.project-card__identity[role="button"] {
+  cursor: pointer;
+}
+
+.project-card__identity[role="button"]:focus-visible {
+  border-radius: var(--radius-small);
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.app-header__process-button {
+  position: relative;
+}
+
+.app-header__process-button > span {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  border: 2px solid var(--surface);
+  border-radius: 9px;
+  padding: 0 4px;
+  color: #fff;
+  background: var(--primary);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+/* Settings with persistent side navigation */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  min-height: 630px;
+  margin: -18px;
+}
+
+.settings-sidebar {
+  display: flex;
+  position: sticky;
+  top: -18px;
+  flex-direction: column;
+  align-self: start;
+  min-height: 630px;
+  padding: 18px 12px 14px;
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.settings-sidebar__intro {
+  display: grid;
+  gap: 2px;
+  padding: 0 8px 14px;
+}
+
+.settings-sidebar__intro strong {
+  font-size: 13px;
+}
+
+.settings-sidebar__intro small,
+.settings-sidebar__version span {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.settings-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-nav > button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-small);
+  padding: 9px 10px;
+  color: var(--text-muted);
+  background: transparent;
+  text-align: left;
+}
+
+.settings-nav > button:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+
+.settings-nav > button.active {
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.settings-nav > button > svg {
+  width: 17px;
+  height: 17px;
+  color: var(--text-faint);
+}
+
+.settings-nav > button.active > svg {
+  color: var(--primary);
+}
+
+.settings-nav > button > span {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-nav strong {
+  overflow: hidden;
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-nav small {
+  overflow: hidden;
+  color: var(--text-faint);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-sidebar__version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding: 12px 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-sidebar__version strong {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.settings-content {
+  min-width: 0;
+  padding: 20px;
+}
+
+.settings-page {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-page__header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+  min-height: 48px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-page__header--actions {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+
+.settings-page__header > svg {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.settings-page__header > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.settings-page__header .eyebrow {
+  margin-bottom: 1px;
+}
+
+.settings-page__header h3 {
+  font-size: 15px;
+}
+
+.settings-page__header small {
+  color: var(--text-faint);
+  font-size: 10.5px;
+}
+
+.settings-section--plain {
+  padding: 14px;
+}
+
+.settings-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Launch sets: clearer purpose and less workspace jargon */
+.workspace-sidebar__intro {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+  padding: 0 2px;
+}
+
+.workspace-sidebar__intro strong {
+  font-size: 12px;
+}
+
+.workspace-sidebar__intro small {
+  color: var(--text-faint);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.workspace-explainer {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.workspace-explainer svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-faint);
+}
+
+.workspace-explainer p {
+  margin: 0;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 860px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .settings-sidebar {
+    position: static;
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-sidebar__intro,
+  .settings-sidebar__version {
+    display: none;
+  }
+
+  .settings-nav {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .settings-nav > button {
+    flex: 0 0 auto;
+    grid-template-columns: 17px auto;
+  }
+
+  .settings-nav small {
+    display: none;
+  }
+
+  .settings-page__header--actions {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .settings-page__header--actions > .button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 650px) {
+  .settings-layout {
+    margin: -12px;
+  }
+
+  .settings-content {
+    padding: 14px 12px;
+  }
+
+  .settings-sidebar {
+    padding: 10px;
+  }
+
+  .settings-page__header {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .settings-page__header > svg {
+    width: 30px;
+    height: 30px;
+    padding: 7px;
+  }
+
+  .script-list__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .script-list__row .button {
+    width: 100%;
+  }
+}
+
 /* CodeDeck 1.1 project runtime and Git workbench */
 .creation-mode-tabs {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -3672,26 +4038,4 @@ svg {
   .git-operation-banner > .button-row {
     justify-content: flex-start;
   }
-}
-
-.process-utility {
-  position: relative;
-}
-
-.process-utility__badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  display: grid;
-  place-items: center;
-  min-width: 15px;
-  height: 15px;
-  border: 2px solid var(--surface);
-  border-radius: 999px;
-  padding: 0 3px;
-  color: white;
-  background: var(--primary);
-  font-size: 8px;
-  font-weight: 750;
-  line-height: 1;
 }

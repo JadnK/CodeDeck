@@ -28,6 +28,9 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Preserved the redesigned Settings dialog with a persistent side navigation and a dedicated custom-project-template section.
+- Streamlined Workspaces into Launch sets and kept Processes out of the main navigation.
+- Prevented accidental text selection on controls and interface headings while keeping project names, inputs and code selectable.
 - Project details now keep all detected package scripts visible instead of limiting the list.
 - Project runtime settings automatically suggest common build, run and development-port defaults.
 - Vite, Astro, Angular, Nuxt, SvelteKit and Next.js runs automatically receive the configured port when possible.

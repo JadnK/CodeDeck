@@ -9,6 +9,7 @@ CodeDeck 1.1.0 expands the project workflow from launching folders to managing t
 - Use the new Git workbench to inspect file changes and diffs, switch or create branches, stage and unstage files, commit changes, and run fetch, pull or push.
 - Resolve text merge conflicts inside CodeDeck by choosing the current version, incoming version, both versions or a manually edited result. Continue or abort merge, rebase, cherry-pick and revert operations afterwards.
 - Keep CodeDeck available from the system tray and receive optional desktop notifications when builds, runs and other commands finish.
+- Keep the redesigned Settings sidebar, structured project-template management, streamlined Launch sets and improved non-selectable productivity UI from the previous interface rework.
 
 ## Safety
 
