@@ -6,7 +6,7 @@ import { ProjectCreateModal } from "../features/projects/ProjectCreateModal";
 import { ProjectDetails } from "../features/projects/ProjectDetails";
 import { ProjectScanModal } from "../features/projects/ProjectScanModal";
 import { ProjectTodosModal } from "../features/projects/ProjectTodosModal";
-import { SettingsPanel } from "../features/settings/SettingsPanel";
+import { SettingsPanel, type SettingsSection } from "../features/settings/SettingsPanel";
 import { UpdateModal } from "../features/updates/UpdateModal";
 import { WorkspacesPanel } from "../features/workspaces/WorkspacesPanel";
 import { Icon } from "../shared/components/Icon";
@@ -67,6 +67,7 @@ export function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsInitialSection, setSettingsInitialSection] = useState<SettingsSection>("general");
   const [workspacesOpen, setWorkspacesOpen] = useState(false);
   const [processesOpen, setProcessesOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
@@ -373,7 +374,6 @@ export function App() {
       logs: [`$ ${safeCommand.command}`],
     };
     setData((current) => ({ ...current, processHistory: [run, ...current.processHistory].slice(0, 100) }));
-    setProcessesOpen(true);
     try {
       const result = await startProcess(run.id, project.path, safeCommand.command, safeCommand.workingDir, safeCommand.env);
       setData((current) => ({
@@ -457,7 +457,7 @@ export function App() {
       return;
     }
     const project = data.projects.find((entry) => entry.id === action.projectId);
-    if (!project) throw new Error(t("Ein Projekt dieser Workspace-Aktion wurde nicht gefunden.", "A project used by this workspace action could not be found."));
+    if (!project) throw new Error(t("Ein Projekt dieses Startschritts wurde nicht gefunden.", "A project used by this launch step could not be found."));
     if (action.type === "openEditor") return openProjectEditor(project, action.editorId);
     if (action.type === "openTerminal") return openProjectTerminal(project);
     if (action.type === "openFileManager") return openProjectFolder(project);
@@ -470,17 +470,23 @@ export function App() {
 
   async function startWorkspace(workspace: Workspace) {
     const actions = [...workspace.actions].sort((a, b) => a.order - b.order);
+    const pendingParallel: Promise<void>[] = [];
     try {
-      const parallel = actions.filter((action) => action.runMode === "parallel");
-      const sequence = actions.filter((action) => action.runMode === "sequence");
-      await Promise.all(parallel.map((action) => runWorkspaceAction(workspace, action)));
-      for (const action of sequence) {
+      for (const action of actions) {
+        if (action.runMode === "parallel") {
+          pendingParallel.push(Promise.resolve(runWorkspaceAction(workspace, action)).then(() => undefined));
+          continue;
+        }
+        if (pendingParallel.length) {
+          await Promise.all(pendingParallel.splice(0));
+        }
         await runWorkspaceAction(workspace, action);
-        await sleep(350);
+        await sleep(250);
       }
-      pushToast("success", t("Workspace gestartet", "Workspace started"), t(`${workspace.name}: ${actions.length} Aktionen`, `${workspace.name}: ${actions.length} actions`));
+      if (pendingParallel.length) await Promise.all(pendingParallel);
+      pushToast("success", t("Startset gestartet", "Launch set started"), t(`${workspace.name}: ${actions.length} Schritte`, `${workspace.name}: ${actions.length} steps`));
     } catch (error) {
-      pushToast("error", t("Workspace konnte nicht vollständig gestartet werden", "Workspace could not be started completely"), errorMessage(error));
+      pushToast("error", t("Startset konnte nicht vollständig gestartet werden", "Launch set could not be started completely"), errorMessage(error));
     }
   }
 
@@ -490,7 +496,7 @@ export function App() {
       pushToast("info", t("Keine aktiven Prozesse", "No active processes"), workspace.name);
       return;
     }
-    if (!window.confirm(t(`${runs.length} Prozess(e) des Workspaces „${workspace.name}“ beenden?`, `Stop ${runs.length} process(es) from workspace “${workspace.name}”?`))) return;
+    if (!window.confirm(t(`${runs.length} laufende Command(s) aus „${workspace.name}“ beenden?`, `Stop ${runs.length} running command(s) from “${workspace.name}”?`))) return;
     await Promise.all(runs.map((run) => stopRun(run, false)));
   }
 
@@ -517,7 +523,7 @@ export function App() {
       const contents = await readTextFile(path);
       const parsed = JSON.parse(contents) as unknown;
       const imported = normalizeData(parsed, true);
-      if (!window.confirm(t(`Konfiguration importieren?\n\n${imported.projects.length} Projekte\n${imported.editors.length} IDEs\n${imported.workspaces.length} Workspaces\n\nDie aktuelle Konfiguration wird ersetzt.`, `Import configuration?\n\n${imported.projects.length} projects\n${imported.editors.length} IDEs\n${imported.workspaces.length} workspaces\n\nThe current configuration will be replaced.`))) return;
+      if (!window.confirm(t(`Konfiguration importieren?\n\n${imported.projects.length} Projekte\n${imported.editors.length} IDEs\n${imported.workspaces.length} Startsets\n\nDie aktuelle Konfiguration wird ersetzt.`, `Import configuration?\n\n${imported.projects.length} projects\n${imported.editors.length} IDEs\n${imported.workspaces.length} launch sets\n\nThe current configuration will be replaced.`))) return;
       setData(imported);
       setSelectedProjectId(undefined);
       pushToast("success", t("Konfiguration importiert", "Configuration imported"), t("Importierte Commands müssen vor dem ersten Start bestätigt werden.", "Imported commands must be confirmed before their first run."));
@@ -542,21 +548,28 @@ export function App() {
             </button>
             <button className="main-nav__item" type="button" onClick={() => setWorkspacesOpen(true)}>
               <Icon name="layers" />
-              <span>Workspaces</span>
+              <span>{t("Startsets", "Launch sets")}</span>
               {data.workspaces.length > 0 && <small>{data.workspaces.length}</small>}
-            </button>
-            <button className="main-nav__item" type="button" onClick={() => setProcessesOpen(true)}>
-              <Icon name="terminal" />
-              <span>{t("Prozesse", "Processes")}</span>
-              {activeProcesses.length > 0 && <small className="main-nav__badge">{activeProcesses.length}</small>}
             </button>
           </nav>
 
           <div className="app-header__actions">
+            {activeProcesses.length > 0 && (
+              <button
+                className="icon-button app-header__process-button"
+                type="button"
+                onClick={() => setProcessesOpen(true)}
+                title={t(`${activeProcesses.length} aktive Commands`, `${activeProcesses.length} active commands`)}
+                aria-label={t("Aktive Commands öffnen", "Open active commands")}
+              >
+                <Icon name="terminal" />
+                <span>{activeProcesses.length}</span>
+              </button>
+            )}
             <button
               className="icon-button"
               type="button"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => { setSettingsInitialSection("general"); setSettingsOpen(true); }}
               title={t("Einstellungen", "Settings")}
               aria-label={t("Einstellungen öffnen", "Open settings")}
             >
@@ -672,7 +685,7 @@ export function App() {
         defaultProjectDir={data.settings.defaultProjectDir}
         onClose={() => setCreateOpen(false)}
         onCreate={addProject}
-        onOpenTemplateSettings={() => { setCreateOpen(false); setSettingsOpen(true); }}
+        onOpenTemplateSettings={() => { setCreateOpen(false); setSettingsInitialSection("templates"); setSettingsOpen(true); }}
         onError={(message) => pushToast("error", t("Projekt konnte nicht hinzugefügt werden", "Could not add project"), message)}
       />
       <ProjectScanModal
@@ -712,6 +725,7 @@ export function App() {
         settings={data.settings}
         currentVersion={currentVersion}
         checkingForUpdates={checkingForUpdates}
+        initialSection={settingsInitialSection}
         onClose={() => setSettingsOpen(false)}
         onEditorsChange={(editors: Editor[]) => setData((current) => ({ ...current, editors }))}
         onProjectTemplatesChange={(projectTemplates) => setData((current) => ({ ...current, projectTemplates }))}
@@ -732,7 +746,7 @@ export function App() {
         onChange={(workspaces) => setData((current) => ({ ...current, workspaces }))}
         onStart={(workspace) => void startWorkspace(workspace)}
         onStop={(workspace) => void stopWorkspace(workspace)}
-        onError={(message) => pushToast("error", "Workspace", message)}
+        onError={(message) => pushToast("error", t("Startset", "Launch set"), message)}
       />
       <ProcessesPanel
         open={processesOpen}
@@ -747,7 +761,7 @@ export function App() {
         hasEditors={data.editors.some((editor) => editor.enabled)}
         hasProjects={data.projects.length > 0}
         onAddProject={() => { setOnboardingDismissed(true); setCreateOpen(true); }}
-        onOpenSettings={() => { setOnboardingDismissed(true); setSettingsOpen(true); }}
+        onOpenSettings={() => { setOnboardingDismissed(true); setSettingsInitialSection("editors"); setSettingsOpen(true); }}
         onComplete={() => { setData((current) => ({ ...current, settings: { ...current.settings, onboardingComplete: true } })); setOnboardingDismissed(true); }}
       />
       <UpdateModal

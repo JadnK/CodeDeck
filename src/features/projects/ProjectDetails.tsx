@@ -176,7 +176,7 @@ export function ProjectDetails({
             </div>
             <div>
               <div className="project-detail__title-row">
-                <h2>{project.name}</h2>
+                <h2 className="project-name selectable-text">{project.name}</h2>
                 {project.archived && <span className="badge badge--warning">{t("Archiviert", "Archived")}</span>}
               </div>
               <p>{project.path}</p>
@@ -237,8 +237,8 @@ export function ProjectDetails({
                   <div className="quick-command-list">
                     {project.commands.slice(0, 5).map((command) => (
                       <button type="button" key={command.id} onClick={() => onRunCommand(project, command)}>
-                        <span><Icon name="play" /><b>{command.label}</b></span>
-                        <code>{command.command}</code>
+                        <Icon name="play" />
+                        <span><b>{command.label}</b><code>{command.command}</code></span>
                       </button>
                     ))}
                   </div>
@@ -251,13 +251,13 @@ export function ProjectDetails({
                 <div className="panel__header"><div><p className="eyebrow">Scripts</p><h3>package.json</h3></div></div>
                 {inspection?.scripts.length ? (
                   <div className="script-list">
-                    {inspection.scripts.slice(0, 8).map((script) => {
+                    {inspection.scripts.map((script) => {
                       const exists = project.commands.some((entry) => entry.command === script.command);
                       return (
-                        <div key={script.name}>
-                          <span><strong>{script.name}</strong><code>{script.command}</code></span>
+                        <div className="script-list__row" key={script.name}>
+                          <span className="script-list__content"><strong>{script.name}</strong><code>{script.command}</code></span>
                           <button className="button button--ghost button--small" type="button" onClick={() => addDetectedScript(script.name, script.command)} disabled={exists} title={exists ? t("Bereits als Command gespeichert", "Already saved as a command") : t("Dieses Script als Schnellaktion speichern", "Save this script as a quick action")}>
-                            <Icon name={exists ? "check" : "plus"} />{exists ? t("Gespeichert", "Saved") : t("Als Command", "Save command")}
+                            <Icon name={exists ? "check" : "plus"} /><span>{exists ? t("Gespeichert", "Saved") : t("Speichern", "Save")}</span>
                           </button>
                         </div>
                       );
@@ -292,7 +292,7 @@ export function ProjectDetails({
                 <div className="panel__header"><div><p className="eyebrow">{editingCommandId ? t("Bearbeiten", "Edit") : t("Neu", "New")}</p><h3>{editingCommandId ? t("Command ändern", "Edit command") : t("Command hinzufügen", "Add command")}</h3></div></div>
                 <div className="form-field"><label htmlFor="command-label">{t("Name", "Name")}</label><input id="command-label" value={commandLabel} onChange={(event) => setCommandLabel(event.target.value)} placeholder="Dev Server" /></div>
                 <div className="form-field"><label htmlFor="command-value">{t("Befehl", "Command")}</label><textarea id="command-value" value={commandValue} onChange={(event) => setCommandValue(event.target.value)} placeholder="pnpm dev" rows={4} /></div>
-                <div className="notice"><Icon name="info" /><p>{t("Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr erscheinen unter Prozesse.", "Commands only run after a click and always inside the project folder. stdout and stderr appear under Processes.")}</p></div>
+                <div className="notice"><Icon name="info" /><p>{t("Commands laufen erst nach einem Klick und immer im Projektordner. stdout und stderr findest du über die Anzeige für aktive Commands im Kopfbereich.", "Commands only run after a click and always inside the project folder. Use the active-command indicator in the header to view stdout and stderr.")}</p></div>
                 <div className="form-actions">
                   {editingCommandId && <button className="button button--ghost" type="button" onClick={() => { setEditingCommandId(undefined); setCommandLabel(""); setCommandValue(""); }}>{t("Abbrechen", "Cancel")}</button>}
                   <button className="button button--primary" type="submit"><Icon name={editingCommandId ? "check" : "plus"} />{editingCommandId ? t("Änderungen speichern", "Save changes") : t("Command hinzufügen", "Add command")}</button>

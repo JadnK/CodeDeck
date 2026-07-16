@@ -54,14 +54,27 @@ export function ProjectCard({
         <Icon name="star" />
       </button>
 
-      <button className="project-card__identity" type="button" onClick={onOpenDetails} title={t("Projektdetails öffnen", "Open project details")}>
+      <div
+        className="project-card__identity"
+        role="button"
+        tabIndex={0}
+        onClick={onOpenDetails}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            onOpenDetails();
+          }
+        }}
+        title={t("Projektdetails öffnen", "Open project details")}
+        aria-label={t(`Projektdetails für ${project.name} öffnen`, `Open details for ${project.name}`)}
+      >
         <span className="project-icon"><Icon name="folder" /></span>
         <span className="project-card__title">
-          <strong>{project.name}</strong>
+          <strong className="project-name selectable-text" onClick={(event) => event.stopPropagation()}>{project.name}</strong>
           <small title={project.path}>{project.path}</small>
           {project.description && <span>{project.description}</span>}
         </span>
-      </button>
+      </div>
 
       <div className="project-card__badges" aria-label={t("Erkannte Technologien", "Detected technologies")}>
         {visibleBadges.length > 0 ? (
