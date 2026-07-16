@@ -681,10 +681,7 @@ pub(crate) fn launch_template(
             #[cfg(all(unix, not(target_os = "macos")))]
             {
                 if let Some((flatpak, app_id)) = flatpak_fallback_for_program(&program) {
-                    let mut flatpak_args = vec![
-                        "run".to_string(),
-                        app_id.to_string(),
-                    ];
+                    let mut flatpak_args = vec!["run".to_string(), app_id.to_string()];
 
                     flatpak_args.extend(args);
                     (flatpak, flatpak_args)
