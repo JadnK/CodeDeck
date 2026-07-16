@@ -33,11 +33,9 @@ pub(crate) fn create_project_from_template(
 }
 
 fn repository_name_from_url(repository_url: &str) -> Option<String> {
-    let trimmed = repository_url
-        .trim()
-        .trim_end_matches(|character| character == '/' || character == '\\');
+    let trimmed = repository_url.trim().trim_end_matches(['/', '\\']);
     let segment = trimmed
-        .rsplit(|character| matches!(character, '/' | '\\' | ':'))
+        .rsplit(['/', '\\', ':'])
         .next()?
         .trim_end_matches(".git")
         .trim();
@@ -185,7 +183,7 @@ pub(crate) fn scan_projects(path: String) -> Result<Vec<ProjectCandidate>, Strin
         }
     }
 
-    candidates.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    candidates.sort_by_key(|candidate| candidate.name.to_lowercase());
     candidates.dedup_by(|a, b| a.path.eq_ignore_ascii_case(&b.path));
     Ok(candidates)
 }

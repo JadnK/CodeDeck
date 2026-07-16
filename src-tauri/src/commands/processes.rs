@@ -5,6 +5,7 @@ use tauri::AppHandle;
 use crate::process::{manager, state::ProcessStarted};
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn start_process(
     app: AppHandle,
     run_id: String,
