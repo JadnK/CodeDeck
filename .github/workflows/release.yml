@@ -301,6 +301,80 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Updater-Manifest im Release prüfen
+        uses: actions/github-script@v9
+        env:
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+          EXPECTED_VERSION: ${{ env.RELEASE_TAG }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const releaseId = Number(process.env.RELEASE_ID);
+            const expectedVersion = process.env.EXPECTED_VERSION.replace(/^v/, '');
+            const { data: assets } = await github.rest.repos.listReleaseAssets({
+              owner,
+              repo,
+              release_id: releaseId,
+              per_page: 100
+            });
+
+            const manifestAsset = assets.find((asset) => asset.name === 'latest.json');
+            if (!manifestAsset) {
+              core.setFailed(
+                'latest.json fehlt im Release-Entwurf. Der In-App-Updater würde deshalb keine Updates finden.'
+              );
+              return;
+            }
+
+            const response = await github.request(
+              'GET /repos/{owner}/{repo}/releases/assets/{asset_id}',
+              {
+                owner,
+                repo,
+                asset_id: manifestAsset.id,
+                headers: { accept: 'application/octet-stream' }
+              }
+            );
+            const buffer = Buffer.isBuffer(response.data)
+              ? response.data
+              : Buffer.from(response.data);
+
+            let manifest;
+            try {
+              manifest = JSON.parse(buffer.toString('utf8'));
+            } catch (error) {
+              core.setFailed(`latest.json ist kein gültiges JSON: ${error.message}`);
+              return;
+            }
+
+            if (manifest.version !== expectedVersion) {
+              core.setFailed(
+                `latest.json enthält Version ${manifest.version ?? 'unbekannt'}, erwartet wurde ${expectedVersion}.`
+              );
+              return;
+            }
+            const platforms = Object.entries(manifest.platforms ?? {});
+            if (platforms.length < 3) {
+              core.setFailed(
+                `latest.json enthält nur ${platforms.length} Plattform(en). Erwartet werden Windows, macOS und Linux.`
+              );
+              return;
+            }
+            const invalidPlatforms = platforms
+              .filter(([, value]) => !value?.url || !value?.signature)
+              .map(([name]) => name);
+            if (invalidPlatforms.length > 0) {
+              core.setFailed(
+                `latest.json enthält unvollständige Update-Daten für: ${invalidPlatforms.join(', ')}.`
+              );
+              return;
+            }
+
+            core.info(
+              `Updater-Manifest geprüft: ${manifest.version}, ${platforms.length} Plattform(en).`
+            );
+
       - name: Zusammenfassung schreiben
         shell: bash
         run: |

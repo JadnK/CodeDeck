@@ -15,15 +15,31 @@ export const createId = id;
 function normalizeEditorTemplate(idValue: string, nameValue: string, commandTemplate: string) {
   const template = commandTemplate.trim();
   if (template.includes("{projectPath}")) return template;
+  if (template.includes("{projectName}")) {
+    return template.split("{projectName}").join("{projectPath}");
+  }
 
   const identity = `${idValue} ${nameValue}`.toLowerCase();
-  if (identity.includes("vscode") || identity.includes("vs code") || identity.includes("visual studio code")) {
-    return 'code "{projectPath}"';
-  }
-  if (identity.includes("cursor")) {
-    return 'cursor "{projectPath}"';
-  }
+  const knownCommand = identity.includes("vscode") || identity.includes("vs code") || identity.includes("visual studio code")
+    ? "code"
+    : identity.includes("cursor")
+      ? "cursor"
+      : identity.includes("intellij") || identity.includes("idea")
+        ? "idea"
+        : identity.includes("webstorm")
+          ? "webstorm"
+          : identity.includes("pycharm")
+            ? "pycharm"
+            : identity.includes("rider")
+              ? "rider"
+              : identity.includes("clion")
+                ? "clion"
+                : identity.includes("goland")
+                  ? "goland"
+                  : "";
 
+  if (!template && knownCommand) return `${knownCommand} "{projectPath}"`;
+  if (template) return `${template} "{projectPath}"`;
   return template;
 }
 
@@ -64,6 +80,21 @@ function normalizeCommand(command: Partial<ProjectCommand>): ProjectCommand {
   };
 }
 
+
+function normalizeInspection(inspection: AppData["projects"][number]["inspection"]) {
+  if (!inspection) return undefined;
+  const frameworks = (inspection.frameworks ?? []).filter((entry) => entry.toLowerCase() !== "docker");
+  const tools = [...(inspection.tools ?? [])];
+  if (inspection.hasDocker && !tools.some((entry) => entry.toLowerCase() === "docker")) {
+    tools.push("Docker");
+  }
+  return {
+    ...inspection,
+    languages: inspection.languages ?? [],
+    frameworks,
+    tools,
+  };
+}
 
 function normalizeTodo(todo: Partial<ProjectTodo>, order: number): ProjectTodo {
   const status = todo.status === "in-progress" || todo.status === "done" ? todo.status : "new";
@@ -130,7 +161,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
           createdAt: project.createdAt ?? now(),
           updatedAt: project.updatedAt ?? now(),
           lastOpenedAt: project.lastOpenedAt,
-          inspection: project.inspection,
+          inspection: normalizeInspection(project.inspection),
         };
       })
     : [];

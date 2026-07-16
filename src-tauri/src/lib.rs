@@ -41,7 +41,9 @@ struct GitCommit {
 #[serde(rename_all = "camelCase")]
 struct ProjectInspection {
     exists: bool,
+    languages: Vec<String>,
     frameworks: Vec<String>,
+    tools: Vec<String>,
     package_manager: Option<String>,
     scripts: Vec<DetectedScript>,
     is_git: bool,
@@ -58,6 +60,10 @@ struct ProjectCandidate {
     name: String,
     path: String,
     markers: Vec<String>,
+    languages: Vec<String>,
+    frameworks: Vec<String>,
+    tools: Vec<String>,
+    has_docker: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,14 +126,36 @@ fn marker_names(path: &Path) -> Vec<String> {
         ("requirements.txt", "requirements.txt"),
         ("go.mod", "go.mod"),
         ("pubspec.yaml", "pubspec.yaml"),
+        ("composer.json", "composer.json"),
+        ("Gemfile", "Gemfile"),
+        ("Package.swift", "Package.swift"),
+        ("CMakeLists.txt", "CMakeLists.txt"),
+        ("Makefile", "Makefile"),
+        ("Dockerfile", "Dockerfile"),
+        ("compose.yml", "compose.yml"),
+        ("compose.yaml", "compose.yaml"),
         ("docker-compose.yml", "docker-compose.yml"),
         ("docker-compose.yaml", "docker-compose.yaml"),
     ];
 
-    candidates
+    let mut markers: Vec<String> = candidates
         .iter()
         .filter_map(|(entry, label)| path.join(entry).exists().then(|| (*label).to_string()))
-        .collect()
+        .collect();
+
+    if let Ok(entries) = fs::read_dir(path) {
+        for entry in entries.flatten() {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            let lower = file_name.to_ascii_lowercase();
+            if lower.ends_with(".sln") || lower.ends_with(".csproj") {
+                markers.push(file_name);
+            }
+        }
+    }
+
+    markers.sort();
+    markers.dedup();
+    markers
 }
 
 fn command_output(path: &Path, program: &str, args: &[&str]) -> Option<String> {
@@ -162,7 +190,9 @@ fn package_manager(path: &Path) -> Option<String> {
 
 fn inspect_package_json(
     path: &Path,
+    languages: &mut BTreeSet<String>,
     frameworks: &mut BTreeSet<String>,
+    tools: &mut BTreeSet<String>,
     scripts: &mut Vec<DetectedScript>,
 ) {
     let package_path = path.join("package.json");
@@ -174,6 +204,9 @@ fn inspect_package_json(
     };
 
     let manager = package_manager(path).unwrap_or_else(|| "npm".to_string());
+    tools.insert(manager.clone());
+    tools.insert("Node.js".to_string());
+
     if let Some(entries) = value.get("scripts").and_then(|entry| entry.as_object()) {
         let mut names: Vec<_> = entries.keys().cloned().collect();
         names.sort();
@@ -192,7 +225,7 @@ fn inspect_package_json(
         }
     }
 
-    let mappings = [
+    let framework_mappings = [
         ("react", "React"),
         ("next", "Next.js"),
         ("vue", "Vue"),
@@ -200,7 +233,6 @@ fn inspect_package_json(
         ("svelte", "Svelte"),
         ("@sveltejs/kit", "SvelteKit"),
         ("@angular/core", "Angular"),
-        ("vite", "Vite"),
         ("astro", "Astro"),
         ("solid-js", "SolidJS"),
         ("express", "Express"),
@@ -208,16 +240,104 @@ fn inspect_package_json(
         ("@nestjs/core", "NestJS"),
         ("electron", "Electron"),
         ("@tauri-apps/api", "Tauri"),
-        ("typescript", "TypeScript"),
     ];
 
-    for (dependency, label) in mappings {
+    for (dependency, label) in framework_mappings {
         if dependencies.contains(dependency) {
             frameworks.insert(label.to_string());
         }
     }
 
-    frameworks.insert("Node.js".to_string());
+    let tool_mappings = [
+        ("vite", "Vite"),
+        ("webpack", "Webpack"),
+        ("parcel", "Parcel"),
+        ("esbuild", "esbuild"),
+    ];
+    for (dependency, label) in tool_mappings {
+        if dependencies.contains(dependency) {
+            tools.insert(label.to_string());
+        }
+    }
+
+    if dependencies.contains("typescript") || path.join("tsconfig.json").exists() {
+        languages.insert("TypeScript".to_string());
+    } else {
+        languages.insert("JavaScript".to_string());
+    }
+}
+
+fn detected_source_languages(root: &Path) -> Vec<String> {
+    let mut counts: HashMap<&'static str, usize> = HashMap::new();
+    let mut visited_files = 0usize;
+
+    for entry in WalkDir::new(root)
+        .max_depth(7)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| !should_skip(entry))
+        .filter_map(Result::ok)
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        visited_files += 1;
+        if visited_files > 6000 {
+            break;
+        }
+
+        let file_name = entry.file_name().to_string_lossy().to_lowercase();
+        if matches!(
+            file_name.as_str(),
+            "build.gradle.kts" | "settings.gradle.kts" | "vite.config.ts" | "vite.config.js"
+        ) {
+            continue;
+        }
+
+        let extension = entry
+            .path()
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+
+        let language = match extension.as_str() {
+            "ts" | "tsx" => Some("TypeScript"),
+            "js" | "jsx" | "mjs" | "cjs" => Some("JavaScript"),
+            "rs" => Some("Rust"),
+            "java" => Some("Java"),
+            "kt" | "kts" => Some("Kotlin"),
+            "py" | "pyw" => Some("Python"),
+            "go" => Some("Go"),
+            "dart" => Some("Dart"),
+            "cs" => Some("C#"),
+            "c" => Some("C"),
+            "cc" | "cpp" | "cxx" | "hpp" | "hxx" => Some("C++"),
+            "php" => Some("PHP"),
+            "rb" => Some("Ruby"),
+            "swift" => Some("Swift"),
+            "scala" => Some("Scala"),
+            "sh" | "bash" | "zsh" | "fish" => Some("Shell"),
+            "html" | "htm" => Some("HTML"),
+            "css" | "scss" | "sass" | "less" => Some("CSS"),
+            _ => None,
+        };
+
+        if let Some(language) = language {
+            *counts.entry(language).or_insert(0) += 1;
+        }
+    }
+
+    let mut languages: Vec<_> = counts.into_iter().collect();
+    languages.sort_by(|(left_name, left_count), (right_name, right_count)| {
+        right_count
+            .cmp(left_count)
+            .then_with(|| left_name.cmp(right_name))
+    });
+    languages
+        .into_iter()
+        .map(|(language, _)| language.to_string())
+        .collect()
 }
 
 fn safe_project_name(value: &str) -> Result<String, String> {
@@ -274,6 +394,34 @@ fn java_package_segment(value: &str) -> String {
     }
 }
 
+fn safe_java_package_base(value: Option<&str>) -> Result<String, String> {
+    let base = value.unwrap_or("dev.codedeck").trim();
+    if base.is_empty() {
+        return Ok("dev.codedeck".to_string());
+    }
+
+    let segments: Vec<_> = base.split('.').collect();
+    if segments.iter().any(|segment| segment.is_empty()) {
+        return Err("Das Java Basis-Package enthält einen leeren Abschnitt.".to_string());
+    }
+
+    for segment in &segments {
+        let mut chars = segment.chars();
+        let Some(first) = chars.next() else {
+            return Err("Das Java Basis-Package ist ungültig.".to_string());
+        };
+        if !(first.is_ascii_alphabetic() || first == '_')
+            || chars.any(|character| !(character.is_ascii_alphanumeric() || character == '_'))
+        {
+            return Err(format!(
+                "Ungültiger Java-Package-Abschnitt: {segment}. Erlaubt sind Buchstaben, Zahlen und Unterstriche; der Abschnitt darf nicht mit einer Zahl beginnen."
+            ));
+        }
+    }
+
+    Ok(segments.join("."))
+}
+
 fn write_project_file(root: &Path, relative: &str, contents: &str) -> Result<(), String> {
     let path = root.join(relative);
     if let Some(parent) = path.parent() {
@@ -288,7 +436,12 @@ fn write_project_file(root: &Path, relative: &str, contents: &str) -> Result<(),
     })
 }
 
-fn create_builtin_template(root: &Path, name: &str, template_id: &str) -> Result<(), String> {
+fn create_builtin_template(
+    root: &Path,
+    name: &str,
+    template_id: &str,
+    java_package_base: Option<&str>,
+) -> Result<(), String> {
     let slug = package_slug(name);
     match template_id {
         "empty" => {
@@ -519,8 +672,9 @@ h1 { font-size: clamp(3rem, 9vw, 6rem); margin: 0 0 1rem; }
             )?;
         }
         "spring-boot" => {
+            let package_base = safe_java_package_base(java_package_base)?;
             let segment = java_package_segment(name);
-            let package = format!("dev.codedeck.{segment}");
+            let package = format!("{package_base}.{segment}");
             let package_path = package.replace('.', "/");
             write_project_file(
                 root,
@@ -536,7 +690,7 @@ h1 { font-size: clamp(3rem, 9vw, 6rem); margin: 0 0 1rem; }
     <version>4.1.0</version>
     <relativePath/>
   </parent>
-  <groupId>dev.codedeck</groupId>
+  <groupId>{package_base}</groupId>
   <artifactId>{slug}</artifactId>
   <version>0.1.0-SNAPSHOT</version>
   <name>{name}</name>
@@ -728,6 +882,7 @@ fn create_project_from_template(
     template_id: String,
     custom_template_path: Option<String>,
     init_git: bool,
+    java_package_base: Option<String>,
 ) -> Result<CreatedProject, String> {
     let name = safe_project_name(&project_name)?;
     let parent = PathBuf::from(parent_path.trim());
@@ -753,7 +908,12 @@ fn create_project_from_template(
             .ok_or_else(|| "Für die eigene Vorlage fehlt der Quellordner.".to_string())?;
         copy_custom_template(Path::new(&source), &destination)
     } else {
-        create_builtin_template(&destination, &name, &template_id)
+        create_builtin_template(
+            &destination,
+            &name,
+            &template_id,
+            java_package_base.as_deref(),
+        )
     };
 
     if let Err(error) = result {
@@ -779,31 +939,28 @@ fn create_project_from_template(
     })
 }
 
-#[tauri::command]
-fn inspect_project(path: String) -> Result<ProjectInspection, String> {
-    let root = PathBuf::from(&path);
-    if !root.is_dir() {
-        return Ok(ProjectInspection {
-            exists: false,
-            frameworks: vec![],
-            package_manager: None,
-            scripts: vec![],
-            is_git: false,
-            branch: None,
-            changed_files: 0,
-            last_commit: None,
-            has_docker: false,
-            markers: vec![],
-        });
-    }
-
-    let markers = marker_names(&root);
+fn inspect_project_path(root: &Path) -> ProjectInspection {
+    let markers = marker_names(root);
+    let source_languages = detected_source_languages(root);
+    let mut languages = BTreeSet::new();
     let mut frameworks = BTreeSet::new();
+    let mut tools = BTreeSet::new();
     let mut scripts = Vec::new();
-    inspect_package_json(&root, &mut frameworks, &mut scripts);
+
+    for language in &source_languages {
+        languages.insert(language.clone());
+    }
+    inspect_package_json(
+        root,
+        &mut languages,
+        &mut frameworks,
+        &mut tools,
+        &mut scripts,
+    );
 
     if root.join("Cargo.toml").exists() {
-        frameworks.insert("Rust".to_string());
+        languages.insert("Rust".to_string());
+        tools.insert("Cargo".to_string());
         scripts.extend([
             DetectedScript {
                 name: "Run".to_string(),
@@ -819,15 +976,20 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
             },
         ]);
     }
+
     if root.join("pom.xml").exists() {
-        frameworks.insert("Java".to_string());
-        frameworks.insert("Spring Boot".to_string());
-        frameworks.insert("Maven".to_string());
-        scripts.extend([
-            DetectedScript {
+        languages.insert("Java".to_string());
+        tools.insert("Maven".to_string());
+        let pom = fs::read_to_string(root.join("pom.xml")).unwrap_or_default();
+        let is_spring_boot = pom.contains("spring-boot") || pom.contains("org.springframework.boot");
+        if is_spring_boot {
+            frameworks.insert("Spring Boot".to_string());
+            scripts.push(DetectedScript {
                 name: "Spring Boot starten".to_string(),
                 command: "mvn spring-boot:run".to_string(),
-            },
+            });
+        }
+        scripts.extend([
             DetectedScript {
                 name: "Tests".to_string(),
                 command: "mvn test".to_string(),
@@ -838,27 +1000,153 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
             },
         ]);
     }
-    if root.join("build.gradle").exists() || root.join("build.gradle.kts").exists() {
-        frameworks.insert("Java".to_string());
-        frameworks.insert("Gradle".to_string());
+
+    let gradle_file = if root.join("build.gradle.kts").exists() {
+        Some(root.join("build.gradle.kts"))
+    } else if root.join("build.gradle").exists() {
+        Some(root.join("build.gradle"))
+    } else {
+        None
+    };
+    if let Some(gradle_file) = gradle_file {
+        tools.insert("Gradle".to_string());
+        if !languages.contains("Kotlin") {
+            languages.insert("Java".to_string());
+        }
+        let gradle = fs::read_to_string(gradle_file).unwrap_or_default();
+        if gradle.contains("org.springframework.boot") || gradle.contains("spring-boot") {
+            frameworks.insert("Spring Boot".to_string());
+            let wrapper = if cfg!(target_os = "windows") && root.join("gradlew.bat").exists() {
+                "gradlew.bat"
+            } else if root.join("gradlew").exists() {
+                "./gradlew"
+            } else {
+                "gradle"
+            };
+            scripts.push(DetectedScript {
+                name: "Spring Boot starten".to_string(),
+                command: format!("{wrapper} bootRun"),
+            });
+        }
     }
+
     if root.join("src-tauri").is_dir() {
         frameworks.insert("Tauri".to_string());
     }
-    if root.join("pyproject.toml").exists() || root.join("requirements.txt").exists() {
-        frameworks.insert("Python".to_string());
+
+    if root.join("pyproject.toml").exists()
+        || root.join("requirements.txt").exists()
+        || languages.contains("Python")
+    {
+        languages.insert("Python".to_string());
         if root.join("main.py").exists() {
             scripts.push(DetectedScript {
                 name: "Python starten".to_string(),
                 command: "python main.py".to_string(),
             });
+        } else if root.join("app.py").exists() {
+            scripts.push(DetectedScript {
+                name: "Python starten".to_string(),
+                command: "python app.py".to_string(),
+            });
         }
     }
+
     if root.join("go.mod").exists() {
-        frameworks.insert("Go".to_string());
+        languages.insert("Go".to_string());
+        tools.insert("Go modules".to_string());
+        scripts.push(DetectedScript {
+            name: "Go starten".to_string(),
+            command: "go run .".to_string(),
+        });
     }
+
     if root.join("pubspec.yaml").exists() {
-        frameworks.insert("Flutter".to_string());
+        languages.insert("Dart".to_string());
+        tools.insert("pub".to_string());
+        let pubspec = fs::read_to_string(root.join("pubspec.yaml")).unwrap_or_default();
+        if pubspec.contains("flutter:") || pubspec.contains("sdk: flutter") {
+            frameworks.insert("Flutter".to_string());
+            scripts.push(DetectedScript {
+                name: "Flutter starten".to_string(),
+                command: "flutter run".to_string(),
+            });
+        }
+    }
+
+    let python_manifest = ["pyproject.toml", "requirements.txt"]
+        .iter()
+        .filter_map(|name| fs::read_to_string(root.join(name)).ok())
+        .collect::<Vec<_>>()
+        .join("\n")
+        .to_ascii_lowercase();
+    if !python_manifest.is_empty() {
+        if python_manifest.contains("fastapi") {
+            frameworks.insert("FastAPI".to_string());
+        }
+        if python_manifest.contains("flask") {
+            frameworks.insert("Flask".to_string());
+        }
+        if python_manifest.contains("django") {
+            frameworks.insert("Django".to_string());
+        }
+        if python_manifest.contains("[tool.poetry]") {
+            tools.insert("Poetry".to_string());
+        }
+    }
+    if root.join("uv.lock").exists() {
+        tools.insert("uv".to_string());
+    }
+
+    if root.join("composer.json").exists() {
+        languages.insert("PHP".to_string());
+        tools.insert("Composer".to_string());
+        let composer = fs::read_to_string(root.join("composer.json"))
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if composer.contains("laravel/framework") {
+            frameworks.insert("Laravel".to_string());
+        }
+        if composer.contains("symfony/") {
+            frameworks.insert("Symfony".to_string());
+        }
+    }
+
+    if root.join("Gemfile").exists() {
+        languages.insert("Ruby".to_string());
+        tools.insert("Bundler".to_string());
+        let gemfile = fs::read_to_string(root.join("Gemfile"))
+            .unwrap_or_default()
+            .to_ascii_lowercase();
+        if gemfile.contains("gem 'rails'") || gemfile.contains("gem \"rails\"") {
+            frameworks.insert("Ruby on Rails".to_string());
+        }
+    }
+
+    if root.join("Package.swift").exists() {
+        languages.insert("Swift".to_string());
+        tools.insert("Swift Package Manager".to_string());
+    }
+
+    if root.join("CMakeLists.txt").exists() {
+        tools.insert("CMake".to_string());
+    }
+    if root.join("Makefile").exists() {
+        tools.insert("Make".to_string());
+    }
+
+    let has_dotnet_project = fs::read_dir(root)
+        .ok()
+        .into_iter()
+        .flatten()
+        .flatten()
+        .any(|entry| {
+            let name = entry.file_name().to_string_lossy().to_ascii_lowercase();
+            name.ends_with(".sln") || name.ends_with(".csproj")
+        });
+    if has_dotnet_project {
+        languages.insert("C#".to_string());
+        tools.insert(".NET".to_string());
     }
 
     let has_docker = root.join("Dockerfile").exists()
@@ -867,22 +1155,22 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
         || root.join("compose.yml").exists()
         || root.join("compose.yaml").exists();
     if has_docker {
-        frameworks.insert("Docker".to_string());
+        tools.insert("Docker".to_string());
     }
 
     let is_git = root.join(".git").exists()
-        || command_output(&root, "git", &["rev-parse", "--is-inside-work-tree"])
+        || command_output(root, "git", &["rev-parse", "--is-inside-work-tree"])
             .is_some_and(|value| value == "true");
 
     let (branch, changed_files, last_commit) = if is_git {
-        let branch = command_output(&root, "git", &["branch", "--show-current"])
+        let branch = command_output(root, "git", &["branch", "--show-current"])
             .filter(|value| !value.is_empty())
-            .or_else(|| command_output(&root, "git", &["rev-parse", "--short", "HEAD"]));
-        let changed_files = command_output(&root, "git", &["status", "--porcelain"])
+            .or_else(|| command_output(root, "git", &["rev-parse", "--short", "HEAD"]));
+        let changed_files = command_output(root, "git", &["status", "--porcelain"])
             .map(|value| value.lines().filter(|line| !line.trim().is_empty()).count())
             .unwrap_or(0);
         let last_commit = command_output(
-            &root,
+            root,
             "git",
             &[
                 "log",
@@ -904,10 +1192,19 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
         (None, 0, None)
     };
 
-    Ok(ProjectInspection {
+    let mut ordered_languages = source_languages;
+    for language in languages {
+        if !ordered_languages.iter().any(|entry| entry == &language) {
+            ordered_languages.push(language);
+        }
+    }
+
+    ProjectInspection {
         exists: true,
+        languages: ordered_languages,
         frameworks: frameworks.into_iter().collect(),
-        package_manager: package_manager(&root),
+        tools: tools.into_iter().collect(),
+        package_manager: package_manager(root),
         scripts,
         is_git,
         branch,
@@ -915,7 +1212,30 @@ fn inspect_project(path: String) -> Result<ProjectInspection, String> {
         last_commit,
         has_docker,
         markers,
-    })
+    }
+}
+
+#[tauri::command]
+fn inspect_project(path: String) -> Result<ProjectInspection, String> {
+    let root = PathBuf::from(&path);
+    if !root.is_dir() {
+        return Ok(ProjectInspection {
+            exists: false,
+            languages: vec![],
+            frameworks: vec![],
+            tools: vec![],
+            package_manager: None,
+            scripts: vec![],
+            is_git: false,
+            branch: None,
+            changed_files: 0,
+            last_commit: None,
+            has_docker: false,
+            markers: vec![],
+        });
+    }
+
+    Ok(inspect_project_path(&root))
 }
 
 fn should_skip(entry: &walkdir::DirEntry) -> bool {
@@ -963,12 +1283,17 @@ fn scan_projects(path: String) -> Result<Vec<ProjectCandidate>, String> {
         if markers.is_empty() {
             continue;
         }
+        let inspection = inspect_project_path(entry.path());
         candidates.push(ProjectCandidate {
             name: project_name(entry.path()),
             path: display_path(entry.path()),
             markers,
+            languages: inspection.languages,
+            frameworks: inspection.frameworks,
+            tools: inspection.tools,
+            has_docker: inspection.has_docker,
         });
-        if candidates.len() >= 500 {
+        if candidates.len() >= 200 {
             break;
         }
     }
@@ -1020,112 +1345,221 @@ fn executable_template(path: &Path) -> String {
 }
 
 #[cfg(target_os = "windows")]
-fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
-    let mut candidates: Vec<(&str, &str, PathBuf)> = Vec::new();
+fn windows_editor_id_from_program(program: &str) -> Option<&'static str> {
+    let filename = Path::new(program)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(program)
+        .to_ascii_lowercase();
+    let stem = filename
+        .strip_suffix(".exe")
+        .or_else(|| filename.strip_suffix(".cmd"))
+        .or_else(|| filename.strip_suffix(".bat"))
+        .unwrap_or(&filename);
 
-    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
-        let root = PathBuf::from(local_app_data);
-        candidates.extend([
-            (
-                "vscode",
-                "VS Code",
-                root.join("Programs/Microsoft VS Code/Code.exe"),
-            ),
-            ("cursor", "Cursor", root.join("Programs/cursor/Cursor.exe")),
-            (
-                "windsurf",
-                "Windsurf",
-                root.join("Programs/Windsurf/Windsurf.exe"),
-            ),
-            ("zed", "Zed", root.join("Programs/Zed/Zed.exe")),
-        ]);
+    match stem {
+        "code" | "code-insiders" => Some("vscode"),
+        "cursor" => Some("cursor"),
+        "windsurf" => Some("windsurf"),
+        "zed" => Some("zed"),
+        "subl" | "sublime_text" => Some("sublime"),
+        "idea" | "idea64" => Some("idea"),
+        "webstorm" | "webstorm64" => Some("webstorm"),
+        "pycharm" | "pycharm64" => Some("pycharm"),
+        "rider" | "rider64" => Some("rider"),
+        "clion" | "clion64" => Some("clion"),
+        "goland" | "goland64" => Some("goland"),
+        "phpstorm" | "phpstorm64" => Some("phpstorm"),
+        "rubymine" | "rubymine64" => Some("rubymine"),
+        "datagrip" | "datagrip64" => Some("datagrip"),
+        "fleet" => Some("fleet"),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_editor_metadata(id: &str) -> Option<(&'static str, &'static [&'static str])> {
+    match id {
+        "vscode" => Some(("VS Code", &["Code.exe", "Code - Insiders.exe"])),
+        "cursor" => Some(("Cursor", &["Cursor.exe"])),
+        "windsurf" => Some(("Windsurf", &["Windsurf.exe"])),
+        "zed" => Some(("Zed", &["Zed.exe"])),
+        "sublime" => Some(("Sublime Text", &["sublime_text.exe"])),
+        "idea" => Some(("IntelliJ IDEA", &["idea64.exe", "idea.exe"])),
+        "webstorm" => Some(("WebStorm", &["webstorm64.exe", "webstorm.exe"])),
+        "pycharm" => Some(("PyCharm", &["pycharm64.exe", "pycharm.exe"])),
+        "rider" => Some(("Rider", &["rider64.exe", "rider.exe"])),
+        "clion" => Some(("CLion", &["clion64.exe", "clion.exe"])),
+        "goland" => Some(("GoLand", &["goland64.exe", "goland.exe"])),
+        "phpstorm" => Some(("PhpStorm", &["phpstorm64.exe", "phpstorm.exe"])),
+        "rubymine" => Some(("RubyMine", &["rubymine64.exe", "rubymine.exe"])),
+        "datagrip" => Some(("DataGrip", &["datagrip64.exe", "datagrip.exe"])),
+        "fleet" => Some(("JetBrains Fleet", &["fleet.exe"])),
+        _ => None,
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_editor_direct_candidates(id: &str) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
+    let program_files = std::env::var_os("ProgramFiles").map(PathBuf::from);
+    let program_files_x86 = std::env::var_os("ProgramFiles(x86)").map(PathBuf::from);
+
+    match id {
+        "vscode" => {
+            if let Some(root) = &local_app_data {
+                candidates.push(root.join("Programs/Microsoft VS Code/Code.exe"));
+                candidates.push(root.join("Programs/Microsoft VS Code Insiders/Code - Insiders.exe"));
+                candidates.push(root.join("Microsoft/WindowsApps/code.exe"));
+            }
+            for root in [program_files.as_ref(), program_files_x86.as_ref()].into_iter().flatten() {
+                candidates.push(root.join("Microsoft VS Code/Code.exe"));
+                candidates.push(root.join("Microsoft VS Code Insiders/Code - Insiders.exe"));
+            }
+        }
+        "cursor" => {
+            if let Some(root) = &local_app_data {
+                candidates.push(root.join("Programs/cursor/Cursor.exe"));
+                candidates.push(root.join("Programs/Cursor/Cursor.exe"));
+            }
+        }
+        "windsurf" => {
+            if let Some(root) = &local_app_data {
+                candidates.push(root.join("Programs/Windsurf/Windsurf.exe"));
+            }
+        }
+        "zed" => {
+            if let Some(root) = &local_app_data {
+                candidates.push(root.join("Programs/Zed/Zed.exe"));
+            }
+        }
+        "sublime" => {
+            for root in [program_files.as_ref(), program_files_x86.as_ref()].into_iter().flatten() {
+                candidates.push(root.join("Sublime Text/sublime_text.exe"));
+            }
+        }
+        _ => {}
     }
 
-    for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
-        if let Some(program_files) = std::env::var_os(variable) {
-            let root = PathBuf::from(program_files);
-            candidates.extend([
-                ("vscode", "VS Code", root.join("Microsoft VS Code/Code.exe")),
-                (
-                    "sublime",
-                    "Sublime Text",
-                    root.join("Sublime Text/sublime_text.exe"),
-                ),
-            ]);
+    candidates
+}
 
-            let jetbrains_root = root.join("JetBrains");
-            if jetbrains_root.is_dir() {
-                for entry in WalkDir::new(jetbrains_root)
-                    .max_depth(4)
-                    .follow_links(false)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                    .filter(|entry| entry.file_type().is_file())
-                {
-                    let filename = entry.file_name().to_string_lossy().to_lowercase();
-                    let mapping = match filename.as_str() {
-                        "idea64.exe" => Some(("idea", "IntelliJ IDEA")),
-                        "webstorm64.exe" => Some(("webstorm", "WebStorm")),
-                        "pycharm64.exe" => Some(("pycharm", "PyCharm")),
-                        "rider64.exe" => Some(("rider", "Rider")),
-                        "clion64.exe" => Some(("clion", "CLion")),
-                        "goland64.exe" => Some(("goland", "GoLand")),
-                        "phpstorm64.exe" => Some(("phpstorm", "PhpStorm")),
-                        "rubymine64.exe" => Some(("rubymine", "RubyMine")),
-                        "datagrip64.exe" => Some(("datagrip", "DataGrip")),
-                        _ => None,
-                    };
-                    if let Some((id, name)) = mapping {
-                        push_editor_suggestion(
-                            suggestions,
-                            id,
-                            name,
-                            executable_template(entry.path()),
-                        );
-                    }
-                }
+#[cfg(target_os = "windows")]
+fn find_windows_editor_executable(id: &str) -> Option<PathBuf> {
+    let (_, filenames) = windows_editor_metadata(id)?;
+
+    for candidate in windows_editor_direct_candidates(id) {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    let mut roots: Vec<(PathBuf, usize)> = Vec::new();
+    for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(root) = std::env::var_os(variable) {
+            roots.push((PathBuf::from(root).join("JetBrains"), 6));
+        }
+    }
+    if let Some(root) = std::env::var_os("LOCALAPPDATA") {
+        let root = PathBuf::from(root);
+        roots.push((root.join("Programs"), 5));
+        roots.push((root.join("JetBrains/Toolbox/apps"), 10));
+    }
+    if let Some(root) = std::env::var_os("APPDATA") {
+        roots.push((PathBuf::from(root).join("JetBrains/Toolbox/apps"), 10));
+    }
+
+    let mut matches = Vec::new();
+    for (root, max_depth) in roots {
+        if !root.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(root)
+            .max_depth(max_depth)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_file())
+        {
+            let filename = entry.file_name().to_string_lossy();
+            if filenames.iter().any(|expected| filename.eq_ignore_ascii_case(expected)) {
+                matches.push(entry.into_path());
             }
         }
     }
 
-    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
-        let toolbox_apps = PathBuf::from(local_app_data).join("JetBrains/Toolbox/apps");
-        if toolbox_apps.is_dir() {
-            for entry in WalkDir::new(toolbox_apps)
-                .max_depth(8)
-                .follow_links(false)
-                .into_iter()
-                .filter_map(Result::ok)
-                .filter(|entry| entry.file_type().is_file())
-            {
-                let filename = entry.file_name().to_string_lossy().to_lowercase();
-                let mapping = match filename.as_str() {
-                    "idea64.exe" => Some(("idea", "IntelliJ IDEA")),
-                    "webstorm64.exe" => Some(("webstorm", "WebStorm")),
-                    "pycharm64.exe" => Some(("pycharm", "PyCharm")),
-                    "rider64.exe" => Some(("rider", "Rider")),
-                    "clion64.exe" => Some(("clion", "CLion")),
-                    "goland64.exe" => Some(("goland", "GoLand")),
-                    "phpstorm64.exe" => Some(("phpstorm", "PhpStorm")),
-                    "rubymine64.exe" => Some(("rubymine", "RubyMine")),
-                    "datagrip64.exe" => Some(("datagrip", "DataGrip")),
-                    _ => None,
+    matches.sort_by(|left, right| right.to_string_lossy().cmp(&left.to_string_lossy()));
+    matches.into_iter().next()
+}
+
+#[cfg(target_os = "windows")]
+fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
+    const EDITORS: &[&str] = &[
+        "vscode", "cursor", "windsurf", "zed", "sublime", "idea", "webstorm",
+        "pycharm", "rider", "clion", "goland", "phpstorm", "rubymine", "datagrip",
+        "fleet",
+    ];
+
+    let mut found_ids = BTreeSet::new();
+    for id in EDITORS {
+        let Some((name, _)) = windows_editor_metadata(id) else {
+            continue;
+        };
+        for path in windows_editor_direct_candidates(id) {
+            if path.is_file() {
+                push_editor_suggestion(suggestions, id, name, executable_template(&path));
+                found_ids.insert((*id).to_string());
+                break;
+            }
+        }
+    }
+
+    let mut roots: Vec<(PathBuf, usize)> = Vec::new();
+    for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(root) = std::env::var_os(variable) {
+            roots.push((PathBuf::from(root).join("JetBrains"), 6));
+        }
+    }
+    if let Some(root) = std::env::var_os("LOCALAPPDATA") {
+        let root = PathBuf::from(root);
+        roots.push((root.join("Programs"), 5));
+        roots.push((root.join("JetBrains/Toolbox/apps"), 10));
+    }
+    if let Some(root) = std::env::var_os("APPDATA") {
+        roots.push((PathBuf::from(root).join("JetBrains/Toolbox/apps"), 10));
+    }
+
+    for (root, max_depth) in roots {
+        if !root.is_dir() {
+            continue;
+        }
+        for entry in WalkDir::new(root)
+            .max_depth(max_depth)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_file())
+        {
+            let filename = entry.file_name().to_string_lossy();
+            for id in EDITORS {
+                if found_ids.contains(*id) {
+                    continue;
+                }
+                let Some((name, filenames)) = windows_editor_metadata(id) else {
+                    continue;
                 };
-                if let Some((id, name)) = mapping {
+                if filenames.iter().any(|expected| filename.eq_ignore_ascii_case(expected)) {
                     push_editor_suggestion(
                         suggestions,
                         id,
                         name,
                         executable_template(entry.path()),
                     );
+                    found_ids.insert((*id).to_string());
+                    break;
                 }
             }
-        }
-    }
-
-    for (id, name, path) in candidates {
-        if path.is_file() {
-            push_editor_suggestion(suggestions, id, name, executable_template(&path));
         }
     }
 }
@@ -1230,11 +1664,13 @@ fn detect_editors() -> Vec<EditorSuggestion> {
         ),
     ];
 
+    // Prefer absolute platform paths over shell aliases. GUI applications often
+    // do not inherit the same PATH as an interactive terminal on Windows.
+    detect_platform_editors(&mut suggestions);
+
     for (id, name, executable, template) in candidates {
         editor_candidate(&mut suggestions, id, name, executable, template);
     }
-
-    detect_platform_editors(&mut suggestions);
     suggestions.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     suggestions
 }
@@ -1273,6 +1709,119 @@ fn fill_template(template: &str, project_path: &str, project_name: &str) -> Stri
         .replace("{projectName}", &project_name.replace('"', "\\\""))
 }
 
+fn split_command_template(value: &str) -> Result<Vec<String>, String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut quote: Option<char> = None;
+    let mut characters = value.chars().peekable();
+
+    while let Some(character) = characters.next() {
+        if character == '\\' {
+            match characters.peek().copied() {
+                Some(next) if next == '\\' || next == '"' || next == '\'' => {
+                    current.push(characters.next().expect("peeked character must exist"));
+                }
+                _ => current.push(character),
+            }
+            continue;
+        }
+
+        if let Some(active_quote) = quote {
+            if character == active_quote {
+                quote = None;
+            } else {
+                current.push(character);
+            }
+            continue;
+        }
+
+        if character == '"' || character == '\'' {
+            quote = Some(character);
+        } else if character.is_whitespace() {
+            if !current.is_empty() {
+                parts.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push(character);
+        }
+    }
+
+    if quote.is_some() {
+        return Err(
+            "Das Command-Template enthält ein nicht geschlossenes Anführungszeichen.".to_string(),
+        );
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    Ok(parts)
+}
+
+fn launch_parts(
+    command_template: &str,
+    project_path: &str,
+    project_name: &str,
+) -> Result<(String, Vec<String>), String> {
+    const PATH_TOKEN: &str = "__CODE_DECK_PROJECT_PATH__";
+    const NAME_TOKEN: &str = "__CODE_DECK_PROJECT_NAME__";
+
+    let tokenized = command_template
+        .replace("{projectPath}", PATH_TOKEN)
+        .replace("{projectName}", NAME_TOKEN);
+    let mut parts = split_command_template(&tokenized)?;
+    if parts.is_empty() {
+        return Err("Das Command-Template enthält kein Programm.".to_string());
+    }
+
+    let replace_tokens = |value: String| {
+        value
+            .replace(PATH_TOKEN, project_path)
+            .replace(NAME_TOKEN, project_name)
+    };
+    let program = replace_tokens(parts.remove(0));
+    let args = parts.into_iter().map(replace_tokens).collect();
+    Ok((program, args))
+}
+
+fn launch_path_text(path: &Path) -> String {
+    let value = path.to_string_lossy().into_owned();
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(network_path) = value.strip_prefix(r"\\?\UNC\") {
+            return format!(r"\\{network_path}");
+        }
+        if let Some(normal_path) = value.strip_prefix(r"\\?\") {
+            return normal_path.to_string();
+        }
+    }
+
+    value
+}
+
+fn resolve_launch_program(program: &str) -> Result<PathBuf, String> {
+    let explicit = PathBuf::from(program);
+    if explicit.is_file() {
+        return Ok(explicit);
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(editor_id) = windows_editor_id_from_program(program) {
+        if let Some(path) = find_windows_editor_executable(editor_id) {
+            return Ok(path);
+        }
+    }
+
+    if let Ok(path) = which::which(program) {
+        return Ok(path);
+    }
+
+    Err(format!(
+        "Das Programm '{program}' wurde nicht gefunden. Öffne Einstellungen → IDEs und starte 'Installierte IDEs suchen', damit Code Deck den vollständigen Installationspfad speichert."
+    ))
+}
+
 #[tauri::command]
 fn launch_template(
     command_template: String,
@@ -1288,26 +1837,37 @@ fn launch_template(
         );
     }
 
-    let requested_path = PathBuf::from(&project_path);
+    let requested_path = PathBuf::from(project_path.trim());
     if !requested_path.is_dir() {
         return Err(format!(
-            "Projektordner nicht gefunden oder kein Ordner: {project_path}"
+            "Projektordner nicht gefunden oder kein Ordner: {}",
+            display_path(&requested_path)
         ));
     }
 
     let canonical_path = fs::canonicalize(&requested_path)
         .map_err(|error| format!("Projektordner konnte nicht aufgelöst werden: {error}"))?;
-    let canonical_path_text = canonical_path.to_string_lossy().into_owned();
-    let script = fill_template(&command_template, &canonical_path_text, &project_name);
+    let canonical_path_text = launch_path_text(&canonical_path);
+    let (program, args) = launch_parts(&command_template, &canonical_path_text, &project_name)?;
+    let resolved_program = resolve_launch_program(&program)?;
 
-    shell_command(&script)
+    let mut command = Command::new(&resolved_program);
+    command
+        .args(args)
         .current_dir(&canonical_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::null());
+    hide_console_window(&mut command);
+    command
         .spawn()
         .map(|_| ())
-        .map_err(|error| format!("IDE konnte nicht gestartet werden: {error}"))
+        .map_err(|error| {
+            format!(
+                "IDE '{}' konnte nicht gestartet werden: {error}",
+                display_path(&resolved_program)
+            )
+        })
 }
 
 #[tauri::command]

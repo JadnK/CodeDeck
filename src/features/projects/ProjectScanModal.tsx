@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
+import { getDetectedTechnologies } from "../../shared/lib/projectInspection";
 import { chooseDirectory, scanProjects } from "../../shared/lib/tauri";
 import type { ProjectCandidate } from "../../shared/types/models";
 
@@ -63,15 +64,25 @@ export function ProjectScanModal({
         <div className="scan-controls">
           <div className="form-field"><label htmlFor="scan-path">{t("Basisordner", "Base folder")}</label><div className="input-action-row"><input id="scan-path" value={basePath} onChange={(event) => setBasePath(event.target.value)} placeholder="C:\\Users\\you\\Projects" /><button className="button button--secondary" type="button" onClick={browse}><Icon name="folder" />{t("Wählen", "Choose")}</button><button className="button button--primary" type="button" onClick={scan} disabled={loading}><Icon name="search" />{loading ? t("Scanne…", "Scanning…") : t("Scannen", "Scan")}</button></div></div>
         </div>
-        <div className="notice"><Icon name="info" /><p>{t("Code Deck liest nur Ordnernamen und typische Projektmarker wie .git, package.json, Cargo.toml oder pyproject.toml. Projektdateien werden nicht verändert.", "Code Deck only reads folder names and common project markers such as .git, package.json, Cargo.toml or pyproject.toml. Project files are not changed.")}</p></div>
+        <div className="notice"><Icon name="info" /><p>{t("Code Deck liest typische Projektdateien und Quellcode-Endungen, um Sprachen, Frameworks und Tools zu erkennen. Projektdateien werden nicht verändert.", "Code Deck reads common project files and source-code extensions to detect languages, frameworks and tools. Project files are not changed.")}</p></div>
         {candidates.length ? (
           <div className="candidate-list">
             {candidates.map((candidate) => {
               const exists = existingPaths.some((path) => path.toLowerCase() === candidate.path.toLowerCase());
+              const technologies = getDetectedTechnologies(candidate);
               return (
                 <article key={candidate.path}>
                   <span className="candidate-list__icon"><Icon name="folder" /></span>
-                  <div><strong>{candidate.name}</strong><code>{candidate.path}</code><div className="badge-row">{candidate.markers.map((marker) => <span className="badge badge--muted" key={marker}>{marker}</span>)}</div></div>
+                  <div>
+                    <strong>{candidate.name}</strong>
+                    <code>{candidate.path}</code>
+                    <div className="badge-row">
+                      {technologies.slice(0, 6).map((technology) => (
+                        <span className={`badge badge--${technology.kind}`} key={`${technology.kind}:${technology.label}`}><i aria-hidden="true" />{technology.label}</span>
+                      ))}
+                      {technologies.length === 0 && candidate.markers.map((marker) => <span className="badge badge--muted" key={marker}>{marker}</span>)}
+                    </div>
+                  </div>
                   <button className="button button--secondary button--small" type="button" disabled={exists} onClick={() => onChooseCandidate(candidate)}><Icon name={exists ? "check" : "plus"} />{exists ? t("Bereits vorhanden", "Already added") : t("Hinzufügen", "Add")}</button>
                 </article>
               );
