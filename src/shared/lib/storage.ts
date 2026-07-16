@@ -1,4 +1,4 @@
-import type { AppData, CustomProjectTemplate, Editor, ProjectCommand } from "../types/models";
+import type { AppData, CustomProjectTemplate, Editor, ProjectCommand, ProjectTodo } from "../types/models";
 
 const STORAGE_KEY = "code-deck-data-v1";
 
@@ -75,6 +75,22 @@ function normalizeCommand(command: Partial<ProjectCommand>): ProjectCommand {
   };
 }
 
+
+function normalizeTodo(todo: Partial<ProjectTodo>, order: number): ProjectTodo {
+  const status = todo.status === "in-progress" || todo.status === "done" ? todo.status : "new";
+  const priority = todo.priority === "low" || todo.priority === "high" ? todo.priority : "normal";
+  return {
+    id: todo.id ?? id(),
+    title: todo.title?.trim() || "Todo",
+    description: todo.description ?? "",
+    status,
+    priority,
+    order: Number.isFinite(todo.order) ? Number(todo.order) : order,
+    createdAt: todo.createdAt ?? now(),
+    updatedAt: todo.updatedAt ?? now(),
+  };
+}
+
 export function normalizeData(input: unknown, imported = false): AppData {
   const fallback = createDefaultData();
   if (!input || typeof input !== "object") return fallback;
@@ -118,6 +134,9 @@ export function normalizeData(input: unknown, imported = false): AppData {
                 imported: imported || command.imported,
                 trusted: imported ? false : command.trusted ?? true,
               }))
+            : [],
+          todos: Array.isArray(project.todos)
+            ? project.todos.map((todo, index) => normalizeTodo(todo, index))
             : [],
           createdAt: project.createdAt ?? now(),
           updatedAt: project.updatedAt ?? now(),

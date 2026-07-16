@@ -21,6 +21,7 @@ The path identifies the local directory and is used as the default working direc
 | Action | What it does |
 |---|---|
 | **Open in …** | Opens the project with its preferred IDE |
+| **Todos** | Opens the local task list for this project |
 | **Terminal öffnen** | Opens a terminal in the project folder |
 | **Ordner öffnen** | Opens Explorer, Finder or the Linux file manager |
 | **Status aktualisieren** | Re-reads frameworks, scripts, Docker files and Git information |

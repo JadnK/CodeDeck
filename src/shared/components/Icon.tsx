@@ -2,6 +2,8 @@ import type { SVGProps } from "react";
 
 export type IconName =
   | "archive"
+  | "arrow-down"
+  | "arrow-up"
   | "arrow-left"
   | "box"
   | "check"
@@ -18,6 +20,7 @@ export type IconName =
   | "history"
   | "info"
   | "layers"
+  | "list"
   | "menu"
   | "moon"
   | "more"
@@ -39,6 +42,8 @@ type IconProps = SVGProps<SVGSVGElement> & { name: IconName };
 export function Icon({ name, ...props }: IconProps) {
   const paths: Record<IconName, React.ReactNode> = {
     archive: <><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11h14V8M10 12h4"/></>,
+    "arrow-down": <><path d="M12 5v14"/><path d="m17 14-5 5-5-5"/></>,
+    "arrow-up": <><path d="M12 19V5"/><path d="m7 10 5-5 5 5"/></>,
     "arrow-left": <><path d="m15 18-6-6 6-6"/><path d="M9 12h10"/></>,
     box: <><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="m3 8 9 5 9-5M12 13v9"/></>,
     check: <path d="m5 12 4 4L19 6"/>,
@@ -55,6 +60,7 @@ export function Icon({ name, ...props }: IconProps) {
     history: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></>,
     info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></>,
     layers: <><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></>,
+    list: <><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".7" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r=".7" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r=".7" fill="currentColor" stroke="none"/></>,
     menu: <><path d="M4 6h16M4 12h16M4 18h16"/></>,
     moon: <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>,
     more: <><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></>,

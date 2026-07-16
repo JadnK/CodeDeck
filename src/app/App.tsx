@@ -5,6 +5,7 @@ import { ProjectCard } from "../features/projects/ProjectCard";
 import { ProjectCreateModal } from "../features/projects/ProjectCreateModal";
 import { ProjectDetails } from "../features/projects/ProjectDetails";
 import { ProjectScanModal } from "../features/projects/ProjectScanModal";
+import { ProjectTodosModal } from "../features/projects/ProjectTodosModal";
 import { SettingsPanel } from "../features/settings/SettingsPanel";
 import { WorkspacesPanel } from "../features/workspaces/WorkspacesPanel";
 import { Icon } from "../shared/components/Icon";
@@ -50,6 +51,7 @@ export function App() {
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
+  const [todoProjectId, setTodoProjectId] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -61,6 +63,7 @@ export function App() {
   const t = (german: string, english: string) => translate(data.settings.language, german, english);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
+  const todoProject = data.projects.find((project) => project.id === todoProjectId);
   const editorById = useMemo(() => new Map(data.editors.map((editor) => [editor.id, editor])), [data.editors]);
   const activeProcesses = data.processHistory.filter((process) => ["starting", "running", "stopping"].includes(process.status));
 
@@ -193,6 +196,7 @@ export function App() {
       })),
     }));
     setSelectedProjectId(undefined);
+    setTodoProjectId(undefined);
     pushToast("success", t("Projekt entfernt", "Project removed"), t("Die Projektdateien wurden nicht verändert.", "The project files were not changed."));
   }
 
@@ -331,6 +335,7 @@ export function App() {
         archived: false,
         preferredEditorId: data.editors.find((editor) => editor.enabled)?.id,
         commands: inspection.scripts.slice(0, 6).map((script) => ({ id: createId(), label: script.name, command: script.command, env: {}, trusted: true })),
+        todos: [],
         createdAt: now,
         updatedAt: now,
         inspection,
@@ -518,6 +523,7 @@ export function App() {
                   editor={editorById.get(project.preferredEditorId ?? "")}
                   onOpenDetails={() => setSelectedProjectId(project.id)}
                   onOpenEditor={() => void openProjectEditor(project)}
+                  onOpenTodos={() => setTodoProjectId(project.id)}
                   onRunCommand={(command) => void runProjectCommand(project, command)}
                   onToggleFavorite={() => updateProject({ ...project, favorite: !project.favorite, updatedAt: new Date().toISOString() })}
                 />
@@ -578,12 +584,19 @@ export function App() {
         onUpdate={updateProject}
         onDelete={deleteProject}
         onOpenEditor={(project, editorId) => void openProjectEditor(project, editorId)}
+        onOpenTodos={(project) => setTodoProjectId(project.id)}
         onOpenTerminal={(project) => void openProjectTerminal(project)}
         onOpenFileManager={(project) => void openProjectFolder(project)}
         onRunCommand={(project, command, workspaceId) => void runProjectCommand(project, command, workspaceId)}
         onRunRawCommand={(project, label, command) => void runRawCommand(project, label, command)}
         onRefreshInspection={refreshInspection}
         onError={(message) => pushToast("error", t("Eingabe prüfen", "Check input"), message)}
+      />
+      <ProjectTodosModal
+        project={todoProject}
+        onClose={() => setTodoProjectId(undefined)}
+        onUpdate={updateProject}
+        onError={(message) => pushToast("error", t("Todo konnte nicht gespeichert werden", "Could not save todo"), message)}
       />
       <SettingsPanel
         open={settingsOpen}

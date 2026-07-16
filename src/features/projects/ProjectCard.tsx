@@ -7,6 +7,7 @@ type ProjectCardProps = {
   editor?: Editor;
   onOpenDetails: () => void;
   onOpenEditor: () => void;
+  onOpenTodos: () => void;
   onRunCommand: (command: ProjectCommand) => void;
   onToggleFavorite: () => void;
 };
@@ -16,11 +17,13 @@ export function ProjectCard({
   editor,
   onOpenDetails,
   onOpenEditor,
+  onOpenTodos,
   onRunCommand,
   onToggleFavorite,
 }: ProjectCardProps) {
   const { t, locale } = useI18n();
   const quickCommand = project.commands[0];
+  const openTodoCount = project.todos.filter((todo) => todo.status !== "done").length;
   const inspection = project.inspection;
   const allBadges = Array.from(new Set(inspection?.frameworks ?? []));
   const visibleBadges = allBadges.slice(0, 2);
@@ -88,6 +91,16 @@ export function ProjectCard({
       </div>
 
       <div className="project-card__actions">
+        <button
+          className="button button--secondary button--small project-card__todo-action"
+          type="button"
+          onClick={onOpenTodos}
+          title={t("Todos für dieses Projekt öffnen", "Open todos for this project")}
+        >
+          <Icon name="list" />
+          <span>{t("Todos", "Todos")}</span>
+          {openTodoCount > 0 && <b>{openTodoCount}</b>}
+        </button>
         {quickCommand && (
           <button
             className="button button--secondary button--small project-card__command-action"

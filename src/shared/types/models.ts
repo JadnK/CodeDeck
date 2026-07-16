@@ -19,6 +19,21 @@ export type ProjectCommand = {
   trusted?: boolean;
 };
 
+
+export type TodoStatus = "new" | "in-progress" | "done";
+export type TodoPriority = "low" | "normal" | "high";
+
+export type ProjectTodo = {
+  id: string;
+  title: string;
+  description: string;
+  status: TodoStatus;
+  priority: TodoPriority;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type DetectedScript = {
   name: string;
   command: string;
@@ -52,6 +67,7 @@ export type Project = {
   archived: boolean;
   preferredEditorId?: string;
   commands: ProjectCommand[];
+  todos: ProjectTodo[];
   createdAt: string;
   updatedAt: string;
   lastOpenedAt?: string;

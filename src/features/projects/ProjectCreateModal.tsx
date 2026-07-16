@@ -147,6 +147,7 @@ export function ProjectCreateModal({
         env: {},
         trusted: true,
       })),
+      todos: [],
       createdAt: now,
       updatedAt: now,
       inspection: projectInspection,
