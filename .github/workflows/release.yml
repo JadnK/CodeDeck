@@ -19,6 +19,7 @@ permissions:
   contents: write
 
 env:
+  APP_DIR: apps/desktop
   NODE_VERSION: "24"
   PNPM_VERSION: "10.33.0"
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -55,9 +56,9 @@ jobs:
           }
 
           const expected = match[1];
-          const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          const tauriConfig = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-          const cargoToml = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+          const packageJson = JSON.parse(fs.readFileSync('apps/desktop/package.json', 'utf8'));
+          const tauriConfig = JSON.parse(fs.readFileSync('apps/desktop/src-tauri/tauri.conf.json', 'utf8'));
+          const cargoToml = fs.readFileSync('apps/desktop/src-tauri/Cargo.toml', 'utf8');
           const cargoVersion = /^version\s*=\s*"([^"]+)"/m.exec(cargoToml)?.[1];
 
           const versions = {
@@ -164,6 +165,9 @@ jobs:
             args: "--target universal-apple-darwin"
             rust_targets: "aarch64-apple-darwin,x86_64-apple-darwin"
 
+    defaults:
+      run:
+        working-directory: apps/desktop
 
     steps:
       - name: Repository und Release-Tag auschecken
@@ -184,7 +188,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
           package-manager-cache: false
 
       - name: Rust stable einrichten
@@ -195,7 +199,7 @@ jobs:
       - name: Rust-Buildcache einrichten
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: apps/desktop/src-tauri -> target
           shared-key: release-${{ matrix.platform }}
 
       - name: Linux-Systempakete installieren
@@ -218,6 +222,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          projectPath: apps/desktop
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           tagName: ${{ env.RELEASE_TAG }}
           releaseDraft: true

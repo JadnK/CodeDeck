@@ -1,0 +1,37 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+    authors:
+      - dependabot
+
+  categories:
+    - title: "🚀 Neue Funktionen"
+      labels:
+        - feature
+        - enhancement
+
+    - title: "🐛 Fehlerbehebungen"
+      labels:
+        - bug
+        - fix
+
+    - title: "🎨 Oberfläche und Bedienung"
+      labels:
+        - ui
+        - ux
+
+    - title: "⚙️ Technik und Wartung"
+      labels:
+        - ci
+        - dependencies
+        - maintenance
+        - refactor
+
+    - title: "📚 Dokumentation"
+      labels:
+        - documentation
+
+    - title: "Weitere Änderungen"
+      labels:
+        - "*"

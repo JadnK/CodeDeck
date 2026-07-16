@@ -26,7 +26,6 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-
     steps:
       - name: Repository auschecken
         uses: actions/checkout@v7
