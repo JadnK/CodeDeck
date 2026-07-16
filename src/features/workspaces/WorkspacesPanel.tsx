@@ -194,7 +194,7 @@ export function WorkspacesPanel({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Workspaces" eyebrow="Mehrere Projekte, ein Start" size="large">
+    <Modal open={open} onClose={onClose} title="Workspaces" size="large">
       <div className="workspace-layout">
         <aside className="workspace-sidebar">
           <button className="button button--primary button--full" type="button" onClick={createWorkspace}><Icon name="plus" />Workspace erstellen</button>

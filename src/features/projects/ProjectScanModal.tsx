@@ -56,7 +56,7 @@ export function ProjectScanModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Projektordner scannen" eyebrow="Automatische Erkennung" size="large">
+    <Modal open={open} onClose={onClose} title="Projektordner scannen" size="large">
       <div className="scan-modal">
         <div className="scan-controls">
           <div className="form-field"><label htmlFor="scan-path">Basisordner</label><div className="input-action-row"><input id="scan-path" value={basePath} onChange={(event) => setBasePath(event.target.value)} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browse}><Icon name="folder" />Wählen</button><button className="button button--primary" type="button" onClick={scan} disabled={loading}><Icon name="search" />{loading ? "Scanne…" : "Scannen"}</button></div></div>

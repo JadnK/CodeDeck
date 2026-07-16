@@ -32,7 +32,7 @@ The current interface is in German. This README uses the exact German button nam
 Download the latest version from
 [GitHub Releases](../../releases/latest).
 
-__Dont forget giving the Star :)__
+__If CodeDeck saves you time, consider starring the repository.__
 
 ## Where everything is
 

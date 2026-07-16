@@ -410,72 +410,147 @@ export function App() {
 
   const emptyBecauseFilters = data.projects.length > 0 && visibleProjects.length === 0;
 
+
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand">
-          <span className="brand__mark"><Icon name="code" /></span>
-          <span><strong>Code Deck</strong><small>Local Developer Cockpit</small></span>
+        <div className="app-header__bar">
+          {/* <div className="brand" aria-label="CodeDeck">
+            <img src="/icon.png" alt="" className="brand__mark" />
+            <strong>CodeDeck</strong>
+          </div> */}
+
+          <nav className="main-nav" aria-label="Hauptnavigation">
+            <button className="main-nav__item active" type="button" aria-current="page">
+              <Icon name="folder" />
+              <span>Projekte</span>
+            </button>
+            <button className="main-nav__item" type="button" onClick={() => setWorkspacesOpen(true)}>
+              <Icon name="layers" />
+              <span>Workspaces</span>
+              {data.workspaces.length > 0 && <small>{data.workspaces.length}</small>}
+            </button>
+            <button className="main-nav__item" type="button" onClick={() => setProcessesOpen(true)}>
+              <Icon name="terminal" />
+              <span>Prozesse</span>
+              {activeProcesses.length > 0 && <small className="main-nav__badge">{activeProcesses.length}</small>}
+            </button>
+          </nav>
+
+          <div className="app-header__actions">
+            <button
+              className="icon-button"
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              title="Einstellungen"
+              aria-label="Einstellungen öffnen"
+            >
+              <Icon name="settings" />
+            </button>
+            <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}>
+              <Icon name="plus" />
+              <span>Projekt hinzufügen</span>
+            </button>
+          </div>
         </div>
-        <div className="global-search">
-          <Icon name="search" />
-          <input ref={searchRef} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Projekte, Tags, Frameworks oder Pfade durchsuchen…" />
-          <kbd>⌘ K</kbd>
-        </div>
-        <div className="header-actions">
-          <button className="header-button" type="button" onClick={() => setWorkspacesOpen(true)}><Icon name="layers" /><span>Workspaces</span></button>
-          <button className="header-button" type="button" onClick={() => setProcessesOpen(true)}><Icon name="terminal" /><span>Prozesse</span>{activeProcesses.length > 0 && <b>{activeProcesses.length}</b>}</button>
-          <button className="header-button" type="button" onClick={() => setSettingsOpen(true)}><Icon name="settings" /><span>Einstellungen</span></button>
+
+        <div className="app-toolbar">
+          <div className="app-toolbar__title">
+            <h1>Projekte</h1>
+            <span>{visibleProjects.length} von {data.projects.filter((project) => showArchived || !project.archived).length}</span>
+          </div>
+          <div className="global-search">
+            <Icon name="search" />
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Name, Pfad, Tag oder Framework"
+              aria-label="Projekte durchsuchen"
+            />
+            <kbd>Ctrl K</kbd>
+          </div>
+          <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}>
+            <Icon name="search" />
+            <span>Ordner scannen</span>
+          </button>
         </div>
       </header>
 
       <main className="home-page">
-        <section className="home-hero">
-          <div>
-            <p className="eyebrow">Dein lokales Cockpit</p>
-            <h1>Projekte</h1>
-            <p>{data.projects.filter((project) => !project.archived).length} aktiv · {data.projects.filter((project) => project.favorite && !project.archived).length} Favoriten · {activeProcesses.length} Prozesse</p>
+        <section className="filter-bar" aria-label="Projektfilter">
+          <div className="filter-bar__left">
+            <button className={`filter-chip ${favoriteOnly ? "active" : ""}`} type="button" onClick={() => setFavoriteOnly((value) => !value)}>
+              <Icon name="star" />
+              <span>Favoriten</span>
+            </button>
+            <select aria-label="Nach Tag filtern" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
+              <option value="">Alle Tags und Frameworks</option>
+              {allTags.map((tag) => <option value={tag} key={tag}>{tag}</option>)}
+            </select>
+            <label className="filter-checkbox">
+              <input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} />
+              <span>Archivierte anzeigen</span>
+            </label>
           </div>
-          <div className="hero-actions">
-            <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}><Icon name="search" />Ordner scannen</button>
-            <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" />Neues Projekt</button>
-          </div>
-        </section>
-
-        <section className="filter-bar">
-          <button className={`filter-chip ${favoriteOnly ? "active" : ""}`} type="button" onClick={() => setFavoriteOnly((value) => !value)}><Icon name="star" />Favoriten</button>
-          <select aria-label="Nach Tag filtern" value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}><option value="">Alle Tags & Frameworks</option>{allTags.map((tag) => <option value={tag} key={tag}>{tag}</option>)}</select>
-          <label className="filter-checkbox"><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} /><span>Archivierte anzeigen</span></label>
-          {(search || favoriteOnly || selectedTag || showArchived) && <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}><Icon name="x" />Filter zurücksetzen</button>}
+          {(search || favoriteOnly || selectedTag || showArchived) && (
+            <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
+              <Icon name="x" />
+              <span>Zurücksetzen</span>
+            </button>
+          )}
         </section>
 
         {visibleProjects.length ? (
-          <section className="project-grid">
-            {visibleProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                editor={editorById.get(project.preferredEditorId ?? "")}
-                onOpenDetails={() => setSelectedProjectId(project.id)}
-                onOpenEditor={() => void openProjectEditor(project)}
-                onRunCommand={(command) => void runProjectCommand(project, command)}
-                onToggleFavorite={() => updateProject({ ...project, favorite: !project.favorite, updatedAt: new Date().toISOString() })}
-              />
-            ))}
+          <section className="project-list" aria-label="Projektliste">
+            <div className="project-list__header" aria-hidden="true">
+              <span>Projekt</span>
+              <span>Tags</span>
+              <span>Git</span>
+              <span>Zuletzt genutzt</span>
+              <span>Aktionen</span>
+            </div>
+            <div className="project-list__body">
+              {visibleProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  editor={editorById.get(project.preferredEditorId ?? "")}
+                  onOpenDetails={() => setSelectedProjectId(project.id)}
+                  onOpenEditor={() => void openProjectEditor(project)}
+                  onRunCommand={(command) => void runProjectCommand(project, command)}
+                  onToggleFavorite={() => updateProject({ ...project, favorite: !project.favorite, updatedAt: new Date().toISOString() })}
+                />
+              ))}
+            </div>
           </section>
         ) : (
           <section className="home-empty">
-            <div className="home-empty__art"><Icon name={emptyBecauseFilters ? "search" : "layers"} /></div>
-            <h2>{emptyBecauseFilters ? "Keine passenden Projekte" : "Dein Deck ist noch leer"}</h2>
-            <p>{emptyBecauseFilters ? "Passe Suche oder Filter an, um deine Projekte wiederzufinden." : "Füge einen lokalen Projektordner hinzu oder scanne einen Basisordner nach Git-Repositories und bekannten Projektdateien."}</p>
+            <div className="home-empty__art"><Icon name={emptyBecauseFilters ? "search" : "folder"} /></div>
+            <h2>{emptyBecauseFilters ? "Keine passenden Projekte" : "Noch keine Projekte"}</h2>
+            <p>{emptyBecauseFilters ? "Ändere die Suche oder setze die Filter zurück." : "Füge einen vorhandenen Ordner hinzu oder erstelle ein neues Projekt aus einer Vorlage."}</p>
             <div className="button-row">
-              {emptyBecauseFilters ? <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}><Icon name="refresh" />Filter zurücksetzen</button> : <><button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}><Icon name="search" />Ordner scannen</button><button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" />Erstes Projekt hinzufügen</button></>}
+              {emptyBecauseFilters ? (
+                <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setSelectedTag(""); setShowArchived(false); }}>
+                  <Icon name="refresh" />
+                  <span>Filter zurücksetzen</span>
+                </button>
+              ) : (
+                <>
+                  <button className="button button--secondary" type="button" onClick={() => setScanOpen(true)}>
+                    <Icon name="search" />
+                    <span>Ordner scannen</span>
+                  </button>
+                  <button className="button button--primary" type="button" onClick={() => setCreateOpen(true)}>
+                    <Icon name="plus" />
+                    <span>Projekt hinzufügen</span>
+                  </button>
+                </>
+              )}
             </div>
           </section>
         )}
       </main>
-
-      <button className="floating-add" type="button" onClick={() => setCreateOpen(true)}><Icon name="plus" /><span>Neues Projekt</span></button>
 
       <ProjectCreateModal
         open={createOpen}

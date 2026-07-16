@@ -14,6 +14,23 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [0.2.1]
+
+### Changed
+
+- Redesigned the application interface
+- Reworked the main navigation
+- Improved project cards and action layouts
+- Fixed duplicate process and settings navigation
+- Improved button sizing, text alignment and responsive behavior
+- Added the Code Deck application icon to the interface
+
+### Fixed
+
+- Fixed clipped and wrapped button labels
+- Fixed inconsistent spacing across dialogs and pages
+- Fixed duplicate navigation entries
+
 ## [0.2.0]
 
 ### Added
@@ -57,6 +74,6 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...HEAD
+[0.2.1]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/JadnK/CodeDeck/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/JadnK/CodeDeck/releases/tag/v0.1.0

@@ -11,7 +11,7 @@ type ProjectCardProps = {
 };
 
 function relativeDate(value?: string) {
-  if (!value) return "Noch nicht geöffnet";
+  if (!value) return "Nie geöffnet";
   const diff = Date.now() - new Date(value).getTime();
   const minutes = Math.max(1, Math.round(diff / 60_000));
   if (minutes < 60) return `vor ${minutes} Min.`;
@@ -32,65 +32,85 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const quickCommand = project.commands[0];
   const inspection = project.inspection;
-  const badges = [...(inspection?.frameworks ?? []), ...project.tags].slice(0, 4);
+  const allBadges = Array.from(new Set([...(inspection?.frameworks ?? []), ...project.tags]));
+  const visibleBadges = allBadges.slice(0, 2);
+  const remainingBadges = Math.max(0, allBadges.length - visibleBadges.length);
 
   return (
-    <article className="project-card" onDoubleClick={onOpenDetails}>
-      <header className="project-card__header">
-        <button
-          className={`project-icon ${project.favorite ? "project-icon--favorite" : ""}`}
-          type="button"
-          onClick={onToggleFavorite}
-          title={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
-          aria-label={project.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
-        >
-          <Icon name={project.favorite ? "star" : "code"} />
-        </button>
-        <button className="button button--ghost button--small" type="button" onClick={onOpenDetails}>
-          <Icon name="more" />Details
-        </button>
-      </header>
-
-      <button className="project-card__main" type="button" onClick={onOpenDetails} title="Projektdetails öffnen">
-        <h2>{project.name}</h2>
-        <p className="project-card__path">{project.path}</p>
-        {project.description && <p className="project-card__description">{project.description}</p>}
+    <article className="project-card">
+      <button
+        className={`project-card__favorite ${project.favorite ? "active" : ""}`}
+        type="button"
+        onClick={onToggleFavorite}
+        title={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
+        aria-label={project.favorite ? "Aus Favoriten entfernen" : "Als Favorit markieren"}
+      >
+        <Icon name="star" />
       </button>
 
-      <div className="badge-row">
-        {badges.length ? (
-          badges.map((badge) => <span className="badge" key={badge}>{badge}</span>)
-        ) : (
-          <span className="badge badge--muted">Ohne Tags</span>
-        )}
-      </div>
-
-      <div className="project-card__status">
-        <span title="Letztes Öffnen in einer IDE">
-          <Icon name="history" />
-          {relativeDate(project.lastOpenedAt)}
+      <button className="project-card__identity" type="button" onClick={onOpenDetails} title="Projektdetails öffnen">
+        <span className="project-icon"><Icon name="folder" /></span>
+        <span className="project-card__title">
+          <strong>{project.name}</strong>
+          <small title={project.path}>{project.path}</small>
+          {project.description && <span>{project.description}</span>}
         </span>
-        {inspection?.isGit && (
-          <span title="Aktueller Git-Branch und geänderte Dateien">
-            <Icon name="git" />
-            {inspection.branch || "Git"}
-            {inspection.changedFiles > 0 && <b>{inspection.changedFiles}</b>}
-          </span>
+      </button>
+
+      <div className="project-card__badges" aria-label="Technologien und Tags">
+        {visibleBadges.length > 0 ? (
+          <>
+            {visibleBadges.map((badge) => <span className="badge" key={badge}>{badge}</span>)}
+            {remainingBadges > 0 && <span className="badge badge--muted">+{remainingBadges}</span>}
+          </>
+        ) : (
+          <span className="project-card__meta-muted">Keine Tags</span>
         )}
       </div>
 
-      <footer className="project-card__footer project-card__footer--clear">
-        <button className="button button--primary button--grow" type="button" onClick={onOpenEditor} disabled={!editor}>
-          <Icon name="external" />
-          {editor ? `In ${editor.name} öffnen` : "Zuerst IDE festlegen"}
-        </button>
+      <div className="project-card__meta" title={inspection?.isGit ? "Git-Status" : "Kein Git-Repository erkannt"}>
+        {inspection?.isGit ? (
+          <>
+            <Icon name="git" />
+            <span>{inspection.branch || "Git"}</span>
+            {inspection.changedFiles > 0 && <b>{inspection.changedFiles}</b>}
+          </>
+        ) : (
+          <span className="project-card__meta-muted">Kein Git</span>
+        )}
+      </div>
+
+      <div className="project-card__last-used" title="Zuletzt in einer IDE geöffnet">
+        <Icon name="history" />
+        <span>{relativeDate(project.lastOpenedAt)}</span>
+      </div>
+
+      <div className="project-card__actions">
         {quickCommand && (
-          <button className="button button--secondary button--grow" type="button" onClick={() => onRunCommand(quickCommand)} title={`Führt „${quickCommand.command}“ im Projektordner aus`}>
+          <button
+            className="button button--secondary button--small project-card__command-action"
+            type="button"
+            onClick={() => onRunCommand(quickCommand)}
+            title={`${quickCommand.label}: ${quickCommand.command}`}
+          >
             <Icon name="play" />
-            {quickCommand.label} starten
+            <span>Start</span>
           </button>
         )}
-      </footer>
+        <button
+          className="button button--primary button--small project-card__primary-action"
+          type="button"
+          onClick={onOpenEditor}
+          disabled={!editor}
+          title={editor ? `In ${editor.name} öffnen` : "Zuerst eine IDE in den Einstellungen festlegen"}
+        >
+          <Icon name="external" />
+          <span>Öffnen</span>
+        </button>
+        <button className="icon-button icon-button--small" type="button" onClick={onOpenDetails} title="Details" aria-label="Details öffnen">
+          <Icon name="more" />
+        </button>
+      </div>
     </article>
   );
 }
