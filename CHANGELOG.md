@@ -14,6 +14,20 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.2.0] - 2026-07-16
+
+### Changed
+
+- Split the Rust backend into focused command, Git, project, platform, process and storage modules.
+- Improved the Linux IDE launcher fallback behavior.
+
+### Fixed
+
+- Fixed configured `code` launch commands failing when Visual Studio Code is installed through Flatpak.
+- Existing `code "{projectPath}"` configurations now fall back to `flatpak run com.visualstudio.code`.
+- Preserved the canonical project path when launching Visual Studio Code through Flatpak.
+- Improved the error shown when no supported IDE installation can be found.
+
 ## [1.1.0] - 2026-07-16
 
 ### Added

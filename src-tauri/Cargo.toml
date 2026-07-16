@@ -1,6 +1,6 @@
 [package]
 name = "code-deck"
-version = "1.1.0"
+version = "1.2.0"
 description = "Local developer project cockpit"
 authors = ["Code Deck Contributors"]
 edition = "2021"
