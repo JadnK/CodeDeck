@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Vorhandenen Tag bauen, z. B. v0.2.0"
+        description: "Existing tag to build, for example v1.0.1"
         required: true
         type: string
 
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   NODE_VERSION: "24"
@@ -25,46 +25,47 @@ env:
 
 jobs:
   validate:
-    name: Release prüfen
+    name: Validate release
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
 
     steps:
-      - name: Manuelle Ausführung vom Standardbranch prüfen
+      - name: Verify manual runs use the default branch
         if: github.event_name == 'workflow_dispatch' && github.ref_name != github.event.repository.default_branch
         shell: bash
         run: |
-          echo "::error::Wähle bei 'Use workflow from' den Branch '${{ github.event.repository.default_branch }}'. Aktuell ausgewählt ist '${{ github.ref_name }}'."
+          echo "::error::Select '${{ github.event.repository.default_branch }}' in the 'Use workflow from' menu. The selected ref is '${{ github.ref_name }}'."
           exit 1
 
-      - name: Repository und Release-Tag auschecken
+      - name: Check out the release tag
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Node.js 24 einrichten
+      - name: Set up Node.js 24
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
 
-      - name: Updater-Signierschlüssel prüfen
+      - name: Validate updater signing secrets
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY fehlt. Siehe docs/updater-setup.md."
+            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY is missing. See docs/updater-setup.md."
             exit 1
           fi
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD fehlt. Siehe docs/updater-setup.md."
+            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD is missing. See docs/updater-setup.md."
             exit 1
           fi
 
-      - name: Tag und App-Versionen prüfen
+      - name: Validate tag, versions and release notes
         shell: bash
         run: |
           node <<'NODE'
@@ -73,82 +74,100 @@ jobs:
           const tag = process.env.RELEASE_TAG;
           const match = /^v(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?)$/.exec(tag);
           if (!match) {
-            throw new Error(`Ungültiger Release-Tag: ${tag}. Erwartet wird z. B. v0.2.0.`);
+            throw new Error(`Invalid release tag: ${tag}. Expected a tag such as v1.0.1.`);
           }
 
           const expected = match[1];
           const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           const tauriConfig = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
           const cargoToml = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+          const cargoLock = fs.readFileSync('src-tauri/Cargo.lock', 'utf8');
+
           const cargoVersion = /^version\s*=\s*"([^"]+)"/m.exec(cargoToml)?.[1];
+          const cargoLockVersion = /\[\[package\]\]\nname = "code-deck"\nversion = "([^"]+)"/m.exec(cargoLock)?.[1];
 
           const versions = {
             'package.json': packageJson.version,
             'src-tauri/tauri.conf.json': tauriConfig.version,
             'src-tauri/Cargo.toml': cargoVersion,
+            'src-tauri/Cargo.lock': cargoLockVersion,
           };
 
           const mismatches = Object.entries(versions)
             .filter(([, version]) => version !== expected)
-            .map(([file, version]) => `${file}: ${version ?? 'fehlt'}`);
+            .map(([file, version]) => `${file}: ${version ?? 'missing'}`);
 
           if (mismatches.length > 0) {
             throw new Error(
-              `Der Tag ${tag} erwartet Version ${expected}, aber folgende Dateien weichen ab:\n` +
+              `Tag ${tag} expects version ${expected}, but these files do not match:\n` +
               mismatches.join('\n')
             );
           }
 
-          console.log(`Release ${tag} ist konsistent.`);
+          const notesPath = `RELEASE_NOTES_v${expected}.md`;
+          if (!fs.existsSync(notesPath)) {
+            throw new Error(
+              `${notesPath} is missing. Add curated English release notes before creating the tag.`
+            );
+          }
+
+          const notes = fs.readFileSync(notesPath, 'utf8').trim();
+          if (notes.length < 120) {
+            throw new Error(`${notesPath} is too short to be useful.`);
+          }
+
+          console.log(`Release ${tag} is consistent and ${notesPath} is ready.`);
           NODE
 
   prepare-release:
-    name: Release-Entwurf vorbereiten
+    name: Prepare release draft
     needs: validate
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
       release_url: ${{ steps.release.outputs.release_url }}
 
     steps:
-      - name: GitHub-Release-Entwurf erstellen oder wiederverwenden
+      - name: Check out the release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Create or reuse the GitHub release draft
         id: release
         uses: actions/github-script@v9
         env:
           RELEASE_TAG: ${{ env.RELEASE_TAG }}
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           retries: 3
           script: |
+            const fs = require('node:fs');
+
             const tag = process.env.RELEASE_TAG;
+            const version = tag.replace(/^v/, '');
             const prerelease = tag.includes('-');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-
-            const body = [
-              `## Code Deck ${tag}`,
-              '',
-              'Lokales Desktop-Dashboard zum Organisieren, Öffnen und Starten von Entwicklungsprojekten.',
-              '',
-              '### Downloads',
-              '- **Windows:** MSI oder Setup-EXE',
-              '- **macOS:** DMG als Universal-Build für Intel und Apple Silicon',
-              '- **Linux:** AppImage oder DEB',
-              '',
-              '### Installation',
-              'Lade unter Assets das passende Installationspaket herunter und starte es.',
-              '',
-              '> Die Builds sind aktuell nicht mit einem kostenpflichtigen Plattform-Zertifikat signiert. Windows SmartScreen oder macOS Gatekeeper können deshalb beim ersten Start eine Warnung anzeigen.'
-            ].join('\n');
+            const notesPath = `RELEASE_NOTES_v${version}.md`;
+            const body = fs.readFileSync(notesPath, 'utf8').trim();
 
             const releases = await github.paginate(
               github.rest.repos.listReleases,
               { owner, repo, per_page: 100 }
             );
 
-            let release = releases.find(item => item.tag_name === tag);
+            let release = releases.find((item) => item.tag_name === tag);
 
             if (release && !release.draft) {
-              core.setFailed(`Für ${tag} existiert bereits ein veröffentlichter Release. Verwende einen neuen Tag.`);
+              core.setFailed(
+                `A published release already exists for ${tag}. Create a new version tag instead.`
+              );
               return;
             }
 
@@ -158,28 +177,25 @@ jobs:
                 repo,
                 release_id: release.id,
                 tag_name: tag,
-                name: `Code Deck ${tag}`,
+                name: `CodeDeck ${tag}`,
                 body,
                 draft: true,
                 prerelease
               });
               release = updated.data;
-              core.info(`Vorhandener Release-Entwurf wird wiederverwendet: ${release.html_url}`);
+              core.info(`Reusing and updating release draft: ${release.html_url}`);
             } else {
-              // The workflow checks out an already existing Git tag before this job.
-              // target_commitish only accepts a branch or commit SHA when GitHub
-              // needs to create a new tag, so it must not be set to the tag name.
               try {
                 const tagRef = await github.rest.git.getRef({
                   owner,
                   repo,
                   ref: `tags/${tag}`
                 });
-                core.info(`Release-Tag gefunden: ${tag} -> ${tagRef.data.object.sha}`);
+                core.info(`Found release tag ${tag} at ${tagRef.data.object.sha}.`);
               } catch (error) {
                 if (error.status === 404) {
                   core.setFailed(
-                    `Der Tag ${tag} existiert nicht auf GitHub. Push ihn zuerst mit: git push origin ${tag}`
+                    `Tag ${tag} does not exist on GitHub. Push it first with: git push origin ${tag}`
                   );
                   return;
                 }
@@ -190,23 +206,25 @@ jobs:
                 owner,
                 repo,
                 tag_name: tag,
-                name: `Code Deck ${tag}`,
+                name: `CodeDeck ${tag}`,
                 body,
                 draft: true,
-                prerelease,
-                generate_release_notes: true
+                prerelease
               });
               release = created.data;
-              core.info(`Release-Entwurf erstellt: ${release.html_url}`);
+              core.info(`Created release draft: ${release.html_url}`);
             }
 
             core.setOutput('release_id', String(release.id));
             core.setOutput('release_url', release.html_url);
 
   build:
-    name: ${{ matrix.name }}
+    name: Build ${{ matrix.name }}
     needs: prepare-release
     runs-on: ${{ matrix.platform }}
+    timeout-minutes: 90
+    permissions:
+      contents: write
 
     strategy:
       fail-fast: false
@@ -226,20 +244,20 @@ jobs:
             rust_targets: "aarch64-apple-darwin,x86_64-apple-darwin"
 
     steps:
-      - name: Repository und Release-Tag auschecken
+      - name: Check out the release tag
         uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: pnpm einrichten
+      - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
 
-      - name: Node.js 24 mit pnpm-Cache einrichten
+      - name: Set up Node.js 24 with pnpm cache
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -247,18 +265,18 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
           package-manager-cache: false
 
-      - name: Rust stable einrichten
+      - name: Set up stable Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.rust_targets }}
 
-      - name: Rust-Buildcache einrichten
+      - name: Restore Rust build cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
           shared-key: release-${{ matrix.platform }}
 
-      - name: Linux-Systempakete installieren
+      - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         run: |
@@ -270,10 +288,10 @@ jobs:
             patchelf \
             xdg-utils
 
-      - name: Frontend-Abhängigkeiten reproduzierbar installieren
+      - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Tauri-App bauen und Release-Artefakte hochladen
+      - name: Build the Tauri application and upload release assets
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -286,46 +304,77 @@ jobs:
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           retryAttempts: 2
           uploadUpdaterJson: true
-          uploadUpdaterSignatures: true
+          uploadUpdaterSignatures: false
           updaterJsonPreferNsis: true
-          releaseAssetNamePattern: "Code-Deck_[version]_[platform]_[arch][setup][ext]"
+          releaseAssetNamePattern: "CodeDeck_[version]_[platform]_[arch][setup][ext]"
           uploadWorkflowArtifacts: true
-          workflowArtifactNamePattern: "Code-Deck_[version]_[platform]_[arch]_[bundle]"
+          workflowArtifactNamePattern: "CodeDeck_[version]_[platform]_[arch]_[bundle]"
           args: ${{ matrix.args }}
 
-  done:
-    name: Release bereit
-    permissions:
-      contents: write
+  verify:
+    name: Clean and verify release assets
     needs:
       - prepare-release
       - build
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
 
     steps:
-      - name: Updater-Manifest im Release prüfen
+      - name: Remove standalone updater signature assets
+        uses: actions/github-script@v9
+        env:
+          RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          retries: 3
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const releaseId = Number(process.env.RELEASE_ID);
+
+            const assets = await github.paginate(
+              github.rest.repos.listReleaseAssets,
+              { owner, repo, release_id: releaseId, per_page: 100 }
+            );
+
+            const signatureAssets = assets.filter((asset) => asset.name.endsWith('.sig'));
+
+            for (const asset of signatureAssets) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner,
+                repo,
+                asset_id: asset.id
+              });
+              core.info(`Removed standalone signature asset: ${asset.name}`);
+            }
+
+            core.info(`Removed ${signatureAssets.length} standalone .sig asset(s).`);
+
+      - name: Validate the updater manifest
         uses: actions/github-script@v9
         env:
           RELEASE_ID: ${{ needs.prepare-release.outputs.release_id }}
           EXPECTED_VERSION: ${{ env.RELEASE_TAG }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          retries: 3
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const releaseId = Number(process.env.RELEASE_ID);
             const expectedVersion = process.env.EXPECTED_VERSION.replace(/^v/, '');
-            const { data: assets } = await github.rest.repos.listReleaseAssets({
-              owner,
-              repo,
-              release_id: releaseId,
-              per_page: 100
-            });
+
+            const assets = await github.paginate(
+              github.rest.repos.listReleaseAssets,
+              { owner, repo, release_id: releaseId, per_page: 100 }
+            );
 
             const manifestAsset = assets.find((asset) => asset.name === 'latest.json');
             if (!manifestAsset) {
               core.setFailed(
-                'latest.json fehlt im Release-Entwurf. Der In-App-Updater würde deshalb keine Updates finden.'
+                'latest.json is missing from the release draft. In-app updates would not work.'
               );
               return;
             }
@@ -339,6 +388,7 @@ jobs:
                 headers: { accept: 'application/octet-stream' }
               }
             );
+
             const buffer = Buffer.isBuffer(response.data)
               ? response.data
               : Buffer.from(response.data);
@@ -347,46 +397,58 @@ jobs:
             try {
               manifest = JSON.parse(buffer.toString('utf8'));
             } catch (error) {
-              core.setFailed(`latest.json ist kein gültiges JSON: ${error.message}`);
+              core.setFailed(`latest.json is not valid JSON: ${error.message}`);
               return;
             }
 
             if (manifest.version !== expectedVersion) {
               core.setFailed(
-                `latest.json enthält Version ${manifest.version ?? 'unbekannt'}, erwartet wurde ${expectedVersion}.`
+                `latest.json contains version ${manifest.version ?? 'unknown'}, expected ${expectedVersion}.`
               );
               return;
             }
+
             const platforms = Object.entries(manifest.platforms ?? {});
             if (platforms.length < 3) {
               core.setFailed(
-                `latest.json enthält nur ${platforms.length} Plattform(en). Erwartet werden Windows, macOS und Linux.`
+                `latest.json contains only ${platforms.length} platform entries. Windows, macOS and Linux are required.`
               );
               return;
             }
+
             const invalidPlatforms = platforms
               .filter(([, value]) => !value?.url || !value?.signature)
               .map(([name]) => name);
+
             if (invalidPlatforms.length > 0) {
               core.setFailed(
-                `latest.json enthält unvollständige Update-Daten für: ${invalidPlatforms.join(', ')}.`
+                `latest.json contains incomplete update data for: ${invalidPlatforms.join(', ')}.`
+              );
+              return;
+            }
+
+            const remainingSignatures = assets.filter((asset) => asset.name.endsWith('.sig'));
+            if (remainingSignatures.length > 0) {
+              core.setFailed(
+                `Standalone signature assets are still present: ${remainingSignatures.map((asset) => asset.name).join(', ')}`
               );
               return;
             }
 
             core.info(
-              `Updater-Manifest geprüft: ${manifest.version}, ${platforms.length} Plattform(en).`
+              `Validated updater manifest ${manifest.version} with ${platforms.length} platform entries.`
             );
 
-      - name: Zusammenfassung schreiben
+      - name: Write release summary
         shell: bash
         run: |
           {
-            echo "## Code Deck ${RELEASE_TAG} ist gebaut"
+            echo "## CodeDeck ${RELEASE_TAG} is ready"
             echo
-            echo "Alle Plattform-Artefakte wurden in den Release-Entwurf hochgeladen."
+            echo "All platform packages and updater files were uploaded to the release draft."
+            echo "Standalone .sig files were removed because their contents are already embedded in latest.json."
             echo
-            echo "Öffne den Entwurf unter: ${{ needs.prepare-release.outputs.release_url }}"
+            echo "Review the draft: ${{ needs.prepare-release.outputs.release_url }}"
             echo
-            echo "Prüfe die Dateien und klicke anschließend auf **Publish release**."
+            echo "After checking the assets and English release notes, click **Publish release**."
           } >> "$GITHUB_STEP_SUMMARY"
