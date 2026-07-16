@@ -62,19 +62,28 @@ function isExplicitProgram(program: string) {
   return program.includes("/") || program.includes("\\") || /^[a-z]:/i.test(program);
 }
 
+function isFlatpakCommand(commandTemplate: string) {
+  const normalized = commandTemplate.trim().replace(/^(["']).*?\1\s+/, "");
+  return /(?:^|[\/])flatpak(?:\s|$)/i.test(firstCommandPart(commandTemplate))
+    && /\brun\s+[a-z0-9][a-z0-9._-]+/i.test(normalized);
+}
+
 export function editorNeedsPathRepair(editor: Pick<Editor, "id" | "name" | "commandTemplate">) {
   const key = editorKey(editor);
   if (!key) return false;
   const program = firstCommandPart(editor.commandTemplate);
   if (!program) return true;
   if (isExplicitProgram(program)) return false;
+  if (isFlatpakCommand(editor.commandTemplate)) return false;
   if (program.toLowerCase() === "open" && /\s-a\s/i.test(editor.commandTemplate)) return false;
   return true;
 }
 
 function suggestionIsMoreReliable(suggestion: EditorSuggestion) {
   const program = firstCommandPart(suggestion.commandTemplate);
-  return isExplicitProgram(program) || (program.toLowerCase() === "open" && /\s-a\s/i.test(suggestion.commandTemplate));
+  return isExplicitProgram(program)
+    || isFlatpakCommand(suggestion.commandTemplate)
+    || (program.toLowerCase() === "open" && /\s-a\s/i.test(suggestion.commandTemplate));
 }
 
 export function mergeEditorSuggestions(editors: Editor[], suggestions: EditorSuggestion[]) {

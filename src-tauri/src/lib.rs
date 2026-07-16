@@ -1615,6 +1615,41 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
+fn linux_flatpak_executable() -> Option<PathBuf> {
+    for candidate in [
+        PathBuf::from("/usr/bin/flatpak"),
+        PathBuf::from("/bin/flatpak"),
+        PathBuf::from("/usr/local/bin/flatpak"),
+    ] {
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+
+    which::which("flatpak").ok()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_app_installed(flatpak: &Path, app_id: &str) -> bool {
+    let mut command = Command::new(flatpak);
+    command
+        .args(["info", app_id])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    command.status().map(|status| status.success()).unwrap_or(false)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_editor_template(flatpak: &Path, app_id: &str) -> String {
+    format!(
+        "\"{}\" run {} \"{{projectPath}}\"",
+        display_path(flatpak).replace('\"', "\\\""),
+        app_id
+    )
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
 fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
     let candidates = [
         ("vscode", "VS Code", "/snap/bin/code"),
@@ -1627,6 +1662,30 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
         let path = PathBuf::from(path);
         if path.is_file() {
             push_editor_suggestion(suggestions, id, name, executable_template(&path));
+        }
+    }
+
+    let Some(flatpak) = linux_flatpak_executable() else {
+        return;
+    };
+
+    // Flatpak applications are not exposed as normal executables to an
+    // AppImage. Detect them by application ID and launch them through the
+    // host flatpak CLI instead.
+    let flatpak_editors = [(
+        "vscode",
+        "VS Code (Flatpak)",
+        "com.visualstudio.code",
+    )];
+
+    for (id, name, app_id) in flatpak_editors {
+        if flatpak_app_installed(&flatpak, app_id) {
+            push_editor_suggestion(
+                suggestions,
+                id,
+                name,
+                flatpak_editor_template(&flatpak, app_id),
+            );
         }
     }
 }
@@ -1813,6 +1872,13 @@ fn resolve_launch_program(program: &str) -> Result<PathBuf, String> {
         }
     }
 
+    #[cfg(all(unix, not(target_os = "macos")))]
+    if program.eq_ignore_ascii_case("flatpak") {
+        if let Some(path) = linux_flatpak_executable() {
+            return Ok(path);
+        }
+    }
+
     if let Ok(path) = which::which(program) {
         return Ok(path);
     }
@@ -1850,6 +1916,23 @@ fn launch_template(
     let canonical_path_text = launch_path_text(&canonical_path);
     let (program, args) = launch_parts(&command_template, &canonical_path_text, &project_name)?;
     let resolved_program = resolve_launch_program(&program)?;
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    if resolved_program
+        .file_name()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("flatpak"))
+        && args.first().is_some_and(|value| value == "run")
+    {
+        let app_id = args
+            .get(1)
+            .ok_or_else(|| "Im Flatpak-Command fehlt die Anwendungs-ID.".to_string())?;
+        if !flatpak_app_installed(&resolved_program, app_id) {
+            return Err(format!(
+                "Die Flatpak-Anwendung '{app_id}' ist nicht installiert oder für den aktuellen Benutzer nicht sichtbar."
+            ));
+        }
+    }
 
     let mut command = Command::new(&resolved_program);
     command

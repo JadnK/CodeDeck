@@ -6,32 +6,32 @@ changelog:
       - dependabot
 
   categories:
-    - title: "🚀 Neue Funktionen"
+    - title: "🚀 Features"
       labels:
         - feature
         - enhancement
 
-    - title: "🐛 Fehlerbehebungen"
+    - title: "🐛 Bug fixes"
       labels:
         - bug
         - fix
 
-    - title: "🎨 Oberfläche und Bedienung"
+    - title: "🎨 Interface and usability"
       labels:
         - ui
         - ux
 
-    - title: "⚙️ Technik und Wartung"
+    - title: "⚙️ Engineering and maintenance"
       labels:
         - ci
         - dependencies
         - maintenance
         - refactor
 
-    - title: "📚 Dokumentation"
+    - title: "📚 Documentation"
       labels:
         - documentation
 
-    - title: "Weitere Änderungen"
+    - title: "Other changes"
       labels:
         - "*"
