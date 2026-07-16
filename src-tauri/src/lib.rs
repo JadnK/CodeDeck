@@ -10,6 +10,18 @@ use std::{
 use tauri::{AppHandle, Emitter};
 use walkdir::WalkDir;
 
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
+#[cfg(target_os = "windows")]
+fn hide_console_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(target_os = "windows"))]
+fn hide_console_window(_command: &mut Command) {}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct DetectedScript {
@@ -119,13 +131,14 @@ fn marker_names(path: &Path) -> Vec<String> {
 }
 
 fn command_output(path: &Path, program: &str, args: &[&str]) -> Option<String> {
-    let output = Command::new(program)
+    let mut command = Command::new(program);
+    command
         .args(args)
         .current_dir(path)
         .stdin(Stdio::null())
-        .stderr(Stdio::null())
-        .output()
-        .ok()?;
+        .stderr(Stdio::null());
+    hide_console_window(&mut command);
+    let output = command.output().ok()?;
 
     output
         .status
@@ -749,13 +762,15 @@ fn create_project_from_template(
     }
 
     if init_git && which::which("git").is_ok() {
-        let _ = Command::new("git")
+        let mut command = Command::new("git");
+        command
             .args(["init"])
             .current_dir(&destination)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+            .stderr(Stdio::null());
+        hide_console_window(&mut command);
+        let _ = command.status();
     }
 
     Ok(CreatedProject {
@@ -1015,7 +1030,7 @@ fn shell_command(script: &str) -> Command {
         use std::os::windows::process::CommandExt;
         let mut command = Command::new("cmd.exe");
         command.args(["/D", "/S", "/C", script]);
-        command.creation_flags(0x08000000);
+        command.creation_flags(CREATE_NO_WINDOW);
         command
     }
 
@@ -1235,11 +1250,14 @@ fn start_process(
 fn stop_process(pid: u32) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let status = Command::new("taskkill")
+        let mut command = Command::new("taskkill");
+        command
             .args(["/PID", &pid.to_string(), "/T", "/F"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            .stderr(Stdio::null());
+        hide_console_window(&mut command);
+        let status = command
             .status()
             .map_err(|error| format!("Prozess konnte nicht beendet werden: {error}"))?;
         if status.success() {
