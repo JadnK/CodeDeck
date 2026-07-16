@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/animation.gif" alt="CodeDeck demo showing the main development workflow" width="100%">
+  <img src="docs/screenshots/Animation.gif" alt="CodeDeck demo showing the main development workflow" width="100%">
 </p>
 
 ## Why CodeDeck?
