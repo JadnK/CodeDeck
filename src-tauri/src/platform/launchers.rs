@@ -356,6 +356,27 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_fallback_for_program(program: &str) -> Option<(PathBuf, &'static str)> {
+    let filename = Path::new(program)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or(program)
+        .to_ascii_lowercase();
+
+    let app_id = match filename.as_str() {
+        "code" | "code-insiders" => "com.visualstudio.code",
+        _ => return None,
+    };
+
+    let flatpak = linux_flatpak_executable()?;
+
+    if flatpak_app_installed(&flatpak, app_id) {
+        Some((flatpak, app_id))
+    } else {
+        None
+    }
+
+#[cfg(all(unix, not(target_os = "macos")))]
 fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
     let candidates = [
         ("vscode", "VS Code", "/snap/bin/code"),
@@ -652,7 +673,31 @@ pub(crate) fn launch_template(
         .map_err(|error| format!("Projektordner konnte nicht aufgelöst werden: {error}"))?;
     let canonical_path_text = launch_path_text(&canonical_path);
     let (program, args) = launch_parts(&command_template, &canonical_path_text, &project_name)?;
-    let resolved_program = resolve_launch_program(&program)?;
+    let (resolved_program, args) = match resolve_launch_program(&program) {
+        Ok(path) => (path, args),
+
+        Err(original_error) => {
+            #[cfg(all(unix, not(target_os = "macos")))]
+            {
+                if let Some((flatpak, app_id)) = flatpak_fallback_for_program(&program) {
+                    let mut flatpak_args = vec![
+                        "run".to_string(),
+                        app_id.to_string(),
+                    ];
+
+                    flatpak_args.extend(args);
+                    (flatpak, flatpak_args)
+                } else {
+                    return Err(original_error);
+                }
+            }
+
+            #[cfg(any(target_os = "windows", target_os = "macos"))]
+            {
+                return Err(original_error);
+            }
+        }
+    };
 
     #[cfg(all(unix, not(target_os = "macos")))]
     if resolved_program
