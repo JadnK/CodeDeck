@@ -1,5 +1,72 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Security vulnerability
-    url: https://github.com/JadnK/CodeDeck/security/policy
-    about: Do not report security vulnerabilities in a public issue.
+name: Feature request
+description: Suggest an improvement or new capability for CodeDeck
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement.
+
+        Focus on the workflow problem and the result you would like to achieve.
+        A feature does not need to include a complete technical design.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Related area
+      options:
+        - Project dashboard
+        - Adding, cloning, or creating projects
+        - Project detection
+        - IDE or terminal integration
+        - Commands and processes
+        - Git workbench
+        - Launch sets
+        - Project todos
+        - Settings, import, or export
+        - Updates or installation
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the current limitation or repeated workflow.
+      placeholder: I often need to ... but currently ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe how you would like CodeDeck to behave.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Mention current workarounds or other approaches, when applicable.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add mockups, examples, links, or implementation notes.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and did not find the same request.
+          required: true
+        - label: This request describes one focused feature or improvement.
+          required: true
