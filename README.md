@@ -353,8 +353,9 @@ src-tauri/tauri.conf.json
 Then create and push the matching tag:
 
 ```bash
-git tag -a v1.0.0 -m "Code Deck v1.0.0"
-git push origin v1.0.0
+VERSION=1.0.1
+git tag -a "v${VERSION}" -m "CodeDeck v${VERSION}"
+git push origin "v${VERSION}"
 ```
 
 The release workflow builds the platform packages and creates a GitHub release draft for review.

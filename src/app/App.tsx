@@ -71,7 +71,7 @@ export function App() {
   const [processesOpen, setProcessesOpen] = useState(false);
   const [onboardingDismissed, setOnboardingDismissed] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [currentVersion, setCurrentVersion] = useState("1.0.0");
+  const [currentVersion, setCurrentVersion] = useState("1.0.1");
   const [checkingForUpdates, setCheckingForUpdates] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<AvailableAppUpdate>();
   const [updateOpen, setUpdateOpen] = useState(false);

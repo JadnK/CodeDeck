@@ -14,6 +14,32 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.0.1] - 2026-07-16
+
+### Added
+
+- Added detection and launch support for Visual Studio Code installed through Flatpak on Linux.
+- Added support for both user-level and system-wide Flatpak installations.
+
+### Changed
+
+- Reworked the GitHub release workflow with fully English job names, messages and release text.
+- Release drafts now use the version-specific `RELEASE_NOTES_vX.Y.Z.md` file from the tagged commit.
+- Added stricter validation for the release notes file, `Cargo.lock` and updater manifest assets.
+- Translated generated release-note categories to English.
+
+### Fixed
+
+- Fixed AppImage builds failing to launch Visual Studio Code when VS Code is installed as `com.visualstudio.code`.
+- Fixed IDE detection relying only on the `code` executable being available in `PATH`.
+- Fixed Flatpak project launching so the actual project directory is passed through `{projectPath}`.
+- Improved release summaries and updater-manifest validation errors.
+
+### Known limitations
+
+- A Flatpak IDE still needs permission to access the selected project directory.
+- Platform installers are not yet signed with paid Windows or Apple certificates.
+
 ## [1.0.0] - 2026-07-16
 
 ### Added
@@ -158,7 +184,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/JadnK/CodeDeck/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...v1.0.0
 [0.2.2]: https://github.com/JadnK/CodeDeck/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/JadnK/CodeDeck/compare/v0.2.0...v0.2.1
