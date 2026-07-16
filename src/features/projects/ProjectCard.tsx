@@ -1,5 +1,6 @@
 import { Icon } from "../../shared/components/Icon";
 import { useI18n } from "../../shared/i18n/I18n";
+import { getDetectedTechnologies } from "../../shared/lib/projectInspection";
 import type { Editor, Project, ProjectCommand } from "../../shared/types/models";
 
 type ProjectCardProps = {
@@ -25,8 +26,8 @@ export function ProjectCard({
   const quickCommand = project.commands[0];
   const openTodoCount = project.todos.filter((todo) => todo.status !== "done").length;
   const inspection = project.inspection;
-  const allBadges = Array.from(new Set(inspection?.frameworks ?? []));
-  const visibleBadges = allBadges.slice(0, 2);
+  const allBadges = getDetectedTechnologies(inspection);
+  const visibleBadges = allBadges.slice(0, 3);
   const remainingBadges = Math.max(0, allBadges.length - visibleBadges.length);
 
   const relativeDate = (value?: string) => {
@@ -65,7 +66,7 @@ export function ProjectCard({
       <div className="project-card__badges" aria-label={t("Erkannte Technologien", "Detected technologies")}>
         {visibleBadges.length > 0 ? (
           <>
-            {visibleBadges.map((badge) => <span className="badge" key={badge}>{badge}</span>)}
+            {visibleBadges.map((badge) => <span className={`badge badge--${badge.kind}`} key={`${badge.kind}:${badge.label}`}><i aria-hidden="true" />{badge.label}</span>)}
             {remainingBadges > 0 && <span className="badge badge--muted">+{remainingBadges}</span>}
           </>
         ) : (

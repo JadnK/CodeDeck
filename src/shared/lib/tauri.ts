@@ -62,6 +62,7 @@ export const createProjectFromTemplate = (
   templateId: BuiltInProjectTemplateId | "custom",
   customTemplatePath: string | undefined,
   initGit: boolean,
+  javaPackageBase?: string,
 ) =>
   call<CreatedProject>("create_project_from_template", {
     parentPath,
@@ -69,6 +70,7 @@ export const createProjectFromTemplate = (
     templateId,
     customTemplatePath: customTemplatePath || null,
     initGit,
+    javaPackageBase: javaPackageBase || null,
   });
 
 export const inspectProject = (path: string) =>

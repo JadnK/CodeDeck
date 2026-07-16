@@ -9,6 +9,7 @@ import {
   launchTemplate,
 } from "../../shared/lib/tauri";
 import { createId } from "../../shared/lib/storage";
+import { mergeEditorSuggestions } from "../../shared/lib/editors";
 import type {
   AppSettings,
   CustomProjectTemplate,
@@ -127,14 +128,25 @@ export function SettingsPanel({
     setDetectionFinished(false);
     try {
       const found = await detectEditors();
-      setSuggestions(found.filter((suggestion) =>
-        !editors.some((editor) =>
-          editor.id === suggestion.id ||
-          editor.commandTemplate.toLowerCase() === suggestion.commandTemplate.toLowerCase(),
-        ),
-      ));
+      const merged = mergeEditorSuggestions(editors, found);
+      const changedCount = merged.filter((editor, index) => {
+        const previous = editors[index];
+        return !previous || previous.commandTemplate !== editor.commandTemplate;
+      }).length;
+      onEditorsChange(merged);
+      setSuggestions([]);
       onSettingsChange({ ...settings, ideDetectionComplete: true });
       setDetectionFinished(true);
+      if (found.length > 0) {
+        onSuccess(t(
+          changedCount > 0
+            ? `${changedCount} IDE-Eintrag${changedCount === 1 ? " wurde" : "e wurden"} hinzugefügt oder repariert.`
+            : "Die gespeicherten IDE-Pfade sind bereits aktuell.",
+          changedCount > 0
+            ? `${changedCount} IDE entr${changedCount === 1 ? "y was" : "ies were"} added or repaired.`
+            : "The saved IDE paths are already up to date.",
+        ));
+      }
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -253,7 +265,7 @@ export function SettingsPanel({
           </div>
           <div className="settings-help"><Icon name="info" /><p><strong>{t("Command-Template", "Command template")}:</strong> {t("Ein Betriebssystem-Befehl, der den Projektpfad enthält. Beispiel:", "An operating-system command containing the project path. Example:")} <code>code "{'{projectPath}'}"</code>. {t("Code Deck ersetzt den Platzhalter beim Öffnen.", "Code Deck replaces the placeholder when opening the project.")}</p></div>
           {suggestions.length > 0 && <div className="suggestion-row">{suggestions.map((suggestion) => <button key={suggestion.id} type="button" onClick={() => addSuggestion(suggestion)}><Icon name="plus" /><span><strong>{t(`${suggestion.name} hinzufügen`, `Add ${suggestion.name}`)}</strong><code>{suggestion.commandTemplate}</code></span></button>)}</div>}
-          {detectionFinished && suggestions.length === 0 && <div className="settings-inline-status"><Icon name="check" /><span>{t("Keine weiteren installierten IDEs gefunden.", "No additional installed IDEs were found.")}</span></div>}
+          {detectionFinished && suggestions.length === 0 && <div className="settings-inline-status"><Icon name="check" /><span>{t("IDE-Suche abgeschlossen. Gefundene Installationspfade wurden übernommen oder repariert.", "IDE scan completed. Detected installation paths were added or repaired.")}</span></div>}
           <div className="editor-settings-grid">
             <form className="settings-card" onSubmit={submitEditor}>
               <h3>{editingId ? t("IDE bearbeiten", "Edit IDE") : t("Weitere IDE hinzufügen", "Add another IDE")}</h3>

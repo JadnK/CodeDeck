@@ -3,6 +3,7 @@ import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
+import { getDetectedTechnologies } from "../../shared/lib/projectInspection";
 import type {
   Editor,
   ProcessRun,
@@ -89,6 +90,10 @@ export function ProjectDetails({
   const currentDraft: Project = draft;
   const preferredEditor = editors.find((editor) => editor.id === currentProject.preferredEditorId);
   const inspection = currentProject.inspection;
+  const technologies = getDetectedTechnologies(inspection);
+  const detectedLanguages = technologies.filter((entry) => entry.kind === "language").map((entry) => entry.label);
+  const detectedFrameworks = technologies.filter((entry) => entry.kind === "framework").map((entry) => entry.label);
+  const detectedTools = technologies.filter((entry) => entry.kind === "tool").map((entry) => entry.label);
 
   function saveCommand(event: React.FormEvent) {
     event.preventDefault();
@@ -176,8 +181,8 @@ export function ProjectDetails({
               </div>
               <p>{project.path}</p>
               <div className="badge-row">
-                {(inspection?.frameworks ?? []).slice(0, 8).map((framework) => (
-                  <span className="badge" key={framework}>{framework}</span>
+                {technologies.slice(0, 8).map((technology) => (
+                  <span className={`badge badge--${technology.kind}`} key={`${technology.kind}:${technology.label}`}><i aria-hidden="true" />{technology.label}</span>
                 ))}
               </div>
             </div>
@@ -218,10 +223,10 @@ export function ProjectDetails({
                   </button>
                 </div>
                 <div className="stat-grid">
-                  <div className="stat"><span>Frameworks</span><strong>{inspection?.frameworks.join(", ") || t("Nicht erkannt", "Not detected")}</strong></div>
-                  <div className="stat"><span>{t("Paketmanager", "Package manager")}</span><strong>{inspection?.packageManager || "–"}</strong></div>
+                  <div className="stat"><span>{t("Sprachen", "Languages")}</span><strong>{detectedLanguages.join(", ") || t("Nicht erkannt", "Not detected")}</strong></div>
+                  <div className="stat"><span>{t("Frameworks", "Frameworks")}</span><strong>{detectedFrameworks.join(", ") || t("Keine", "None")}</strong></div>
+                  <div className="stat"><span>{t("Tools & Laufzeiten", "Tools & runtimes")}</span><strong>{detectedTools.join(", ") || t("Nicht erkannt", "Not detected")}</strong></div>
                   <div className="stat"><span>Git</span><strong>{inspection?.isGit ? inspection.branch || "Repository" : t("Kein Repository", "No repository")}</strong></div>
-                  <div className="stat"><span>Docker</span><strong>{inspection?.hasDocker ? t("Vorhanden", "Detected") : t("Nicht erkannt", "Not detected")}</strong></div>
                 </div>
                 {project.description && <p className="detail-description">{project.description}</p>}
               </section>

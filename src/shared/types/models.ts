@@ -47,7 +47,9 @@ export type GitCommit = {
 
 export type ProjectInspection = {
   exists: boolean;
+  languages?: string[];
   frameworks: string[];
+  tools?: string[];
   packageManager?: string;
   scripts: DetectedScript[];
   isGit: boolean;
@@ -174,6 +176,10 @@ export type ProjectCandidate = {
   name: string;
   path: string;
   markers: string[];
+  languages?: string[];
+  frameworks?: string[];
+  tools?: string[];
+  hasDocker?: boolean;
 };
 
 export type EditorSuggestion = {

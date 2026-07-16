@@ -59,6 +59,7 @@ export function ProjectCreateModal({
   const [editorId, setEditorId] = useState("");
   const [favorite, setFavorite] = useState(false);
   const [initGit, setInitGit] = useState(true);
+  const [javaPackageBase, setJavaPackageBase] = useState("dev.codedeck");
   const [templateKey, setTemplateKey] = useState("builtin:node-typescript");
   const [inspection, setInspection] = useState<ProjectInspection>();
   const [loading, setLoading] = useState(false);
@@ -81,6 +82,7 @@ export function ProjectCreateModal({
     setEditorId(enabledEditors[0]?.id ?? "");
     setFavorite(false);
     setInitGit(true);
+    setJavaPackageBase("dev.codedeck");
     setTemplateKey("builtin:node-typescript");
     setInspection(undefined);
     setLoading(false);
@@ -197,6 +199,7 @@ export function ProjectCreateModal({
         selectedBuiltIn?.id ?? "custom",
         selectedCustom?.sourcePath,
         initGit,
+        selectedBuiltIn?.id === "spring-boot" ? javaPackageBase.trim() : undefined,
       );
       const result = await inspectProject(created.path);
       onCreate(buildProject(created.path, result));
@@ -273,6 +276,23 @@ export function ProjectCreateModal({
                 </div>
               </div>
               <div className="path-preview"><Icon name="folder" /><span><small>{t("Neuer Projektpfad", "New project path")}</small><code>{joinPreview(parentPath, name)}</code></span></div>
+              {selectedBuiltIn?.id === "spring-boot" && (
+                <div className="form-field java-package-field">
+                  <label htmlFor="spring-package-base">{t("Java Basis-Package", "Java base package")}</label>
+                  <input
+                    id="spring-package-base"
+                    value={javaPackageBase}
+                    onChange={(event) => setJavaPackageBase(event.target.value)}
+                    placeholder="dev.codedeck"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                  />
+                  <small>
+                    {t("Wird als groupId und Paket-Präfix verwendet.", "Used as the Maven groupId and package prefix.")} {" "}
+                    <code>{`${javaPackageBase.trim() || "dev.codedeck"}.${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "") || "app"}`}</code>
+                  </small>
+                </div>
+              )}
               <label className="checkbox-row">
                 <input type="checkbox" checked={initGit} onChange={(event) => setInitGit(event.target.checked)} />
                 <span><strong>{t("Git-Repository initialisieren", "Initialize Git repository")}</strong><small>{t("Führt nach dem Erstellen lokal", "Runs locally after creation")} <code>git init</code> {t("aus, sofern Git installiert ist.", "if Git is installed.")}</small></span>
@@ -289,7 +309,7 @@ export function ProjectCreateModal({
                 <button className="button button--secondary" type="button" onClick={browseExisting}><Icon name="folder" />{t("Projektordner wählen", "Choose project folder")}</button>
               </div>
               <div className="field-inline-actions">
-                <button className="text-button" type="button" onClick={refreshInspection} disabled={!existingPath || loading}><Icon name="refresh" />{loading ? t("Analysiere…", "Inspecting…") : t("Git, Frameworks und Scripts erkennen", "Detect Git, frameworks and scripts")}</button>
+                <button className="text-button" type="button" onClick={refreshInspection} disabled={!existingPath || loading}><Icon name="refresh" />{loading ? t("Analysiere…", "Inspecting…") : t("Git, Technologien und Scripts erkennen", "Detect Git, technologies and scripts")}</button>
               </div>
             </div>
             {inspection && (
