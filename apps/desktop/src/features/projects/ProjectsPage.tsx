@@ -1,99 +1,153 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import type { Editor } from "../../shared/types/editor";
 import type { Project } from "../../shared/types/project";
 import { ProjectCard } from "./ProjectCard";
 
-const demoProjects: Project[] = [
-  {
-    id: "portfolio-site",
-    name: "Portfolio Site",
-    path: "C:\\Users\\b45632\\Desktop\\Projects\\portfolio-site",
-    description: "React portfolio project with personal website.",
-    tags: ["frontend", "react", "portfolio"],
-    favorite: true,
-    preferredEditorId: "vscode",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    lastOpenedAt: new Date().toISOString()
-  },
-  {
-    id: "api-server",
-    name: "API Server",
-    path: "C:\\Users\\b45632\\Desktop\\Projects\\api-server",
-    description: "Backend playground for REST APIs.",
-    tags: ["backend", "node"],
-    favorite: false,
-    preferredEditorId: "cursor",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  }
-];
+type ProjectsPageProps = {
+  projects: Project[];
+  editors: Editor[];
+  editorById: Map<string, Editor>;
+  onAddProject: (data: {
+    name: string;
+    path: string;
+    editorId: string;
+  }) => void;
+  onDeleteProject: (projectId: string) => void;
+  onOpenSettings: () => void;
+};
 
-export function ProjectsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
+export function ProjectsPage({
+  projects,
+  editors,
+  editorById,
+  onAddProject,
+  onDeleteProject,
+  onOpenSettings
+}: ProjectsPageProps) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const [editorId, setEditorId] = useState("");
 
-  const filteredProjects = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
+  function submitProject(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    if (!query) {
-      return demoProjects;
+    if (!name.trim() || !path.trim() || !editorId) {
+      return;
     }
 
-    return demoProjects.filter((project) => {
-      const searchableText = [
-        project.name,
-        project.path,
-        project.description ?? "",
-        project.tags.join(" ")
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return searchableText.includes(query);
+    onAddProject({
+      name: name.trim(),
+      path: path.trim(),
+      editorId
     });
-  }, [searchQuery]);
+
+    setName("");
+    setPath("");
+    setEditorId("");
+    setIsCreateOpen(false);
+  }
 
   return (
-    <section className="page">
-      <div className="page-header">
+    <main className="page">
+      <header className="topbar">
         <div>
-          <p className="eyebrow">Project manager</p>
-          <h2>Projects</h2>
+          <p className="eyebrow">Code Deck</p>
+          <h1>Meine Projekte</h1>
         </div>
 
-        <button className="primary-button" type="button">
-          Add project
+        <button className="icon-button" type="button" onClick={onOpenSettings}>
+          Settings
         </button>
-      </div>
+      </header>
 
-      <div className="toolbar">
-        <input
-          className="search-input"
-          type="search"
-          placeholder="Search by name, path or tag..."
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-        />
-
-        <span className="result-count">
-          {filteredProjects.length} project
-          {filteredProjects.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
-      {filteredProjects.length === 0 ? (
-        <div className="empty-state">
-          <h3>No projects found</h3>
-          <p>
-            Try another search term or add your first local project to Code Deck.
-          </p>
-        </div>
+      {projects.length === 0 ? (
+        <section className="empty">
+          <h2>Noch keine Projekte</h2>
+          <p>Erstelle dein erstes Projekt über den Plus-Button unten rechts.</p>
+        </section>
       ) : (
-        <div className="project-list">
-          {filteredProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+        <section className="project-grid">
+          {projects.map((project) => (
+            <ProjectCard
+              key={project.id}
+              project={project}
+              editor={editorById.get(project.editorId)}
+              onDelete={() => onDeleteProject(project.id)}
+            />
           ))}
+        </section>
+      )}
+
+      <button
+        className="floating-button"
+        type="button"
+        onClick={() => setIsCreateOpen(true)}
+      >
+        +
+      </button>
+
+      {isCreateOpen && (
+        <div className="modal-backdrop">
+          <form className="modal" onSubmit={submitProject}>
+            <h2>Neues Projekt</h2>
+
+            <label>
+              Projektname
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="z. B. Portfolio Website"
+              />
+            </label>
+
+            <label>
+              Projektpfad
+              <input
+                value={path}
+                onChange={(event) => setPath(event.target.value)}
+                placeholder="C:\Users\...\mein-projekt"
+              />
+            </label>
+
+            <label>
+              IDE
+              <select
+                value={editorId}
+                onChange={(event) => setEditorId(event.target.value)}
+              >
+                <option value="">IDE auswählen</option>
+
+                {editors.map((editor) => (
+                  <option key={editor.id} value={editor.id}>
+                    {editor.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {editors.length === 0 && (
+              <p className="hint">
+                Du musst zuerst in den Settings eine IDE anlegen.
+              </p>
+            )}
+
+            <div className="modal-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setIsCreateOpen(false)}
+              >
+                Abbrechen
+              </button>
+
+              <button className="primary-button" type="submit">
+                Erstellen
+              </button>
+            </div>
+          </form>
         </div>
       )}
-    </section>
+    </main>
   );
 }
