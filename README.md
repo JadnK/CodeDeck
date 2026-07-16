@@ -69,9 +69,9 @@ CodeDeck is local-first: no account or server is required, and the app configura
       <strong>Project details</strong>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/processes.png" alt="Running processes and live logs">
+      <img src="docs/screenshots/git-management.png" alt="Git Management">
       <br>
-      <strong>Processes and live logs</strong>
+      <strong>Git Management</strong>
     </td>
   </tr>
   <tr>
@@ -115,7 +115,6 @@ The complete page-by-page guide is available in [`docs/README.md`](docs/README.m
 - [Add or create a project](docs/pages/new-project.md)
 - [Project details and Git](docs/pages/project-details.md)
 - [Project todos](docs/pages/todos.md)
-- [Processes and logs](docs/pages/processes.md)
 - [Launch sets](docs/pages/workspaces.md)
 - [Settings](docs/pages/settings.md)
 
