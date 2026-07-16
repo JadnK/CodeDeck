@@ -80,6 +80,9 @@ export const scanProjects = (path: string) =>
 export const detectEditors = () =>
   call<EditorSuggestion[]>("detect_editors");
 
+export const getDesktopDirectory = () =>
+  call<string>("get_desktop_directory");
+
 export const launchTemplate = (
   commandTemplate: string,
   projectPath: string,

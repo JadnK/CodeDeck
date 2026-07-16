@@ -49,6 +49,21 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           package-manager-cache: false
 
+      - name: Updater-Signierschlüssel prüfen
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY fehlt. Siehe docs/updater-setup.md."
+            exit 1
+          fi
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
+            echo "::error::Repository secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD fehlt. Siehe docs/updater-setup.md."
+            exit 1
+          fi
+
       - name: Tag und App-Versionen prüfen
         shell: bash
         run: |
@@ -262,12 +277,17 @@ jobs:
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.prepare-release.outputs.release_id }}
           tagName: ${{ env.RELEASE_TAG }}
           releaseDraft: true
           prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           retryAttempts: 2
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
+          updaterJsonPreferNsis: true
           releaseAssetNamePattern: "Code-Deck_[version]_[platform]_[arch][setup][ext]"
           uploadWorkflowArtifacts: true
           workflowArtifactNamePattern: "Code-Deck_[version]_[platform]_[arch]_[bundle]"

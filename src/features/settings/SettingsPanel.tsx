@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
-import { chooseDirectory, detectEditors } from "../../shared/lib/tauri";
+import {
+  chooseDirectory,
+  detectEditors,
+  getDesktopDirectory,
+  launchTemplate,
+} from "../../shared/lib/tauri";
 import { createId } from "../../shared/lib/storage";
 import type {
   AppSettings,
@@ -16,6 +21,8 @@ type SettingsPanelProps = {
   editors: Editor[];
   projectTemplates: CustomProjectTemplate[];
   settings: AppSettings;
+  currentVersion: string;
+  checkingForUpdates: boolean;
   onClose: () => void;
   onEditorsChange: (editors: Editor[]) => void;
   onProjectTemplatesChange: (templates: CustomProjectTemplate[]) => void;
@@ -23,6 +30,8 @@ type SettingsPanelProps = {
   onExport: () => void;
   onImport: () => void;
   onResetOnboarding: () => void;
+  onCheckForUpdates: () => void;
+  onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
 
@@ -31,6 +40,8 @@ export function SettingsPanel({
   editors,
   projectTemplates,
   settings,
+  currentVersion,
+  checkingForUpdates,
   onClose,
   onEditorsChange,
   onProjectTemplatesChange,
@@ -38,6 +49,8 @@ export function SettingsPanel({
   onExport,
   onImport,
   onResetOnboarding,
+  onCheckForUpdates,
+  onSuccess,
   onError,
 }: SettingsPanelProps) {
   const { t } = useI18n();
@@ -46,6 +59,8 @@ export function SettingsPanel({
   const [editingId, setEditingId] = useState<string>();
   const [suggestions, setSuggestions] = useState<EditorSuggestion[]>([]);
   const [detecting, setDetecting] = useState(false);
+  const [detectionFinished, setDetectionFinished] = useState(false);
+  const [testingEditorId, setTestingEditorId] = useState<string>();
 
   const [projectTemplateName, setProjectTemplateName] = useState("");
   const [projectTemplateDescription, setProjectTemplateDescription] = useState("");
@@ -57,6 +72,8 @@ export function SettingsPanel({
     if (!open) return;
     resetEditorForm();
     resetProjectTemplateForm();
+    setSuggestions([]);
+    setDetectionFinished(false);
   }, [open]);
 
   function resetEditorForm() {
@@ -107,8 +124,17 @@ export function SettingsPanel({
 
   async function runDetection() {
     setDetecting(true);
+    setDetectionFinished(false);
     try {
-      setSuggestions(await detectEditors());
+      const found = await detectEditors();
+      setSuggestions(found.filter((suggestion) =>
+        !editors.some((editor) =>
+          editor.id === suggestion.id ||
+          editor.commandTemplate.toLowerCase() === suggestion.commandTemplate.toLowerCase(),
+        ),
+      ));
+      onSettingsChange({ ...settings, ideDetectionComplete: true });
+      setDetectionFinished(true);
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -117,8 +143,29 @@ export function SettingsPanel({
   }
 
   function addSuggestion(suggestion: EditorSuggestion) {
-    if (editors.some((editor) => editor.commandTemplate === suggestion.commandTemplate)) return;
+    if (editors.some((editor) =>
+      editor.id === suggestion.id ||
+      editor.commandTemplate.toLowerCase() === suggestion.commandTemplate.toLowerCase(),
+    )) return;
     onEditorsChange([...editors, { ...suggestion, enabled: true, detected: true }]);
+    setSuggestions((current) => current.filter((entry) => entry.id !== suggestion.id));
+    onSettingsChange({ ...settings, ideDetectionComplete: true });
+  }
+
+  async function testEditor(editor: Editor) {
+    setTestingEditorId(editor.id);
+    try {
+      const desktopPath = await getDesktopDirectory();
+      await launchTemplate(editor.commandTemplate, desktopPath, "Desktop");
+      onSuccess(t(
+        `${editor.name} wurde mit deinem Desktop-Ordner geöffnet.`,
+        `${editor.name} was opened with your Desktop folder.`,
+      ));
+    } catch (error) {
+      onError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setTestingEditorId(undefined);
+    }
   }
 
   async function browseTemplateDirectory() {
@@ -206,6 +253,7 @@ export function SettingsPanel({
           </div>
           <div className="settings-help"><Icon name="info" /><p><strong>{t("Command-Template", "Command template")}:</strong> {t("Ein Betriebssystem-Befehl, der den Projektpfad enthält. Beispiel:", "An operating-system command containing the project path. Example:")} <code>code "{'{projectPath}'}"</code>. {t("Code Deck ersetzt den Platzhalter beim Öffnen.", "Code Deck replaces the placeholder when opening the project.")}</p></div>
           {suggestions.length > 0 && <div className="suggestion-row">{suggestions.map((suggestion) => <button key={suggestion.id} type="button" onClick={() => addSuggestion(suggestion)}><Icon name="plus" /><span><strong>{t(`${suggestion.name} hinzufügen`, `Add ${suggestion.name}`)}</strong><code>{suggestion.commandTemplate}</code></span></button>)}</div>}
+          {detectionFinished && suggestions.length === 0 && <div className="settings-inline-status"><Icon name="check" /><span>{t("Keine weiteren installierten IDEs gefunden.", "No additional installed IDEs were found.")}</span></div>}
           <div className="editor-settings-grid">
             <form className="settings-card" onSubmit={submitEditor}>
               <h3>{editingId ? t("IDE bearbeiten", "Edit IDE") : t("Weitere IDE hinzufügen", "Add another IDE")}</h3>
@@ -220,6 +268,7 @@ export function SettingsPanel({
                   <article key={editor.id} className="editor-row editor-row--clear">
                     <label className="switch" title={editor.enabled ? t("IDE ist aktiv", "IDE is enabled") : t("IDE ist deaktiviert", "IDE is disabled")}><input type="checkbox" checked={editor.enabled} onChange={(event) => onEditorsChange(editors.map((entry) => entry.id === editor.id ? { ...entry, enabled: event.target.checked } : entry))} /><span /></label>
                     <div><strong>{editor.name}</strong><code>{editor.commandTemplate}</code><small>{editor.enabled ? t("Kann Projekten zugeordnet werden", "Can be assigned to projects") : t("Wird bei der Projektauswahl ausgeblendet", "Hidden from project selection")}</small></div>
+                    <button className="button button--secondary button--small" type="button" onClick={() => void testEditor(editor)} disabled={testingEditorId === editor.id}><Icon name={testingEditorId === editor.id ? "refresh" : "play"} />{testingEditorId === editor.id ? t("Wird getestet…", "Testing…") : t("Testen", "Test")}</button>
                     <button className="button button--ghost button--small" type="button" onClick={() => edit(editor)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button>
                     <button className="button button--ghost button--small button--danger-text" type="button" onClick={() => onEditorsChange(editors.filter((entry) => entry.id !== editor.id))}><Icon name="trash" />{t("Entfernen", "Remove")}</button>
                   </article>
@@ -259,6 +308,15 @@ export function SettingsPanel({
           <div className="form-grid form-grid--2">
             <div className="form-field"><label htmlFor="default-project-dir">{t("Standard-Projektordner", "Default project folder")}</label><div className="input-action-row"><input id="default-project-dir" value={settings.defaultProjectDir} onChange={(event) => onSettingsChange({ ...settings, defaultProjectDir: event.target.value })} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browseDefaultDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Dieser Ordner wird beim Erstellen neuer Projekte vorausgewählt.", "This folder is preselected when creating new projects.")}</small></div>
             <div className="form-field"><label htmlFor="terminal-command">{t("Terminal-Startbefehl (optional)", "Terminal launch command (optional)")}</label><input id="terminal-command" value={settings.terminalCommand} onChange={(event) => onSettingsChange({ ...settings, terminalCommand: event.target.value })} placeholder={'wt.exe -d "{projectPath}"'} /><small>{t("Leer lassen, um das Standardterminal des Betriebssystems zu verwenden.", "Leave empty to use the operating system default terminal.")}</small></div>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <div className="settings-section__header"><div><Icon name="refresh" /><span><strong>{t("Updates", "Updates")}</strong><small>{t("Neue Versionen sicher über GitHub Releases installieren", "Install new versions securely through GitHub Releases")}</small></span></div></div>
+          <div className="update-settings-row">
+            <div className="update-settings-row__version"><span>{t("Installierte Version", "Installed version")}</span><strong>{currentVersion}</strong></div>
+            <label className="checkbox-row checkbox-row--compact"><input type="checkbox" checked={settings.checkForUpdatesOnStartup} onChange={(event) => onSettingsChange({ ...settings, checkForUpdatesOnStartup: event.target.checked })} /><span><strong>{t("Bei jedem Start nach Updates suchen", "Check for updates on every launch")}</strong><small>{t("Nur veröffentlichte und signierte Releases werden angeboten.", "Only published and signed releases are offered.")}</small></span></label>
+            <button className="button button--secondary" type="button" onClick={onCheckForUpdates} disabled={checkingForUpdates}><Icon name="refresh" />{checkingForUpdates ? t("Update wird gesucht…", "Checking for update…") : t("Jetzt nach Updates suchen", "Check for updates now")}</button>
           </div>
         </section>
 

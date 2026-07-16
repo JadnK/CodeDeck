@@ -156,6 +156,8 @@ export type AppSettings = {
   defaultProjectDir: string;
   onboardingComplete: boolean;
   confirmImportedCommands: boolean;
+  checkForUpdatesOnStartup: boolean;
+  ideDetectionComplete: boolean;
 };
 
 export type AppData = {

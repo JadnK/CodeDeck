@@ -28,20 +28,7 @@ function normalizeEditorTemplate(idValue: string, nameValue: string, commandTemp
 }
 
 export function defaultEditors(): Editor[] {
-  return [
-    {
-      id: "vscode",
-      name: "VS Code",
-      commandTemplate: 'code "{projectPath}"',
-      enabled: true,
-    },
-    {
-      id: "cursor",
-      name: "Cursor",
-      commandTemplate: 'cursor "{projectPath}"',
-      enabled: true,
-    },
-  ];
+  return [];
 }
 
 export function createDefaultData(): AppData {
@@ -59,6 +46,8 @@ export function createDefaultData(): AppData {
       defaultProjectDir: "",
       onboardingComplete: false,
       confirmImportedCommands: true,
+      checkForUpdatesOnStartup: true,
+      ideDetectionComplete: false,
     },
   };
 }

@@ -978,17 +978,223 @@ fn scan_projects(path: String) -> Result<Vec<ProjectCandidate>, String> {
     Ok(candidates)
 }
 
+fn push_editor_suggestion(
+    suggestions: &mut Vec<EditorSuggestion>,
+    id: &str,
+    name: &str,
+    command_template: String,
+) {
+    if suggestions.iter().any(|entry| {
+        entry.id == id
+            || entry
+                .command_template
+                .eq_ignore_ascii_case(&command_template)
+    }) {
+        return;
+    }
+
+    suggestions.push(EditorSuggestion {
+        id: id.to_string(),
+        name: name.to_string(),
+        command_template,
+    });
+}
+
 fn editor_candidate(
+    suggestions: &mut Vec<EditorSuggestion>,
     id: &str,
     name: &str,
     executable: &str,
     template: &str,
-) -> Option<EditorSuggestion> {
-    which::which(executable).ok().map(|_| EditorSuggestion {
-        id: id.to_string(),
-        name: name.to_string(),
-        command_template: template.to_string(),
-    })
+) {
+    if which::which(executable).is_ok() {
+        push_editor_suggestion(suggestions, id, name, template.to_string());
+    }
+}
+
+fn executable_template(path: &Path) -> String {
+    format!(
+        "\"{}\" \"{{projectPath}}\"",
+        display_path(path).replace('"', "\\\"")
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
+    let mut candidates: Vec<(&str, &str, PathBuf)> = Vec::new();
+
+    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+        let root = PathBuf::from(local_app_data);
+        candidates.extend([
+            (
+                "vscode",
+                "VS Code",
+                root.join("Programs/Microsoft VS Code/Code.exe"),
+            ),
+            ("cursor", "Cursor", root.join("Programs/cursor/Cursor.exe")),
+            (
+                "windsurf",
+                "Windsurf",
+                root.join("Programs/Windsurf/Windsurf.exe"),
+            ),
+            ("zed", "Zed", root.join("Programs/Zed/Zed.exe")),
+        ]);
+    }
+
+    for variable in ["ProgramFiles", "ProgramFiles(x86)"] {
+        if let Some(program_files) = std::env::var_os(variable) {
+            let root = PathBuf::from(program_files);
+            candidates.extend([
+                ("vscode", "VS Code", root.join("Microsoft VS Code/Code.exe")),
+                (
+                    "sublime",
+                    "Sublime Text",
+                    root.join("Sublime Text/sublime_text.exe"),
+                ),
+            ]);
+
+            let jetbrains_root = root.join("JetBrains");
+            if jetbrains_root.is_dir() {
+                for entry in WalkDir::new(jetbrains_root)
+                    .max_depth(4)
+                    .follow_links(false)
+                    .into_iter()
+                    .filter_map(Result::ok)
+                    .filter(|entry| entry.file_type().is_file())
+                {
+                    let filename = entry.file_name().to_string_lossy().to_lowercase();
+                    let mapping = match filename.as_str() {
+                        "idea64.exe" => Some(("idea", "IntelliJ IDEA")),
+                        "webstorm64.exe" => Some(("webstorm", "WebStorm")),
+                        "pycharm64.exe" => Some(("pycharm", "PyCharm")),
+                        "rider64.exe" => Some(("rider", "Rider")),
+                        "clion64.exe" => Some(("clion", "CLion")),
+                        "goland64.exe" => Some(("goland", "GoLand")),
+                        "phpstorm64.exe" => Some(("phpstorm", "PhpStorm")),
+                        "rubymine64.exe" => Some(("rubymine", "RubyMine")),
+                        "datagrip64.exe" => Some(("datagrip", "DataGrip")),
+                        _ => None,
+                    };
+                    if let Some((id, name)) = mapping {
+                        push_editor_suggestion(
+                            suggestions,
+                            id,
+                            name,
+                            executable_template(entry.path()),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+        let toolbox_apps = PathBuf::from(local_app_data).join("JetBrains/Toolbox/apps");
+        if toolbox_apps.is_dir() {
+            for entry in WalkDir::new(toolbox_apps)
+                .max_depth(8)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_type().is_file())
+            {
+                let filename = entry.file_name().to_string_lossy().to_lowercase();
+                let mapping = match filename.as_str() {
+                    "idea64.exe" => Some(("idea", "IntelliJ IDEA")),
+                    "webstorm64.exe" => Some(("webstorm", "WebStorm")),
+                    "pycharm64.exe" => Some(("pycharm", "PyCharm")),
+                    "rider64.exe" => Some(("rider", "Rider")),
+                    "clion64.exe" => Some(("clion", "CLion")),
+                    "goland64.exe" => Some(("goland", "GoLand")),
+                    "phpstorm64.exe" => Some(("phpstorm", "PhpStorm")),
+                    "rubymine64.exe" => Some(("rubymine", "RubyMine")),
+                    "datagrip64.exe" => Some(("datagrip", "DataGrip")),
+                    _ => None,
+                };
+                if let Some((id, name)) = mapping {
+                    push_editor_suggestion(
+                        suggestions,
+                        id,
+                        name,
+                        executable_template(entry.path()),
+                    );
+                }
+            }
+        }
+    }
+
+    for (id, name, path) in candidates {
+        if path.is_file() {
+            push_editor_suggestion(suggestions, id, name, executable_template(&path));
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
+    let mut application_roots = vec![PathBuf::from("/Applications")];
+    if let Some(home) = dirs::home_dir() {
+        application_roots.push(home.join("Applications"));
+    }
+
+    let apps = [
+        (
+            "vscode",
+            "VS Code",
+            "Visual Studio Code.app",
+            "Visual Studio Code",
+        ),
+        ("cursor", "Cursor", "Cursor.app", "Cursor"),
+        ("windsurf", "Windsurf", "Windsurf.app", "Windsurf"),
+        ("zed", "Zed", "Zed.app", "Zed"),
+        (
+            "sublime",
+            "Sublime Text",
+            "Sublime Text.app",
+            "Sublime Text",
+        ),
+        (
+            "idea",
+            "IntelliJ IDEA",
+            "IntelliJ IDEA.app",
+            "IntelliJ IDEA",
+        ),
+        ("webstorm", "WebStorm", "WebStorm.app", "WebStorm"),
+        ("pycharm", "PyCharm", "PyCharm.app", "PyCharm"),
+        ("rider", "Rider", "Rider.app", "Rider"),
+        ("clion", "CLion", "CLion.app", "CLion"),
+        ("goland", "GoLand", "GoLand.app", "GoLand"),
+    ];
+
+    for root in application_roots {
+        for (id, name, folder, app_name) in apps {
+            if root.join(folder).is_dir() {
+                push_editor_suggestion(
+                    suggestions,
+                    id,
+                    name,
+                    format!("open -a \"{app_name}\" \"{{projectPath}}\""),
+                );
+            }
+        }
+    }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
+    let candidates = [
+        ("vscode", "VS Code", "/snap/bin/code"),
+        ("cursor", "Cursor", "/usr/bin/cursor"),
+        ("zed", "Zed", "/usr/bin/zed"),
+        ("sublime", "Sublime Text", "/usr/bin/subl"),
+    ];
+
+    for (id, name, path) in candidates {
+        let path = PathBuf::from(path);
+        if path.is_file() {
+            push_editor_suggestion(suggestions, id, name, executable_template(&path));
+        }
+    }
 }
 
 #[tauri::command]
@@ -997,6 +1203,12 @@ fn detect_editors() -> Vec<EditorSuggestion> {
     let candidates = [
         ("vscode", "VS Code", "code", "code \"{projectPath}\""),
         ("cursor", "Cursor", "cursor", "cursor \"{projectPath}\""),
+        (
+            "windsurf",
+            "Windsurf",
+            "windsurf",
+            "windsurf \"{projectPath}\"",
+        ),
         ("zed", "Zed", "zed", "zed \"{projectPath}\""),
         ("sublime", "Sublime Text", "subl", "subl \"{projectPath}\""),
         (
@@ -1007,6 +1219,9 @@ fn detect_editors() -> Vec<EditorSuggestion> {
         ),
         ("idea", "IntelliJ IDEA", "idea", "idea \"{projectPath}\""),
         ("pycharm", "PyCharm", "pycharm", "pycharm \"{projectPath}\""),
+        ("rider", "Rider", "rider", "rider \"{projectPath}\""),
+        ("clion", "CLion", "clion", "clion \"{projectPath}\""),
+        ("goland", "GoLand", "goland", "goland \"{projectPath}\""),
         (
             "fleet",
             "JetBrains Fleet",
@@ -1016,12 +1231,20 @@ fn detect_editors() -> Vec<EditorSuggestion> {
     ];
 
     for (id, name, executable, template) in candidates {
-        if let Some(suggestion) = editor_candidate(id, name, executable, template) {
-            suggestions.push(suggestion);
-        }
+        editor_candidate(&mut suggestions, id, name, executable, template);
     }
 
+    detect_platform_editors(&mut suggestions);
+    suggestions.sort_by(|left, right| left.name.to_lowercase().cmp(&right.name.to_lowercase()));
     suggestions
+}
+
+#[tauri::command]
+fn get_desktop_directory() -> Result<String, String> {
+    let path = dirs::desktop_dir()
+        .or_else(dirs::home_dir)
+        .ok_or_else(|| "Der Desktop-Ordner konnte nicht ermittelt werden.".to_string())?;
+    Ok(display_path(&path))
 }
 
 fn shell_command(script: &str) -> Command {
@@ -1072,9 +1295,8 @@ fn launch_template(
         ));
     }
 
-    let canonical_path = fs::canonicalize(&requested_path).map_err(|error| {
-        format!("Projektordner konnte nicht aufgelöst werden: {error}")
-    })?;
+    let canonical_path = fs::canonicalize(&requested_path)
+        .map_err(|error| format!("Projektordner konnte nicht aufgelöst werden: {error}"))?;
     let canonical_path_text = canonical_path.to_string_lossy().into_owned();
     let script = fill_template(&command_template, &canonical_path_text, &project_name);
 
@@ -1322,11 +1544,19 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .setup(|app| {
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             create_project_from_template,
             inspect_project,
             scan_projects,
             detect_editors,
+            get_desktop_directory,
             launch_template,
             open_terminal,
             open_target,
