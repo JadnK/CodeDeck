@@ -10,7 +10,14 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Removed user-defined tags from projects, workspaces and custom project templates. Framework detection remains available as read-only technology information.
+- Hid the CodeDeck wordmark and logo from the main navigation bar.
+
 ### Fixed
+
+- Fixed IDE launching so the configured command must use `{projectPath}`.
+- Normalized legacy VS Code and Cursor commands that used the project name instead of the project folder.
+- Validated and canonicalized project directories before launching an IDE, preventing editors from opening a blank file named after the project.
 
 ### Security
 

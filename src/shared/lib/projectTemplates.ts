@@ -5,7 +5,6 @@ export type BuiltInProjectTemplate = {
   name: string;
   description: string;
   details: string;
-  tags: string[];
   icon: "folder" | "code" | "layers" | "command" | "terminal";
   requirements?: string;
 };
@@ -23,7 +22,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Leeres Projekt", en: "Empty project" },
     description: { de: "Nur Ordner, README und .gitignore.", en: "Folder, README and .gitignore only." },
     details: { de: "Für eigene Setups ohne vorgegebenes Framework.", en: "For custom setups without a predefined framework." },
-    tags: [],
     icon: "folder",
   },
   {
@@ -31,7 +29,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Node.js", en: "Node.js" },
     description: { de: "JavaScript-Startprojekt mit package.json.", en: "JavaScript starter with package.json." },
     details: { de: "Enthält start- und dev-Script sowie src/index.js.", en: "Includes start and dev scripts plus src/index.js." },
-    tags: ["Node.js", "JavaScript"],
     icon: "terminal",
     requirements: { de: "Node.js", en: "Node.js" },
   },
@@ -40,7 +37,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Node.js + TypeScript", en: "Node.js + TypeScript" },
     description: { de: "TypeScript-Backend oder CLI als saubere Basis.", en: "Clean TypeScript base for a backend or CLI." },
     details: { de: "Enthält tsconfig, tsx-Dev-Script und Build-Script.", en: "Includes tsconfig, a tsx dev script and a build script." },
-    tags: ["Node.js", "TypeScript"],
     icon: "code",
     requirements: { de: "Node.js + npm/pnpm", en: "Node.js + npm/pnpm" },
   },
@@ -49,7 +45,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "React + Vite", en: "React + Vite" },
     description: { de: "Kleine React-Web-App mit TypeScript.", en: "Small React web app with TypeScript." },
     details: { de: "Enthält Vite-Konfiguration, Beispielseite und CSS.", en: "Includes Vite configuration, an example page and CSS." },
-    tags: ["React", "Vite", "TypeScript"],
     icon: "layers",
     requirements: { de: "Node.js + npm/pnpm", en: "Node.js + npm/pnpm" },
   },
@@ -58,7 +53,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Spring Boot", en: "Spring Boot" },
     description: { de: "REST-API mit Maven und Java 21.", en: "REST API with Maven and Java 21." },
     details: { de: "Enthält Application-Klasse, Health-Endpunkt und Testskeleton.", en: "Includes an application class, health endpoint and test skeleton." },
-    tags: ["Java", "Spring Boot", "Maven"],
     icon: "code",
     requirements: { de: "Java 21 + Maven", en: "Java 21 + Maven" },
   },
@@ -67,7 +61,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Python", en: "Python" },
     description: { de: "Einfaches Python-CLI-Projekt ohne Fremdpakete.", en: "Simple Python CLI project without third-party packages." },
     details: { de: "Enthält pyproject.toml und eine direkt startbare main.py.", en: "Includes pyproject.toml and a directly runnable main.py." },
-    tags: ["Python"],
     icon: "terminal",
     requirements: { de: "Python 3.11+", en: "Python 3.11+" },
   },
@@ -76,7 +69,6 @@ const templates: LocalizedTemplate[] = [
     name: { de: "Rust CLI", en: "Rust CLI" },
     description: { de: "Minimales Cargo-Projekt für ein CLI-Tool.", en: "Minimal Cargo project for a CLI tool." },
     details: { de: "Enthält Cargo.toml, src/main.rs und .gitignore.", en: "Includes Cargo.toml, src/main.rs and .gitignore." },
-    tags: ["Rust", "Cargo"],
     icon: "command",
     requirements: { de: "Rust + Cargo", en: "Rust + Cargo" },
   },

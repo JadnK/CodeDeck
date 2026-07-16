@@ -10,7 +10,6 @@ You can edit:
 
 - display name
 - description
-- tags
 - favorite state
 - preferred IDE
 - archive state
@@ -66,4 +65,4 @@ Use **Status aktualisieren** after changing branches or making commits outside C
 
 ## When to use this page
 
-Use the detail page when a project needs more than the single quick action shown on its dashboard card. It is also the correct place to fix a wrong IDE assignment, edit tags or add a new command.
+Use the detail page when a project needs more than the single quick action shown on its dashboard card. It is also the correct place to fix a wrong IDE assignment, add a new command.

@@ -38,7 +38,7 @@ __If CodeDeck saves you time, consider starring the repository.__
 
 | Area | Where to find it | What it is for |
 |---|---|---|
-| Project search | Search field at the top | Searches names, paths, tags, frameworks and branches |
+| Project search | Search field at the top | Searches names, paths, frameworks and branches |
 | Favorites | **Favoriten** filter and star on each card | Keeps frequently used projects at the top |
 | Add a project | **Neues Projekt** | Creates a starter project or adds an existing folder |
 | Scan folders | **Ordner scannen** | Looks below a base folder for Git repositories and known project files |
@@ -127,7 +127,7 @@ The detail view contains the project-specific functions:
 - **Status aktualisieren** scans frameworks, scripts, Docker files and Git data again
 - **Commands** stores commands such as `pnpm dev`, `mvn test` or `cargo run`
 - **Git status** shows the current branch, changed-file count and latest commit
-- project name, description, tags, favorite state and preferred IDE can be edited here
+- project name, description, favorite state and preferred IDE can be edited here
 - archiving hides the project from the normal dashboard without deleting its files
 
 A command always runs with the project folder as its base directory. A custom working directory and environment variables can also be saved per command.

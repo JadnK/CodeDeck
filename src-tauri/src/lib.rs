@@ -1059,15 +1059,33 @@ fn launch_template(
     if command_template.trim().is_empty() {
         return Err("Das Command-Template ist leer.".to_string());
     }
-    let script = fill_template(&command_template, &project_path, &project_name);
+    if !command_template.contains("{projectPath}") {
+        return Err(
+            "Das Command-Template muss den Platzhalter {projectPath} enthalten.".to_string(),
+        );
+    }
+
+    let requested_path = PathBuf::from(&project_path);
+    if !requested_path.is_dir() {
+        return Err(format!(
+            "Projektordner nicht gefunden oder kein Ordner: {project_path}"
+        ));
+    }
+
+    let canonical_path = fs::canonicalize(&requested_path).map_err(|error| {
+        format!("Projektordner konnte nicht aufgelöst werden: {error}")
+    })?;
+    let canonical_path_text = canonical_path.to_string_lossy().into_owned();
+    let script = fill_template(&command_template, &canonical_path_text, &project_name);
+
     shell_command(&script)
-        .current_dir(&project_path)
+        .current_dir(&canonical_path)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
         .map(|_| ())
-        .map_err(|error| format!("Command konnte nicht gestartet werden: {error}"))
+        .map_err(|error| format!("IDE konnte nicht gestartet werden: {error}"))
 }
 
 #[tauri::command]

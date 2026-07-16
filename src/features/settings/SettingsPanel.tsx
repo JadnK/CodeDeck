@@ -42,7 +42,7 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const { t } = useI18n();
   const [name, setName] = useState("");
-  const [template, setTemplate] = useState('"{projectPath}"');
+  const [template, setTemplate] = useState('code "{projectPath}"');
   const [editingId, setEditingId] = useState<string>();
   const [suggestions, setSuggestions] = useState<EditorSuggestion[]>([]);
   const [detecting, setDetecting] = useState(false);
@@ -50,7 +50,6 @@ export function SettingsPanel({
   const [projectTemplateName, setProjectTemplateName] = useState("");
   const [projectTemplateDescription, setProjectTemplateDescription] = useState("");
   const [projectTemplatePath, setProjectTemplatePath] = useState("");
-  const [projectTemplateTags, setProjectTemplateTags] = useState("");
   const [projectTemplateEditorId, setProjectTemplateEditorId] = useState("");
   const [editingProjectTemplateId, setEditingProjectTemplateId] = useState<string>();
 
@@ -62,7 +61,7 @@ export function SettingsPanel({
 
   function resetEditorForm() {
     setName("");
-    setTemplate('"{projectPath}"');
+    setTemplate('code "{projectPath}"');
     setEditingId(undefined);
   }
 
@@ -70,7 +69,6 @@ export function SettingsPanel({
     setProjectTemplateName("");
     setProjectTemplateDescription("");
     setProjectTemplatePath("");
-    setProjectTemplateTags("");
     setProjectTemplateEditorId("");
     setEditingProjectTemplateId(undefined);
   }
@@ -79,6 +77,10 @@ export function SettingsPanel({
     event.preventDefault();
     if (!name.trim() || !template.trim()) {
       onError(t("Bitte gib einen IDE-Namen und ein Command-Template an.", "Enter an IDE name and a command template."));
+      return;
+    }
+    if (!template.includes("{projectPath}")) {
+      onError(t("Das Command-Template muss den Platzhalter {projectPath} enthalten.", "The command template must include the {projectPath} placeholder."));
       return;
     }
     const next = editingId
@@ -143,7 +145,6 @@ export function SettingsPanel({
       name: projectTemplateName.trim(),
       description: projectTemplateDescription.trim(),
       sourcePath: projectTemplatePath.trim(),
-      tags: projectTemplateTags.split(",").map((tag) => tag.trim()).filter(Boolean),
       preferredEditorId: projectTemplateEditorId || undefined,
       createdAt: editingProjectTemplateId
         ? projectTemplates.find((templateEntry) => templateEntry.id === editingProjectTemplateId)?.createdAt ?? now
@@ -161,7 +162,6 @@ export function SettingsPanel({
     setProjectTemplateName(templateEntry.name);
     setProjectTemplateDescription(templateEntry.description);
     setProjectTemplatePath(templateEntry.sourcePath);
-    setProjectTemplateTags(templateEntry.tags.join(", "));
     setProjectTemplateEditorId(templateEntry.preferredEditorId ?? "");
   }
 
@@ -238,10 +238,7 @@ export function SettingsPanel({
               <div className="form-field"><label htmlFor="project-template-name">{t("Name der Vorlage", "Template name")}</label><input id="project-template-name" value={projectTemplateName} onChange={(event) => setProjectTemplateName(event.target.value)} placeholder="Meine Spring-Basis" /></div>
               <div className="form-field"><label htmlFor="project-template-description">{t("Kurze Erklärung", "Short description")}</label><input id="project-template-description" value={projectTemplateDescription} onChange={(event) => setProjectTemplateDescription(event.target.value)} placeholder="Spring API mit Security und Docker Compose" /></div>
               <div className="form-field"><label htmlFor="project-template-path">{t("Quellordner", "Source folder")}</label><div className="input-action-row"><input id="project-template-path" value={projectTemplatePath} onChange={(event) => setProjectTemplatePath(event.target.value)} placeholder="C:\\Users\\du\\Templates\\spring-api" /><button className="button button--secondary" type="button" onClick={browseTemplateDirectory}><Icon name="folder" />{t("Vorlagenordner wählen", "Choose template folder")}</button></div><small>{t("Dieser Ordner wird später in einen neuen Projektordner kopiert.", "This folder will be copied into a new project folder later.")}</small></div>
-              <div className="form-grid form-grid--2">
-                <div className="form-field"><label htmlFor="project-template-tags">{t("Standard-Tags", "Default tags")}</label><input id="project-template-tags" value={projectTemplateTags} onChange={(event) => setProjectTemplateTags(event.target.value)} placeholder="spring, backend, java" /></div>
-                <div className="form-field"><label htmlFor="project-template-editor">{t("Standard-IDE", "Default IDE")}</label><select id="project-template-editor" value={projectTemplateEditorId} onChange={(event) => setProjectTemplateEditorId(event.target.value)}><option value="">{t("Keine Vorgabe", "No default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}</select></div>
-              </div>
+              <div className="form-field"><label htmlFor="project-template-editor">{t("Standard-IDE", "Default IDE")}</label><select id="project-template-editor" value={projectTemplateEditorId} onChange={(event) => setProjectTemplateEditorId(event.target.value)}><option value="">{t("Keine Vorgabe", "No default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}</select></div>
               <div className="form-actions">{editingProjectTemplateId && <button className="button button--ghost" type="button" onClick={resetProjectTemplateForm}>{t("Bearbeitung abbrechen", "Cancel editing")}</button>}<button className="button button--primary" type="submit"><Icon name={editingProjectTemplateId ? "check" : "plus"} />{editingProjectTemplateId ? t("Vorlage speichern", "Save template") : t("Vorlage hinzufügen", "Add template")}</button></div>
             </form>
             <div className="settings-card">
@@ -249,7 +246,7 @@ export function SettingsPanel({
               {projectTemplates.length ? <div className="template-settings-list">{projectTemplates.map((templateEntry) => (
                 <article key={templateEntry.id}>
                   <div className="template-settings-list__icon"><Icon name="layers" /></div>
-                  <div><strong>{templateEntry.name}</strong><small>{templateEntry.description || t("Keine Beschreibung", "No description")}</small><code>{templateEntry.sourcePath}</code>{templateEntry.tags.length > 0 && <span>{templateEntry.tags.join(" · ")}</span>}</div>
+                  <div><strong>{templateEntry.name}</strong><small>{templateEntry.description || t("Keine Beschreibung", "No description")}</small><code>{templateEntry.sourcePath}</code></div>
                   <div className="template-settings-list__actions"><button className="button button--ghost button--small" type="button" onClick={() => editProjectTemplate(templateEntry)}><Icon name="edit" />{t("Bearbeiten", "Edit")}</button><button className="button button--ghost button--small button--danger-text" type="button" onClick={() => deleteProjectTemplate(templateEntry)}><Icon name="trash" />{t("Entfernen", "Remove")}</button></div>
                 </article>
               ))}</div> : <div className="empty-state empty-state--compact"><Icon name="layers" /><p>{t("Noch keine eigene Vorlage gespeichert.", "No custom template saved yet.")}</p><small>{t("Die eingebauten Vorlagen Node.js, React, Spring Boot, Python und Rust stehen trotzdem immer zur Verfügung.", "The built-in Node.js, React, Spring Boot, Python and Rust templates are always available.")}</small></div>}

@@ -39,10 +39,6 @@ function joinPreview(parent: string, name: string) {
   return `${parent.replace(/[\\/]+$/, "")}${separator}${name.trim() || "my-project"}`;
 }
 
-function tagsFromInput(value: string) {
-  return value.split(",").map((tag) => tag.trim()).filter(Boolean);
-}
-
 export function ProjectCreateModal({
   open,
   editors,
@@ -60,7 +56,6 @@ export function ProjectCreateModal({
   const [parentPath, setParentPath] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [tags, setTags] = useState("");
   const [editorId, setEditorId] = useState("");
   const [favorite, setFavorite] = useState(false);
   const [initGit, setInitGit] = useState(true);
@@ -83,7 +78,6 @@ export function ProjectCreateModal({
     setParentPath(defaultProjectDir);
     setName("");
     setDescription("");
-    setTags("");
     setEditorId(enabledEditors[0]?.id ?? "");
     setFavorite(false);
     setInitGit(true);
@@ -94,10 +88,7 @@ export function ProjectCreateModal({
 
   function selectTemplate(key: string) {
     setTemplateKey(key);
-    const builtIn = builtInProjectTemplates.find((template) => `builtin:${template.id}` === key);
     const custom = projectTemplates.find((template) => `custom:${template.id}` === key);
-    const templateTags = builtIn?.tags ?? custom?.tags ?? [];
-    setTags(templateTags.join(", "));
     if (custom?.preferredEditorId) setEditorId(custom.preferredEditorId);
   }
 
@@ -110,7 +101,6 @@ export function ProjectCreateModal({
       setLoading(true);
       const result = await inspectProject(selected);
       setInspection(result);
-      setTags(result.frameworks.join(", "));
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -133,7 +123,6 @@ export function ProjectCreateModal({
     try {
       const result = await inspectProject(existingPath.trim());
       setInspection(result);
-      setTags(result.frameworks.join(", "));
     } catch (error) {
       onError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -148,7 +137,6 @@ export function ProjectCreateModal({
       name: name.trim(),
       path,
       description: description.trim(),
-      tags: tagsFromInput(tags),
       favorite,
       archived: false,
       preferredEditorId: editorId || undefined,
@@ -318,20 +306,13 @@ export function ProjectCreateModal({
           {mode === "existing" && (
             <div className="form-field"><label htmlFor="project-name">{t("Anzeigename", "Display name")}</label><input id="project-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Portfolio Website" /></div>
           )}
-          <div className="form-grid form-grid--2">
-            <div className="form-field">
-              <label htmlFor="project-editor">{t("Bevorzugte IDE", "Preferred IDE")}</label>
-              <select id="project-editor" value={editorId} onChange={(event) => setEditorId(event.target.value)}>
-                <option value="">{t("Keine IDE festlegen", "Do not set an IDE")}</option>
-                {enabledEditors.map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}
-              </select>
-              <small>{t("Der große Öffnen-Button verwendet später diese IDE.", "The main Open button will use this IDE.")}</small>
-            </div>
-            <div className="form-field">
-              <label htmlFor="project-tags">{t("Tags", "Tags")}</label>
-              <input id="project-tags" value={tags} onChange={(event) => setTags(event.target.value)} placeholder="backend, spring, kunde-a" />
-              <small>{t("Mehrere Tags mit Komma trennen.", "Separate multiple tags with commas.")}</small>
-            </div>
+          <div className="form-field">
+            <label htmlFor="project-editor">{t("Bevorzugte IDE", "Preferred IDE")}</label>
+            <select id="project-editor" value={editorId} onChange={(event) => setEditorId(event.target.value)}>
+              <option value="">{t("Keine IDE festlegen", "Do not set an IDE")}</option>
+              {enabledEditors.map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}
+            </select>
+            <small>{t("Der große Öffnen-Button verwendet später diese IDE.", "The main Open button will use this IDE.")}</small>
           </div>
           <div className="form-field"><label htmlFor="project-description">{t("Beschreibung", "Description")}</label><textarea id="project-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Worum geht es in diesem Projekt?", "What is this project about?")} rows={2} /></div>
           <label className="checkbox-row"><input type="checkbox" checked={favorite} onChange={(event) => setFavorite(event.target.checked)} /><span><strong>{t("Als Favorit markieren", "Mark as favorite")}</strong><small>{t("Das Projekt erscheint weiter oben auf der Startseite.", "The project appears higher on the home page.")}</small></span></label>

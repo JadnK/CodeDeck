@@ -174,8 +174,8 @@ export function ProjectDetails({
               </div>
               <p>{project.path}</p>
               <div className="badge-row">
-                {[...(inspection?.frameworks ?? []), ...project.tags].slice(0, 8).map((tag) => (
-                  <span className="badge" key={tag}>{tag}</span>
+                {(inspection?.frameworks ?? []).slice(0, 8).map((framework) => (
+                  <span className="badge" key={framework}>{framework}</span>
                 ))}
               </div>
             </div>
@@ -331,7 +331,6 @@ export function ProjectDetails({
               </div>
               <div className="form-field"><label htmlFor="edit-path">{t("Projektpfad", "Project path")}</label><input id="edit-path" value={draft.path} onChange={(event) => setDraft({ ...draft, path: event.target.value })} /></div>
               <div className="form-field"><label htmlFor="edit-description">{t("Beschreibung", "Description")}</label><textarea id="edit-description" rows={4} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} /></div>
-              <div className="form-field"><label htmlFor="edit-tags">Tags</label><input id="edit-tags" value={draft.tags.join(", ")} onChange={(event) => setDraft({ ...draft, tags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) })} /></div>
               <div className="form-grid form-grid--2">
                 <label className="checkbox-row"><input type="checkbox" checked={draft.favorite} onChange={(event) => setDraft({ ...draft, favorite: event.target.checked })} /><span><strong>{t("Favorit", "Favorite")}</strong><small>{t("Oben in der Projektliste anzeigen.", "Show near the top of the project list.")}</small></span></label>
                 <label className="checkbox-row"><input type="checkbox" checked={draft.archived} onChange={(event) => setDraft({ ...draft, archived: event.target.checked })} /><span><strong>{t("Archiviert", "Archived")}</strong><small>{t("Aus der normalen Ansicht ausblenden.", "Hide from the normal view.")}</small></span></label>
