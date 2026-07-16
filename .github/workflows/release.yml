@@ -24,10 +24,6 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    defaults:
-      run:
-        working-directory: .
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -73,7 +69,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: .
           tagName: ${{ github.ref_name }}
           releaseName: "Code Deck ${{ github.ref_name }}"
           releaseBody: "See CHANGELOG.md for details."
