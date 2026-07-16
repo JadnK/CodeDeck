@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: check (${{ matrix.platform }})
@@ -22,32 +26,39 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
 
-      - name: Set up pnpm
+    steps:
+      - name: Repository auschecken
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: pnpm einrichten
         uses: pnpm/action-setup@v6
         with:
           version: 10.33.0
+          run_install: false
 
-      - name: Set up Node.js
+      - name: Node.js 24 mit pnpm-Cache einrichten
         uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
+          package-manager-cache: false
 
-      - name: Set up Rust
+      - name: Rust stable einrichten
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust build artifacts
+      - name: Rust-Buildcache einrichten
         uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          shared-key: ci-${{ matrix.platform }}
 
-      - name: Install Linux system dependencies
+      - name: Linux-Systempakete installieren
         if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -57,11 +68,11 @@ jobs:
             patchelf \
             xdg-utils
 
-      - name: Install frontend dependencies
+      - name: Frontend-Abhängigkeiten reproduzierbar installieren
         run: pnpm install --frozen-lockfile
 
-      - name: Build frontend
+      - name: TypeScript und Frontend bauen
         run: pnpm build
 
-      - name: Check Rust core
-        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - name: Tauri/Rust prüfen
+        run: cargo check --manifest-path src-tauri/Cargo.toml
