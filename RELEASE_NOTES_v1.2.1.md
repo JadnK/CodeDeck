@@ -1,20 +1,14 @@
-# CodeDeck v1.1.0
+# CodeDeck v1.2.1
 
-CodeDeck 1.1.0 expands the project workflow from launching folders to managing the full local development cycle.
+CodeDeck 1.2.1 improves project organization and makes the first-run experience more accessible for international users.
 
 ## Highlights
 
-- Clone HTTPS, SSH or local Git repositories directly from the Add Project dialog. Optional branch, tag and shallow-clone settings are included.
-- Configure a build command, run command and development port for every project. CodeDeck can open the local URL and supplies the selected port to common web frameworks.
-- Use the new Git workbench to inspect file changes and diffs, switch or create branches, stage and unstage files, commit changes, and run fetch, pull or push.
-- Resolve text merge conflicts inside CodeDeck by choosing the current version, incoming version, both versions or a manually edited result. Continue or abort merge, rebase, cherry-pick and revert operations afterwards.
-- Keep CodeDeck available from the system tray and receive optional desktop notifications when builds, runs and other commands finish.
-- Keep the redesigned Settings sidebar, structured project-template management, streamlined Launch sets and improved non-selectable productivity UI from the previous interface rework.
-
-## Safety
-
-Repository paths are validated before files are read or written. Cloning a repository never runs its scripts automatically, and commands still require an explicit user action.
+- Added sortable project-table columns for project name, last opened time, and the number of open todos.
+- Clicking a column heading again reverses the sorting direction.
+- Fresh installations now start with the English interface by default.
+- Existing users keep their previously selected interface language.
 
 ## Upgrade notes
 
-Existing projects are migrated automatically. CodeDeck suggests build, run and port defaults from detected project metadata, while preserving explicitly configured values.
+Existing projects, settings, todos, commands, and launch sets are preserved automatically.

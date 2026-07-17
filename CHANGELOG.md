@@ -19,7 +19,11 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Added Sortable Project Table (by Todo, Project, last Opened)
+- Added Sortable Project Table (by Todo, Project, last Opened).
+
+### Fixed
+
+- Changed Initial language to english from German.
 
 ## [1.2.0] - 2026-07-16
 
