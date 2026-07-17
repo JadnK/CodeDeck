@@ -652,7 +652,7 @@ svg {
 }
 
 .project-list {
-  --project-grid-columns: 28px minmax(250px, 2fr) minmax(180px, 1.25fr) 100px 120px 300px;
+  --project-grid-columns: 28px minmax(250px, 2fr) minmax(180px, 1.25fr) 100px 120px 92px 210px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -673,13 +673,45 @@ svg {
   text-transform: uppercase;
 }
 
-.project-list__header span:last-child {
+.project-list__header > span:last-child {
   justify-self: end;
   padding-right: 2px;
 }
 
 .project-list__favorite-column {
   width: 28px;
+}
+
+.project-list__sort {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 5px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+}
+
+.project-list__sort:hover,
+.project-list__sort.active {
+  color: var(--text);
+}
+
+.project-list__sort-indicator {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.project-list__sort.active .project-list__sort-indicator {
+  color: var(--primary);
 }
 
 .project-list__body {
@@ -927,6 +959,38 @@ svg {
   color: var(--text-faint);
   font-size: 11px;
   font-weight: 400;
+}
+
+.project-card__todo-count {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  min-width: 42px;
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 4px 7px;
+  color: var(--text-muted);
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.project-card__todo-count:hover {
+  border-color: var(--border);
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.project-card__todo-count svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-faint);
+}
+
+.project-card__todo-action {
+  display: none;
 }
 
 .project-card__actions {
@@ -2591,8 +2655,13 @@ svg {
     grid-template-columns: 28px minmax(250px, 1.4fr) minmax(130px, 0.7fr) minmax(120px, 0.6fr) auto;
   }
 
-  .project-card__last-used {
+  .project-card__last-used,
+  .project-card__todo-count {
     display: none;
+  }
+
+  .project-card__todo-action {
+    display: inline-flex;
   }
 
   .stat-grid {

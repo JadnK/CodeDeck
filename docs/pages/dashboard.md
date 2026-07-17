@@ -14,7 +14,7 @@ The dashboard opens when Code Deck starts. Return to it by closing the current d
 |---|---|
 | Search field | Searches project names, paths, frameworks and known Git branches |
 | **Favoriten** | Shows only projects marked with a star |
-| Sort control | Changes the order, for example by name or last use |
+| Project, Last used and Open todos headers | Sorts the project table by that value. Select the active header again to reverse the order. |
 | **Neues Projekt** | Opens the project creation and import dialog |
 | **Ordner scannen** | Searches below a selected folder for likely projects |
 | Star on a project card | Adds or removes the project from favorites |

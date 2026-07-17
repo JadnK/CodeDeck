@@ -58,11 +58,20 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+type ProjectSortKey = "default" | "name" | "lastOpened" | "openTodos";
+type SortDirection = "asc" | "desc";
+
+function countOpenTodos(project: Project) {
+  return project.todos.filter((todo) => todo.status !== "done").length;
+}
+
 export function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [search, setSearch] = useState("");
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [projectSortKey, setProjectSortKey] = useState<ProjectSortKey>("default");
+  const [projectSortDirection, setProjectSortDirection] = useState<SortDirection>("desc");
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
   const [todoProjectId, setTodoProjectId] = useState<string>();
   const [createOpen, setCreateOpen] = useState(false);
@@ -105,8 +114,44 @@ export function App() {
           project.inspection?.branch ?? "",
         ].some((value) => value.toLowerCase().includes(needle));
       })
-      .sort((a, b) => Number(b.favorite) - Number(a.favorite) || (b.lastOpenedAt ?? b.createdAt).localeCompare(a.lastOpenedAt ?? a.createdAt));
-  }, [data.projects, favoriteOnly, search, showArchived]);
+      .sort((a, b) => {
+        if (projectSortKey === "default") {
+          return Number(b.favorite) - Number(a.favorite)
+            || (b.lastOpenedAt ?? b.createdAt).localeCompare(a.lastOpenedAt ?? a.createdAt);
+        }
+
+        let comparison = 0;
+        if (projectSortKey === "name") {
+          comparison = a.name.localeCompare(b.name, data.settings.language, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        } else if (projectSortKey === "lastOpened") {
+          comparison = (Date.parse(a.lastOpenedAt ?? "") || 0) - (Date.parse(b.lastOpenedAt ?? "") || 0);
+        } else {
+          comparison = countOpenTodos(a) - countOpenTodos(b);
+        }
+
+        if (comparison === 0) {
+          comparison = a.name.localeCompare(b.name, data.settings.language, {
+            numeric: true,
+            sensitivity: "base",
+          });
+        }
+
+        return projectSortDirection === "asc" ? comparison : -comparison;
+      });
+  }, [data.projects, data.settings.language, favoriteOnly, projectSortDirection, projectSortKey, search, showArchived]);
+
+  function changeProjectSort(key: Exclude<ProjectSortKey, "default">) {
+    if (projectSortKey === key) {
+      setProjectSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+      return;
+    }
+
+    setProjectSortKey(key);
+    setProjectSortDirection(key === "name" ? "asc" : "desc");
+  }
 
   useEffect(() => {
     const timer = window.setTimeout(() => saveData(data), 200);
@@ -673,12 +718,46 @@ export function App() {
 
         {visibleProjects.length ? (
           <section className="project-list" aria-label={t("Projektliste", "Project list")}>
-            <div className="project-list__header" aria-hidden="true">
+            <div className="project-list__header">
               <span className="project-list__favorite-column" />
-              <span>{t("Projekt", "Project")}</span>
+              <button
+                className={`project-list__sort ${projectSortKey === "name" ? "active" : ""}`}
+                type="button"
+                onClick={() => changeProjectSort("name")}
+                aria-pressed={projectSortKey === "name"}
+                aria-label={t("Projekte nach Name sortieren", "Sort projects by name")}
+              >
+                <span>{t("Projekt", "Project")}</span>
+                <span className="project-list__sort-indicator" aria-hidden="true">
+                  {projectSortKey === "name" ? projectSortDirection === "asc" ? "↑" : "↓" : "↕"}
+                </span>
+              </button>
               <span>{t("Technologien", "Technologies")}</span>
               <span>Git</span>
-              <span>{t("Zuletzt genutzt", "Last used")}</span>
+              <button
+                className={`project-list__sort ${projectSortKey === "lastOpened" ? "active" : ""}`}
+                type="button"
+                onClick={() => changeProjectSort("lastOpened")}
+                aria-pressed={projectSortKey === "lastOpened"}
+                aria-label={t("Projekte nach letzter Nutzung sortieren", "Sort projects by last used")}
+              >
+                <span>{t("Zuletzt genutzt", "Last used")}</span>
+                <span className="project-list__sort-indicator" aria-hidden="true">
+                  {projectSortKey === "lastOpened" ? projectSortDirection === "asc" ? "↑" : "↓" : "↕"}
+                </span>
+              </button>
+              <button
+                className={`project-list__sort ${projectSortKey === "openTodos" ? "active" : ""}`}
+                type="button"
+                onClick={() => changeProjectSort("openTodos")}
+                aria-pressed={projectSortKey === "openTodos"}
+                aria-label={t("Projekte nach offenen Todos sortieren", "Sort projects by open todos")}
+              >
+                <span>{t("Offene Todos", "Open todos")}</span>
+                <span className="project-list__sort-indicator" aria-hidden="true">
+                  {projectSortKey === "openTodos" ? projectSortDirection === "asc" ? "↑" : "↓" : "↕"}
+                </span>
+              </button>
               <span>{t("Aktionen", "Actions")}</span>
             </div>
             <div className="project-list__body">

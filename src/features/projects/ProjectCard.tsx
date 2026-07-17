@@ -104,6 +104,17 @@ export function ProjectCard({
         <span>{relativeDate(project.lastOpenedAt)}</span>
       </div>
 
+      <button
+        className="project-card__todo-count"
+        type="button"
+        onClick={onOpenTodos}
+        title={t(`${openTodoCount} offene Todos`, `${openTodoCount} open todos`)}
+        aria-label={t(`Todos für ${project.name} öffnen: ${openTodoCount} offen`, `Open todos for ${project.name}: ${openTodoCount} open`)}
+      >
+        <Icon name="list" />
+        <span>{openTodoCount}</span>
+      </button>
+
       <div className="project-card__actions">
         <button
           className="button button--secondary button--small project-card__todo-action"
