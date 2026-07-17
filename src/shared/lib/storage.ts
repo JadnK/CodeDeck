@@ -58,7 +58,7 @@ export function createDefaultData(): AppData {
     processHistory: [],
     settings: {
       theme: "dark",
-      language: "de",
+      language: "en",
       terminalCommand: "",
       defaultProjectDir: "",
       onboardingComplete: false,
@@ -118,7 +118,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
   if (!input || typeof input !== "object") return fallback;
 
   const value = input as Partial<AppData>;
-  const language = value.settings?.language === "en" ? "en" : "de";
+  const language = value.settings?.language === "de" ? "de" : "en";
   const rawEditors = Array.isArray(value.editors) ? value.editors : [];
   const editors = rawEditors.length
     ? rawEditors.map((editor) => {
@@ -237,7 +237,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
       theme: ["dark", "light", "system"].includes(value.settings?.theme ?? "")
         ? value.settings!.theme
         : fallback.settings.theme,
-      language: value.settings?.language === "en" ? "en" : "de",
+      language: value.settings?.language === "de" ? "de" : "en",
     },
   };
 }

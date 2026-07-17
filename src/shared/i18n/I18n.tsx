@@ -8,9 +8,9 @@ type I18nContextValue = {
 };
 
 const I18nContext = createContext<I18nContextValue>({
-  language: "de",
-  locale: "de-DE",
-  t: (german) => german,
+  language: "en",
+  locale: "en-US",
+  t: (_german, english) => english,
 });
 
 export function translate(language: Language, german: string, english: string) {

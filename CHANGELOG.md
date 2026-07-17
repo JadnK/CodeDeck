@@ -4,6 +4,7 @@ All notable changes to CodeDeck are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+<!-- 
 ## [Unreleased]
 
 ### Added
@@ -12,7 +13,13 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-### Security
+### Security -->
+
+## [1.2.1] - 2026-07-17
+
+### Changed
+
+- Added Sortable Project Table (by Todo, Project, last Opened)
 
 ## [1.2.0] - 2026-07-16
 
