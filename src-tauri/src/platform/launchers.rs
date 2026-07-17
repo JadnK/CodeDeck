@@ -23,6 +23,57 @@ pub(crate) fn hide_console_window(command: &mut Command) {
 #[cfg(not(target_os = "windows"))]
 pub(crate) fn hide_console_window(_command: &mut Command) {}
 
+/// Wenn Code Deck als AppImage läuft, setzt der AppRun-Wrapper Variablen wie
+/// LD_LIBRARY_PATH auf die gebündelten Bibliotheken. Host-Programme wie
+/// `flatpak` laden dann inkompatible Libraries und schlagen fehl – dadurch
+/// liefert `flatpak info` einen Fehlerstatus und Flatpak-IDEs werden nicht
+/// erkannt. Diese Funktion entfernt die AppImage-spezifische Umgebung, bevor
+/// ein Host-Programm gestartet wird.
+#[cfg(all(unix, not(target_os = "macos")))]
+fn sanitize_appimage_environment(command: &mut Command) {
+    if std::env::var_os("APPIMAGE").is_none() && std::env::var_os("APPDIR").is_none() {
+        return;
+    }
+
+    for variable in [
+        "LD_LIBRARY_PATH",
+        "LD_PRELOAD",
+        "GIO_MODULE_DIR",
+        "GDK_PIXBUF_MODULE_FILE",
+        "GDK_PIXBUF_MODULEDIR",
+        "GST_PLUGIN_SYSTEM_PATH",
+        "GST_PLUGIN_SYSTEM_PATH_1_0",
+        "GTK_PATH",
+        "GTK_EXE_PREFIX",
+        "GTK_DATA_PREFIX",
+        "GTK_IM_MODULE_FILE",
+        "GSETTINGS_SCHEMA_DIR",
+        "QT_PLUGIN_PATH",
+        "PYTHONPATH",
+        "PYTHONHOME",
+        "PERLLIB",
+    ] {
+        command.env_remove(variable);
+    }
+
+    // AppRun stellt $APPDIR/usr/bin an den Anfang von PATH. Diese Einträge
+    // entfernen, damit Kindprozesse nicht auf gebündelte Binaries treffen.
+    if let (Some(app_dir), Some(path)) = (
+        std::env::var_os("APPDIR").map(PathBuf::from),
+        std::env::var_os("PATH"),
+    ) {
+        let cleaned = std::env::split_paths(&path)
+            .filter(|entry| !entry.starts_with(&app_dir))
+            .collect::<Vec<_>>();
+        if let Ok(joined) = std::env::join_paths(cleaned) {
+            command.env("PATH", joined);
+        }
+    }
+}
+
+#[cfg(not(all(unix, not(target_os = "macos"))))]
+fn sanitize_appimage_environment(_command: &mut Command) {}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct EditorSuggestion {
@@ -407,6 +458,7 @@ fn linux_flatpak_command() -> Option<LinuxFlatpakCommand> {
 #[cfg(all(unix, not(target_os = "macos")))]
 fn flatpak_app_installed(flatpak: &LinuxFlatpakCommand, app_id: &str) -> bool {
     let mut command = Command::new(&flatpak.program);
+    sanitize_appimage_environment(&mut command);
     command
         .args(&flatpak.prefix_args)
         .args(["info", app_id])
@@ -580,6 +632,7 @@ fn flatpak_app_installed_for_launch(program: &Path, app_id: &str) -> bool {
         .unwrap_or_default();
 
     let mut command = Command::new(program);
+    sanitize_appimage_environment(&mut command);
     if executable.eq_ignore_ascii_case("flatpak-spawn") {
         command.args(["--host", "flatpak"]);
     }
@@ -660,6 +713,7 @@ pub(crate) fn shell_command(script: &str) -> Command {
     {
         use std::os::unix::process::CommandExt;
         let mut command = Command::new("/bin/sh");
+        sanitize_appimage_environment(&mut command);
         command.args(["-lc", script]);
         command.process_group(0);
         command
@@ -854,6 +908,7 @@ pub(crate) fn launch_template(
     }
 
     let mut command = Command::new(&resolved_program);
+    sanitize_appimage_environment(&mut command);
     command
         .args(args)
         .current_dir(&canonical_path)
