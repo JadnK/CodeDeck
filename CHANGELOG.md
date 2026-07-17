@@ -15,6 +15,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.2.4] - 2026-07-17
+
+### Fixed
+
+- Launcher.rs.
+
 ## [1.2.3] - 2026-07-17
 
 ### Changed
@@ -290,7 +296,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.3...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.4...HEAD
+[1.2.4]: https://github.com/JadnK/CodeDeck/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/JadnK/CodeDeck/compare/v1.2.2...v1.2.3
 [1.2.2]: https://github.com/JadnK/CodeDeck/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/JadnK/CodeDeck/compare/v1.2.0...v1.2.1
