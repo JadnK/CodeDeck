@@ -356,25 +356,132 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn flatpak_fallback_for_program(program: &str) -> Option<(PathBuf, &'static str)> {
+#[derive(Debug)]
+struct LinuxFlatpakCommand {
+    program: PathBuf,
+    prefix_args: Vec<String>,
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn running_inside_flatpak() -> bool {
+    Path::new("/.flatpak-info").is_file() || std::env::var_os("FLATPAK_ID").is_some()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn find_linux_executable(name: &str, absolute_candidates: &[&str]) -> Option<PathBuf> {
+    for candidate in absolute_candidates {
+        let path = PathBuf::from(candidate);
+        if path.is_file() {
+            return Some(path);
+        }
+    }
+
+    which::which(name).ok()
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn linux_flatpak_command() -> Option<LinuxFlatpakCommand> {
+    if running_inside_flatpak() {
+        let program = find_linux_executable(
+            "flatpak-spawn",
+            &["/usr/bin/flatpak-spawn", "/bin/flatpak-spawn"],
+        )?;
+
+        return Some(LinuxFlatpakCommand {
+            program,
+            prefix_args: vec!["--host".to_string(), "flatpak".to_string()],
+        });
+    }
+
+    let program = find_linux_executable(
+        "flatpak",
+        &["/usr/bin/flatpak", "/bin/flatpak", "/usr/local/bin/flatpak"],
+    )?;
+
+    Some(LinuxFlatpakCommand {
+        program,
+        prefix_args: Vec::new(),
+    })
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_app_installed(flatpak: &LinuxFlatpakCommand, app_id: &str) -> bool {
+    let mut command = Command::new(&flatpak.program);
+    command
+        .args(&flatpak.prefix_args)
+        .args(["info", app_id])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+
+    command
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_editor_template(flatpak: &LinuxFlatpakCommand, app_id: &str) -> String {
+    let program = display_path(&flatpak.program).replace('"', "\\\"");
+    let mut parts = vec![format!("\"{program}\"")];
+    parts.extend(flatpak.prefix_args.iter().cloned());
+    parts.push("run".to_string());
+    parts.push(app_id.to_string());
+    parts.push("\"{projectPath}\"".to_string());
+    parts.join(" ")
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn is_flatpak_program(program: &str) -> bool {
+    Path::new(program)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .is_some_and(|value| value.eq_ignore_ascii_case("flatpak"))
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_app_ids_for_program(program: &str) -> &'static [&'static str] {
     let filename = Path::new(program)
         .file_name()
         .and_then(|value| value.to_str())
         .unwrap_or(program)
         .to_ascii_lowercase();
 
-    let app_id = match filename.as_str() {
-        "code" | "code-insiders" => "com.visualstudio.code",
-        _ => return None,
-    };
-
-    let flatpak = linux_flatpak_executable()?;
-
-    if flatpak_app_installed(&flatpak, app_id) {
-        Some((flatpak, app_id))
-    } else {
-        None
+    match filename.as_str() {
+        "code" | "code-insiders" => &["com.visualstudio.code"],
+        "codium" => &["com.vscodium.codium"],
+        "zed" => &["dev.zed.Zed"],
+        "subl" | "sublime_text" => &["com.sublimetext.three"],
+        "idea" => &[
+            "com.jetbrains.IntelliJ-IDEA-Community",
+            "com.jetbrains.IntelliJ-IDEA-Ultimate",
+        ],
+        "webstorm" => &["com.jetbrains.WebStorm"],
+        "pycharm" => &[
+            "com.jetbrains.PyCharm-Community",
+            "com.jetbrains.PyCharm-Professional",
+        ],
+        "rider" => &["com.jetbrains.Rider"],
+        "clion" => &["com.jetbrains.CLion"],
+        "goland" => &["com.jetbrains.GoLand"],
+        "phpstorm" => &["com.jetbrains.PhpStorm"],
+        "rubymine" => &["com.jetbrains.RubyMine"],
+        "datagrip" => &["com.jetbrains.DataGrip"],
+        _ => &[],
     }
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn flatpak_fallback_for_program(program: &str) -> Option<(LinuxFlatpakCommand, &'static str)> {
+    let flatpak = linux_flatpak_command()?;
+
+    for app_id in flatpak_app_ids_for_program(program) {
+        if flatpak_app_installed(&flatpak, app_id) {
+            return Some((flatpak, *app_id));
+        }
+    }
+
+    None
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
@@ -393,14 +500,63 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
         }
     }
 
-    let Some(flatpak) = linux_flatpak_executable() else {
+    let Some(flatpak) = linux_flatpak_command() else {
         return;
     };
 
-    // Flatpak applications are not exposed as normal executables to an
-    // AppImage. Detect them by application ID and launch them through the
-    // host flatpak CLI instead.
-    let flatpak_editors = [("vscode", "VS Code (Flatpak)", "com.visualstudio.code")];
+    let flatpak_editors = [
+        ("vscode", "VS Code (Flatpak)", "com.visualstudio.code"),
+        ("vscodium", "VSCodium (Flatpak)", "com.vscodium.codium"),
+        ("zed", "Zed (Flatpak)", "dev.zed.Zed"),
+        (
+            "sublime",
+            "Sublime Text (Flatpak)",
+            "com.sublimetext.three",
+        ),
+        (
+            "idea",
+            "IntelliJ IDEA Community (Flatpak)",
+            "com.jetbrains.IntelliJ-IDEA-Community",
+        ),
+        (
+            "idea",
+            "IntelliJ IDEA Ultimate (Flatpak)",
+            "com.jetbrains.IntelliJ-IDEA-Ultimate",
+        ),
+        (
+            "webstorm",
+            "WebStorm (Flatpak)",
+            "com.jetbrains.WebStorm",
+        ),
+        (
+            "pycharm",
+            "PyCharm Community (Flatpak)",
+            "com.jetbrains.PyCharm-Community",
+        ),
+        (
+            "pycharm",
+            "PyCharm Professional (Flatpak)",
+            "com.jetbrains.PyCharm-Professional",
+        ),
+        ("rider", "Rider (Flatpak)", "com.jetbrains.Rider"),
+        ("clion", "CLion (Flatpak)", "com.jetbrains.CLion"),
+        ("goland", "GoLand (Flatpak)", "com.jetbrains.GoLand"),
+        (
+            "phpstorm",
+            "PhpStorm (Flatpak)",
+            "com.jetbrains.PhpStorm",
+        ),
+        (
+            "rubymine",
+            "RubyMine (Flatpak)",
+            "com.jetbrains.RubyMine",
+        ),
+        (
+            "datagrip",
+            "DataGrip (Flatpak)",
+            "com.jetbrains.DataGrip",
+        ),
+    ];
 
     for (id, name, app_id) in flatpak_editors {
         if flatpak_app_installed(&flatpak, app_id) {
@@ -415,41 +571,51 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn linux_flatpak_executable() -> Option<PathBuf> {
-    for candidate in [
-        PathBuf::from("/usr/bin/flatpak"),
-        PathBuf::from("/bin/flatpak"),
-        PathBuf::from("/usr/local/bin/flatpak"),
-    ] {
-        if candidate.is_file() {
-            return Some(candidate);
-        }
+fn flatpak_app_id_from_launch<'a>(program: &Path, args: &'a [String]) -> Option<&'a str> {
+    let executable = program
+        .file_name()
+        .and_then(|value| value.to_str())?
+        .to_ascii_lowercase();
+
+    if executable == "flatpak"
+        && args.first().map(String::as_str) == Some("run")
+    {
+        return args.get(1).map(String::as_str);
     }
 
-    which::which("flatpak").ok()
+    if executable == "flatpak-spawn"
+        && args.first().map(String::as_str) == Some("--host")
+        && args.get(1).map(String::as_str) == Some("flatpak")
+        && args.get(2).map(String::as_str) == Some("run")
+    {
+        return args.get(3).map(String::as_str);
+    }
+
+    None
 }
 
 #[cfg(all(unix, not(target_os = "macos")))]
-fn flatpak_app_installed(flatpak: &Path, app_id: &str) -> bool {
-    let mut command = Command::new(flatpak);
+fn flatpak_app_installed_for_launch(program: &Path, app_id: &str) -> bool {
+    let executable = program
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+
+    let mut command = Command::new(program);
+    if executable.eq_ignore_ascii_case("flatpak-spawn") {
+        command.args(["--host", "flatpak"]);
+    }
+
     command
         .args(["info", app_id])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+
     command
         .status()
         .map(|status| status.success())
         .unwrap_or(false)
-}
-
-#[cfg(all(unix, not(target_os = "macos")))]
-fn flatpak_editor_template(flatpak: &Path, app_id: &str) -> String {
-    format!(
-        "\"{}\" run {} \"{{projectPath}}\"",
-        display_path(flatpak).replace('\"', "\\\""),
-        app_id
-    )
 }
 
 pub(crate) fn detect_editors() -> Vec<EditorSuggestion> {
@@ -632,13 +798,6 @@ fn resolve_launch_program(program: &str) -> Result<PathBuf, String> {
         }
     }
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    if program.eq_ignore_ascii_case("flatpak") {
-        if let Some(path) = linux_flatpak_executable() {
-            return Ok(path);
-        }
-    }
-
     if let Ok(path) = which::which(program) {
         return Ok(path);
     }
@@ -674,42 +833,47 @@ pub(crate) fn launch_template(
         .map_err(|error| format!("Projektordner konnte nicht aufgelöst werden: {error}"))?;
     let canonical_path_text = launch_path_text(&canonical_path);
     let (program, args) = launch_parts(&command_template, &canonical_path_text, &project_name)?;
-    let (resolved_program, args) = match resolve_launch_program(&program) {
-        Ok(path) => (path, args),
 
-        Err(original_error) => {
-            #[cfg(all(unix, not(target_os = "macos")))]
-            {
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let (resolved_program, args) = if is_flatpak_program(&program) {
+        let flatpak = linux_flatpak_command().ok_or_else(|| {
+            if running_inside_flatpak() {
+                "Code Deck läuft als Flatpak, aber 'flatpak-spawn' wurde nicht gefunden. Prüfe außerdem die Berechtigung --talk-name=org.freedesktop.Flatpak.".to_string()
+            } else {
+                "Das Programm 'flatpak' wurde nicht gefunden.".to_string()
+            }
+        })?;
+        let mut flatpak_args = flatpak.prefix_args;
+        flatpak_args.extend(args);
+        (flatpak.program, flatpak_args)
+    } else {
+        match resolve_launch_program(&program) {
+            Ok(path) => (path, args),
+            Err(original_error) => {
                 if let Some((flatpak, app_id)) = flatpak_fallback_for_program(&program) {
-                    let mut flatpak_args = vec!["run".to_string(), app_id.to_string()];
-
+                    let mut flatpak_args = flatpak.prefix_args;
+                    flatpak_args.push("run".to_string());
+                    flatpak_args.push(app_id.to_string());
                     flatpak_args.extend(args);
-                    (flatpak, flatpak_args)
+                    (flatpak.program, flatpak_args)
                 } else {
                     return Err(original_error);
                 }
             }
-
-            #[cfg(any(target_os = "windows", target_os = "macos"))]
-            {
-                return Err(original_error);
-            }
         }
     };
 
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    let (resolved_program, args) = match resolve_launch_program(&program) {
+        Ok(path) => (path, args),
+        Err(original_error) => return Err(original_error),
+    };
+
     #[cfg(all(unix, not(target_os = "macos")))]
-    if resolved_program
-        .file_name()
-        .and_then(|value| value.to_str())
-        .is_some_and(|value| value.eq_ignore_ascii_case("flatpak"))
-        && args.first().is_some_and(|value| value == "run")
-    {
-        let app_id = args
-            .get(1)
-            .ok_or_else(|| "Im Flatpak-Command fehlt die Anwendungs-ID.".to_string())?;
-        if !flatpak_app_installed(&resolved_program, app_id) {
+    if let Some(app_id) = flatpak_app_id_from_launch(&resolved_program, &args) {
+        if !flatpak_app_installed_for_launch(&resolved_program, app_id) {
             return Err(format!(
-                "Die Flatpak-Anwendung '{app_id}' ist nicht installiert oder für den aktuellen Benutzer nicht sichtbar."
+                "Die Flatpak-Anwendung '{app_id}' ist nicht installiert oder für den Host-Benutzer nicht sichtbar. Läuft Code Deck selbst als Flatpak, prüfe außerdem --talk-name=org.freedesktop.Flatpak."
             ));
         }
     }
