@@ -31,12 +31,10 @@ pub(crate) fn git_remote_url(project_path: String) -> Result<Option<String>, Str
         return Ok(None);
     };
 
-    Ok(command_output(
-        &root,
-        "git",
-        &["remote", "get-url", remote_name.as_str()],
+    Ok(
+        command_output(&root, "git", &["remote", "get-url", remote_name.as_str()])
+            .filter(|value| !value.is_empty()),
     )
-    .filter(|value| !value.is_empty()))
 }
 
 #[tauri::command]
