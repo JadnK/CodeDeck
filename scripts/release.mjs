@@ -28,16 +28,21 @@ function fail(message) {
   throw new Error(message);
 }
 
-function commandName(command) {
+function commandInvocation(command, args) {
   if (process.platform === "win32" && command === "pnpm") {
-    return "pnpm.cmd";
+    return {
+      command: process.env.ComSpec || "cmd.exe",
+      args: ["/d", "/c", "pnpm.cmd", ...args],
+    };
   }
-  return command;
+
+  return { command, args };
 }
 
 function run(command, args = [], options = {}) {
   const { capture = false, allowFailure = false } = options;
-  const result = spawnSync(commandName(command), args, {
+  const invocation = commandInvocation(command, args);
+  const result = spawnSync(invocation.command, invocation.args, {
     cwd: ROOT,
     encoding: "utf8",
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
