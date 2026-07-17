@@ -508,11 +508,7 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
         ("vscode", "VS Code (Flatpak)", "com.visualstudio.code"),
         ("vscodium", "VSCodium (Flatpak)", "com.vscodium.codium"),
         ("zed", "Zed (Flatpak)", "dev.zed.Zed"),
-        (
-            "sublime",
-            "Sublime Text (Flatpak)",
-            "com.sublimetext.three",
-        ),
+        ("sublime", "Sublime Text (Flatpak)", "com.sublimetext.three"),
         (
             "idea",
             "IntelliJ IDEA Community (Flatpak)",
@@ -523,11 +519,7 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
             "IntelliJ IDEA Ultimate (Flatpak)",
             "com.jetbrains.IntelliJ-IDEA-Ultimate",
         ),
-        (
-            "webstorm",
-            "WebStorm (Flatpak)",
-            "com.jetbrains.WebStorm",
-        ),
+        ("webstorm", "WebStorm (Flatpak)", "com.jetbrains.WebStorm"),
         (
             "pycharm",
             "PyCharm Community (Flatpak)",
@@ -541,21 +533,9 @@ fn detect_platform_editors(suggestions: &mut Vec<EditorSuggestion>) {
         ("rider", "Rider (Flatpak)", "com.jetbrains.Rider"),
         ("clion", "CLion (Flatpak)", "com.jetbrains.CLion"),
         ("goland", "GoLand (Flatpak)", "com.jetbrains.GoLand"),
-        (
-            "phpstorm",
-            "PhpStorm (Flatpak)",
-            "com.jetbrains.PhpStorm",
-        ),
-        (
-            "rubymine",
-            "RubyMine (Flatpak)",
-            "com.jetbrains.RubyMine",
-        ),
-        (
-            "datagrip",
-            "DataGrip (Flatpak)",
-            "com.jetbrains.DataGrip",
-        ),
+        ("phpstorm", "PhpStorm (Flatpak)", "com.jetbrains.PhpStorm"),
+        ("rubymine", "RubyMine (Flatpak)", "com.jetbrains.RubyMine"),
+        ("datagrip", "DataGrip (Flatpak)", "com.jetbrains.DataGrip"),
     ];
 
     for (id, name, app_id) in flatpak_editors {
@@ -577,9 +557,7 @@ fn flatpak_app_id_from_launch<'a>(program: &Path, args: &'a [String]) -> Option<
         .and_then(|value| value.to_str())?
         .to_ascii_lowercase();
 
-    if executable == "flatpak"
-        && args.first().map(String::as_str) == Some("run")
-    {
+    if executable == "flatpak" && args.first().map(String::as_str) == Some("run") {
         return args.get(1).map(String::as_str);
     }
 
@@ -864,10 +842,7 @@ pub(crate) fn launch_template(
     };
 
     #[cfg(any(target_os = "windows", target_os = "macos"))]
-    let (resolved_program, args) = match resolve_launch_program(&program) {
-        Ok(path) => (path, args),
-        Err(original_error) => return Err(original_error),
-    };
+    let (resolved_program, args) = (resolve_launch_program(&program)?, args);
 
     #[cfg(all(unix, not(target_os = "macos")))]
     if let Some(app_id) = flatpak_app_id_from_launch(&resolved_program, &args) {
