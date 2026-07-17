@@ -15,6 +15,42 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security -->
 
+## [1.2.2] - 2026-07-17
+
+### Added
+
+- Added a GitHub workspace to Project Details with repository detection from the configured Git remote.
+- Added issue browsing with a split list and detail view, labels, milestones, assignees and comments.
+- Added open pull-request browsing with branch information and direct links to GitHub.
+- Added optional GitHub authentication for assigned issues, comments and issue state changes.
+- Added bulk staging presets for new, changed, deleted, new and changed, or all pending files.
+- Added a persistent Discord community link in the application header and project README.
+
+### Changed
+
+- Replaced the previous `Git & history` project tab with a broader `GitHub` area.
+- Moved the existing local Git workbench into the new GitHub area without removing branch, diff, commit, fetch, pull, push or merge-conflict features.
+- GitHub repository detection now prefers `origin` and falls back to the first configured Git remote.
+- Bulk staging shows the number of matching files before applying a selection.
+
+### Fixed
+
+- The `Everything` staging preset now includes deleted files in addition to new and modified files.
+- GitHub repositories using HTTPS or SSH remote formats are resolved consistently.
+- Formatted the new Rust Git remote command so the repository passes the CI formatting check.
+
+### Security
+
+- GitHub tokens are kept only for the current application session and are not included in configuration exports.
+- Conflict files are excluded from automatic bulk staging and must still be handled explicitly.
+- GitHub write actions remain disabled until the user connects a token with the required repository permissions.
+
+### Known limitations
+
+- GitHub Projects are not included in this release.
+- Private repository data and GitHub write actions require a compatible personal access token.
+- Anonymous GitHub API requests may be limited by GitHub's public rate limits.
+
 ## [1.2.1] - 2026-07-17
 
 ### Changed
@@ -241,7 +277,10 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/JadnK/CodeDeck/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/JadnK/CodeDeck/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/JadnK/CodeDeck/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/JadnK/CodeDeck/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/JadnK/CodeDeck/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/JadnK/CodeDeck/compare/v0.2.2...v1.0.0
