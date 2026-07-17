@@ -279,6 +279,18 @@ export function App() {
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4500);
   }
 
+  async function openDiscord() {
+    try {
+      await openTarget("https://codedeck.jadenk.de/");
+    } catch (error) {
+      pushToast(
+        "error",
+        t("Discord konnte nicht geöffnet werden", "Could not open Discord"),
+        errorMessage(error),
+      );
+    }
+  }
+
   async function checkForUpdates(manual: boolean) {
     if (checkingForUpdates) return;
     setCheckingForUpdates(true);
@@ -645,6 +657,16 @@ export function App() {
           </nav>
 
           <div className="app-header__actions">
+            <button
+              className="button button--secondary"
+              type="button"
+              onClick={() => void openDiscord()}
+              title={t("CodeDeck Discord öffnen", "Open CodeDeck Discord")}
+              aria-label={t("CodeDeck Discord öffnen", "Open CodeDeck Discord")}
+            >
+              <Icon name="external" />
+              <span>Discord</span>
+            </button>
             {activeProcesses.length > 0 && (
               <button
                 className="icon-button app-header__process-button"
