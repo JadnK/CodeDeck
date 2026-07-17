@@ -15,12 +15,8 @@ use crate::{
     projects::validation::display_path,
 };
 
-fn stream_process_output<R>(
-    reader: R,
-    app: AppHandle,
-    run_id: String,
-    stream: &'static str,
-) where
+fn stream_process_output<R>(reader: R, app: AppHandle, run_id: String, stream: &'static str)
+where
     R: Read + Send + 'static,
 {
     thread::spawn(move || {
@@ -51,7 +47,9 @@ fn stream_process_output<R>(
                         ProcessOutputEvent {
                             run_id: run_id.clone(),
                             stream: "stderr".to_string(),
-                            line: format!("[Code Deck] Output konnte nicht gelesen werden: {error}"),
+                            line: format!(
+                                "[Code Deck] Output konnte nicht gelesen werden: {error}"
+                            ),
                         },
                     );
                     break;
