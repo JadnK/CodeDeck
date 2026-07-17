@@ -13,6 +13,8 @@
 <p align="center">
   <a href="https://github.com/JadnK/CodeDeck/releases/latest"><strong>Download CodeDeck</strong></a>
   ·
+  <a href="https://codedeck.jadenk.de/"><strong>Join the Discord</strong></a>
+  ·
   <a href="docs/README.md">Documentation</a>
   ·
   <a href="https://github.com/JadnK/CodeDeck/issues">Report a bug</a>
@@ -24,6 +26,9 @@
   </a>
   <a href="https://github.com/JadnK/CodeDeck/releases/latest">
     <img src="https://img.shields.io/github/v/release/JadnK/CodeDeck?display_name=tag&sort=semver" alt="Latest release">
+  </a>
+  <a href="https://codedeck.jadenk.de/">
+    <img src="https://img.shields.io/badge/Discord-Join_the_community-5865F2?logo=discord&logoColor=white" alt="Join the CodeDeck Discord">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/JadnK/CodeDeck" alt="License">
