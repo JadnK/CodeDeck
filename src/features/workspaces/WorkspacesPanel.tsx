@@ -100,6 +100,7 @@ export function WorkspacesPanel({
       id: createId(),
       name: t("Neues Startset", "New launch set"),
       description: "",
+      autoStartOnAppLaunch: false,
       actions: [],
       createdAt: now,
       updatedAt: now,
@@ -216,7 +217,7 @@ export function WorkspacesPanel({
             {workspaces.map((workspace) => (
               <button type="button" key={workspace.id} className={workspace.id === selectedId ? "active" : ""} onClick={() => setSelectedId(workspace.id)}>
                 <span className="workspace-list__icon"><Icon name="layers" /></span>
-                <span><strong className="selectable-text" onClick={(event) => event.stopPropagation()}>{workspace.name}</strong><small>{t(`${workspace.actions.length} Schritte`, `${workspace.actions.length} steps`)}</small></span>
+                <span><strong className="selectable-text" onClick={(event) => event.stopPropagation()}>{workspace.name}</strong><small>{workspace.autoStartOnAppLaunch ? t(`Autostart · ${workspace.actions.length} Schritte`, `Auto-start · ${workspace.actions.length} steps`) : t(`${workspace.actions.length} Schritte`, `${workspace.actions.length} steps`)}</small></span>
               </button>
             ))}
           </div>
@@ -232,6 +233,21 @@ export function WorkspacesPanel({
                 <div className="form-field"><label htmlFor="workspace-name">{t("Name", "Name")}</label><input id="workspace-name" value={name} onChange={(event) => setName(event.target.value)} /></div>
                 <div className="form-field"><label htmlFor="workspace-description">{t("Beschreibung", "Description")}</label><input id="workspace-description" value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Zum Beispiel: API + Frontend lokal starten", "For example: launch API + frontend locally")} /></div>
               </div>
+              <label className="checkbox-row workspace-autostart">
+                <input
+                  type="checkbox"
+                  checked={selected.autoStartOnAppLaunch}
+                  onChange={(event) => onChange(workspaces.map((workspace) => workspace.id === selected.id ? {
+                    ...workspace,
+                    autoStartOnAppLaunch: event.target.checked,
+                    updatedAt: new Date().toISOString(),
+                  } : workspace))}
+                />
+                <span>
+                  <strong>{t("Beim Start von Code Deck ausführen", "Run when Code Deck starts")}</strong>
+                  <small>{t("Startet dieses Set einmal automatisch, nachdem Projekte und Einstellungen geladen wurden.", "Starts this set once automatically after projects and settings have loaded.")}</small>
+                </span>
+              </label>
               <div className="form-actions form-actions--space-between"><button className="button button--danger button--small" type="button" onClick={deleteWorkspace}><Icon name="trash" />{t("Löschen", "Delete")}</button><button className="button button--secondary button--small" type="submit"><Icon name="check" />{t("Details speichern", "Save details")}</button></div>
             </form>
 

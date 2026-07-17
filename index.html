@@ -5,10 +5,23 @@
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#111315" />
+    <script>
+      try {
+        const stored = JSON.parse(localStorage.getItem("code-deck-data-v1") || "null");
+        const preference = stored?.settings?.theme || "dark";
+        document.documentElement.dataset.theme = preference === "system"
+          ? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+          : preference;
+      } catch {}
+    </script>
+    <style>
+      html, body, #root { min-height: 100%; margin: 0; background: #111315; }
+      html[data-theme="light"], html[data-theme="light"] body, html[data-theme="light"] #root { background: #f6f7f8; }
+    </style>
     <meta
       name="description"
       content="Code Deck is a local developer cockpit for projects, IDEs, commands, and launch sets."
-    />    
+    />
     <title>CodeDeck</title>
   </head>
   <body>

@@ -156,6 +156,7 @@ export type Workspace = {
   id: string;
   name: string;
   description: string;
+  autoStartOnAppLaunch: boolean;
   actions: WorkspaceAction[];
   createdAt: string;
   updatedAt: string;
@@ -194,6 +195,7 @@ export type AppSettings = {
   checkForUpdatesOnStartup: boolean;
   ideDetectionComplete: boolean;
   notifyOnCommandCompletion: boolean;
+  githubToken: string;
 };
 
 export type AppData = {

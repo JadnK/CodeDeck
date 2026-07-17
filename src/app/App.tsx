@@ -57,6 +57,66 @@ function errorMessage(error: unknown) {
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
+const LEGACY_GITHUB_TOKEN_STORAGE_KEY = "code-deck.github-token.session";
+
+function loadInitialData() {
+  const loaded = loadData();
+  try {
+    const legacyToken = sessionStorage.getItem(LEGACY_GITHUB_TOKEN_STORAGE_KEY)?.trim();
+    if (!loaded.settings.githubToken && legacyToken) {
+      loaded.settings.githubToken = legacyToken;
+    }
+    sessionStorage.removeItem(LEGACY_GITHUB_TOKEN_STORAGE_KEY);
+  } catch {
+    // Session storage can be unavailable in hardened browser contexts.
+  }
+  return loaded;
+}
+
+function AppLoadingScreen({ language }: { language: AppData["settings"]["language"] }) {
+  const t = (german: string, english: string) => translate(language, german, english);
+  return (
+    <div className="app-loading" aria-busy="true" aria-live="polite">
+      <header className="app-loading__header">
+        <div className="app-loading__nav">
+          <span className="skeleton skeleton--nav" />
+          <span className="skeleton skeleton--nav skeleton--nav-short" />
+        </div>
+        <div className="app-loading__actions">
+          <span className="skeleton skeleton--button" />
+          <span className="skeleton skeleton--icon" />
+          <span className="skeleton skeleton--icon" />
+          <span className="skeleton skeleton--button skeleton--button-wide" />
+        </div>
+      </header>
+      <div className="app-loading__toolbar">
+        <div><span className="skeleton skeleton--title" /><span className="skeleton skeleton--caption" /></div>
+        <span className="skeleton skeleton--search" />
+        <span className="skeleton skeleton--button" />
+      </div>
+      <main className="app-loading__main">
+        <div className="app-loading__status">
+          <img src="/icon.png" alt="" />
+          <div><strong>{t("Code Deck wird vorbereitet", "Preparing Code Deck")}</strong><small>{t("Projekte, Einstellungen und Integrationen werden geladen…", "Loading projects, settings, and integrations…")}</small></div>
+        </div>
+        <div className="app-loading__filters"><span className="skeleton skeleton--chip" /><span className="skeleton skeleton--caption" /></div>
+        <section className="app-loading__table">
+          <div className="app-loading__table-head">{Array.from({ length: 6 }, (_, index) => <span className="skeleton skeleton--caption" key={index} />)}</div>
+          {Array.from({ length: 5 }, (_, row) => (
+            <div className="app-loading__row" key={row}>
+              <span className="skeleton skeleton--icon" />
+              <span className="skeleton skeleton--project" />
+              <span className="skeleton skeleton--tags" />
+              <span className="skeleton skeleton--caption" />
+              <span className="skeleton skeleton--caption" />
+              <span className="skeleton skeleton--button" />
+            </div>
+          ))}
+        </section>
+      </main>
+    </div>
+  );
+}
 
 type ProjectSortKey = "default" | "name" | "lastOpened" | "openTodos";
 type SortDirection = "asc" | "desc";
@@ -66,7 +126,8 @@ function countOpenTodos(project: Project) {
 }
 
 export function App() {
-  const [data, setData] = useState<AppData>(loadData);
+  const [data, setData] = useState<AppData>(loadInitialData);
+  const [appReady, setAppReady] = useState(false);
   const [search, setSearch] = useState("");
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -92,6 +153,7 @@ export function App() {
   const searchRef = useRef<HTMLInputElement>(null);
   const startupUpdateCheckStarted = useRef(false);
   const startupIdeScanStarted = useRef(false);
+  const startupLaunchSetsStarted = useRef(false);
   const t = (german: string, english: string) => translate(data.settings.language, german, english);
 
   const selectedProject = data.projects.find((project) => project.id === selectedProjectId);
@@ -154,6 +216,17 @@ export function App() {
   }
 
   useEffect(() => {
+    let cancelled = false;
+    void Promise.allSettled([
+      sleep(520),
+      getCurrentAppVersion().then(setCurrentVersion),
+    ]).then(() => {
+      if (!cancelled) setAppReady(true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => saveData(data), 200);
     return () => window.clearTimeout(timer);
   }, [data]);
@@ -197,7 +270,6 @@ export function App() {
     if (startupUpdateCheckStarted.current) return;
     startupUpdateCheckStarted.current = true;
 
-    void getCurrentAppVersion().then(setCurrentVersion).catch(() => undefined);
     if (data.settings.checkForUpdatesOnStartup) {
       const timer = window.setTimeout(() => void checkForUpdates(false), 1100);
       return () => window.clearTimeout(timer);
@@ -257,6 +329,23 @@ export function App() {
       unlistenExit();
     };
   }, []);
+
+  useEffect(() => {
+    if (!appReady || startupLaunchSetsStarted.current || !isTauri()) return;
+    startupLaunchSetsStarted.current = true;
+    const launchSets = data.workspaces.filter((workspace) => workspace.autoStartOnAppLaunch && workspace.actions.length > 0);
+    if (!launchSets.length) return;
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        for (const workspace of launchSets) {
+          await startWorkspace(workspace);
+          await sleep(300);
+        }
+      })();
+    }, 180);
+    return () => window.clearTimeout(timer);
+  }, [appReady]);
 
   useEffect(() => {
     const handleKeyboard = (event: KeyboardEvent) => {
@@ -609,6 +698,7 @@ export function App() {
       if (!path) return;
       const exportData = {
         ...data,
+        settings: Object.fromEntries(Object.entries(data.settings).filter(([key]) => key !== "githubToken")),
         processHistory: data.processHistory.filter((process) => !["starting", "running", "stopping"].includes(process.status)),
         exportedAt: new Date().toISOString(),
       };
@@ -626,6 +716,7 @@ export function App() {
       const contents = await readTextFile(path);
       const parsed = JSON.parse(contents) as unknown;
       const imported = normalizeData(parsed, true);
+      imported.settings.githubToken = data.settings.githubToken;
       if (!window.confirm(t(`Konfiguration importieren?\n\n${imported.projects.length} Projekte\n${imported.editors.length} IDEs\n${imported.workspaces.length} Startsets\n\nDie aktuelle Konfiguration wird ersetzt.`, `Import configuration?\n\n${imported.projects.length} projects\n${imported.editors.length} IDEs\n${imported.workspaces.length} launch sets\n\nThe current configuration will be replaced.`))) return;
       setData(imported);
       setSelectedProjectId(undefined);
@@ -637,6 +728,14 @@ export function App() {
 
   const emptyBecauseFilters = data.projects.length > 0 && visibleProjects.length === 0;
 
+
+  if (!appReady) {
+    return (
+      <I18nProvider language={data.settings.language}>
+        <AppLoadingScreen language={data.settings.language} />
+      </I18nProvider>
+    );
+  }
 
   return (
     <I18nProvider language={data.settings.language}>
@@ -667,18 +766,16 @@ export function App() {
               <Icon name="external" />
               <span>Discord</span>
             </button>
-            {activeProcesses.length > 0 && (
-              <button
-                className="icon-button app-header__process-button"
-                type="button"
-                onClick={() => setProcessesOpen(true)}
-                title={t(`${activeProcesses.length} aktive Commands`, `${activeProcesses.length} active commands`)}
-                aria-label={t("Aktive Commands öffnen", "Open active commands")}
-              >
-                <Icon name="terminal" />
-                <span>{activeProcesses.length}</span>
-              </button>
-            )}
+            <button
+              className={`icon-button app-header__process-button ${activeProcesses.length ? "is-active" : ""}`}
+              type="button"
+              onClick={() => setProcessesOpen(true)}
+              title={activeProcesses.length ? t(`${activeProcesses.length} aktive Commands`, `${activeProcesses.length} active commands`) : t("Commands und Logs öffnen", "Open commands and logs")}
+              aria-label={t("Commands und Logs öffnen", "Open commands and logs")}
+            >
+              <Icon name="terminal" />
+              {activeProcesses.length > 0 && <span>{activeProcesses.length}</span>}
+            </button>
             <button
               className="icon-button"
               type="button"
@@ -846,6 +943,7 @@ export function App() {
       <ProjectDetails
         project={selectedProject}
         editors={data.editors}
+        githubToken={data.settings.githubToken}
         onClose={() => setSelectedProjectId(undefined)}
         onUpdate={updateProject}
         onDelete={deleteProject}
@@ -858,6 +956,7 @@ export function App() {
         onRunProject={(project) => void runConfiguredProject(project)}
         onOpenProjectUrl={(project) => void openProjectUrl(project)}
         onRefreshInspection={refreshInspection}
+        onOpenGitHubSettings={() => { setSelectedProjectId(undefined); setSettingsInitialSection("github"); setSettingsOpen(true); }}
         onSuccess={(message) => pushToast("success", t("Projekt aktualisiert", "Project updated"), message)}
         onError={(message) => pushToast("error", t("Eingabe prüfen", "Check input"), message)}
       />

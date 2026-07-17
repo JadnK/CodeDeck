@@ -17,7 +17,7 @@ import type {
   EditorSuggestion,
 } from "../../shared/types/models";
 
-export type SettingsSection = "general" | "editors" | "templates" | "projects" | "updates" | "backup";
+export type SettingsSection = "general" | "editors" | "templates" | "projects" | "github" | "updates" | "backup";
 
 type SettingsPanelProps = {
   open: boolean;
@@ -74,6 +74,8 @@ export function SettingsPanel({
   const [detecting, setDetecting] = useState(false);
   const [detectionFinished, setDetectionFinished] = useState(false);
   const [testingEditorId, setTestingEditorId] = useState<string>();
+  const [githubTokenDraft, setGitHubTokenDraft] = useState(settings.githubToken);
+  const [showGitHubToken, setShowGitHubToken] = useState(false);
 
   const [projectTemplateName, setProjectTemplateName] = useState("");
   const [projectTemplateDescription, setProjectTemplateDescription] = useState("");
@@ -107,6 +109,12 @@ export function SettingsPanel({
       description: t("Ordner und Standardwerte", "Folders and defaults"),
     },
     {
+      id: "github",
+      icon: "git",
+      label: "GitHub",
+      description: t("Zugriff & Token", "Access & token"),
+    },
+    {
       id: "updates",
       icon: "refresh",
       label: t("Updates", "Updates"),
@@ -127,6 +135,8 @@ export function SettingsPanel({
     resetProjectTemplateForm();
     setSuggestions([]);
     setDetectionFinished(false);
+    setGitHubTokenDraft(settings.githubToken);
+    setShowGitHubToken(false);
   }, [open, initialSection]);
 
   function resetEditorForm() {
@@ -276,6 +286,22 @@ export function SettingsPanel({
     setProjectTemplateEditorId(templateEntry.preferredEditorId ?? "");
   }
 
+  function saveGitHubSettings(event: React.FormEvent) {
+    event.preventDefault();
+    const githubToken = githubTokenDraft.trim();
+    onSettingsChange({ ...settings, githubToken });
+    setGitHubTokenDraft(githubToken);
+    onSuccess(githubToken
+      ? t("GitHub-Zugriff wurde lokal gespeichert.", "GitHub access was saved locally.")
+      : t("GitHub-Zugriff wurde entfernt.", "GitHub access was removed."));
+  }
+
+  function removeGitHubToken() {
+    setGitHubTokenDraft("");
+    onSettingsChange({ ...settings, githubToken: "" });
+    onSuccess(t("GitHub-Zugriff wurde entfernt.", "GitHub access was removed."));
+  }
+
   function deleteProjectTemplate(templateEntry: CustomProjectTemplate) {
     if (!window.confirm(t(`Vorlage „${templateEntry.name}“ aus Code Deck entfernen? Der Quellordner bleibt unverändert.`, `Remove template “${templateEntry.name}” from Code Deck? The source folder will remain unchanged.`))) return;
     onProjectTemplatesChange(projectTemplates.filter((entry) => entry.id !== templateEntry.id));
@@ -420,6 +446,43 @@ export function SettingsPanel({
                 <div className="form-field"><label htmlFor="terminal-command">{t("Terminal-Startbefehl (optional)", "Terminal launch command (optional)")}</label><input id="terminal-command" value={settings.terminalCommand} onChange={(event) => onSettingsChange({ ...settings, terminalCommand: event.target.value })} placeholder={'wt.exe -d "{projectPath}"'} /><small>{t("Leer lassen, um das Standardterminal des Betriebssystems zu verwenden.", "Leave empty to use the operating-system default terminal.")}</small></div>
               </div>
               <label className="checkbox-row"><input type="checkbox" checked={settings.notifyOnCommandCompletion} onChange={(event) => onSettingsChange({ ...settings, notifyOnCommandCompletion: event.target.checked })} /><span><strong>{t("Desktop-Benachrichtigung nach Commands", "Desktop notification after commands")}</strong><small>{t("Code Deck meldet erfolgreiche und fehlgeschlagene Builds oder Runs über das Betriebssystem.", "Code Deck reports successful and failed builds or runs through the operating system.")}</small></span></label>
+            </section>
+          )}
+
+          {activeSection === "github" && (
+            <section className="settings-page">
+              <div className="settings-page__header">
+                <Icon name="git" />
+                <div><p className="eyebrow">Integration</p><h3>{t("GitHub-Zugriff", "GitHub access")}</h3><small>{t("Ein zentraler Token für alle Projekt-Details", "One central token for every project detail view")}</small></div>
+              </div>
+              <div className="settings-help"><Icon name="info" /><p>{t("Der Token wird nur lokal in den Code-Deck-Einstellungen gespeichert. Beim JSON-Export wird er immer entfernt.", "The token is stored only in local Code Deck settings. It is always removed from JSON exports.")}</p></div>
+              <form className="settings-card github-settings-card" onSubmit={saveGitHubSettings}>
+                <div className="github-settings-card__heading">
+                  <div><strong>{t("Personal Access Token", "Personal access token")}</strong><small>{settings.githubToken ? t("Ein Token ist gespeichert.", "A token is saved.") : t("Kein Token gespeichert. Öffentliche Daten funktionieren weiterhin schreibgeschützt.", "No token saved. Public data still works in read-only mode.")}</small></div>
+                  <span className={`badge ${settings.githubToken ? "badge--success" : "badge--muted"}`}>{settings.githubToken ? t("Verbunden", "Connected") : t("Nicht verbunden", "Not connected")}</span>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="github-token">GitHub Personal Access Token</label>
+                  <div className="input-action-row github-token-input-row">
+                    <input
+                      id="github-token"
+                      type={showGitHubToken ? "text" : "password"}
+                      autoComplete="new-password"
+                      spellCheck={false}
+                      value={githubTokenDraft}
+                      onChange={(event) => setGitHubTokenDraft(event.target.value)}
+                      placeholder="github_pat_…"
+                    />
+                    <button className="button button--secondary" type="button" onClick={() => setShowGitHubToken((value) => !value)}>{showGitHubToken ? t("Verbergen", "Hide") : t("Anzeigen", "Show")}</button>
+                  </div>
+                  <small>{t("Empfohlen: Repository-Metadaten lesen, Issues lesen/schreiben und Pull Requests lesen.", "Recommended: read repository metadata, read/write issues, and read pull requests.")}</small>
+                </div>
+                <div className="notice"><Icon name="info" /><p>{t("Behandle den Token wie ein Passwort. Code Deck verschickt ihn ausschließlich als Authorization-Header an api.github.com.", "Treat the token like a password. Code Deck sends it only as an Authorization header to api.github.com.")}</p></div>
+                <div className="form-actions form-actions--space-between">
+                  <button className="button button--ghost button--danger-text" type="button" onClick={removeGitHubToken} disabled={!settings.githubToken && !githubTokenDraft}><Icon name="trash" />{t("Token entfernen", "Remove token")}</button>
+                  <button className="button button--primary" type="submit"><Icon name="check" />{t("GitHub-Zugriff speichern", "Save GitHub access")}</button>
+                </div>
+              </form>
             </section>
           )}
 

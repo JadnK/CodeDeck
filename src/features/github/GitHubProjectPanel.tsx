@@ -11,6 +11,8 @@ import "./github.css";
 
 type GitHubProjectPanelProps = {
   project: Project;
+  token: string;
+  onOpenGitHubSettings: () => void;
   onRefreshInspection: () => Promise<ProjectInspection | undefined>;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
@@ -78,7 +80,6 @@ type GitHubComment = {
   user: GitHubUser;
 };
 
-const TOKEN_STORAGE_KEY = "code-deck.github-token.session";
 
 function messageOf(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -143,6 +144,8 @@ async function githubRequest<T>(path: string, token: string, init: RequestInit =
 
 export function GitHubProjectPanel({
   project,
+  token,
+  onOpenGitHubSettings,
   onRefreshInspection,
   onSuccess,
   onError,
@@ -153,10 +156,6 @@ export function GitHubProjectPanel({
   const [repository, setRepository] = useState<GitHubRepository>();
   const [repositoryError, setRepositoryError] = useState("");
   const [resolvingRepository, setResolvingRepository] = useState(false);
-  const [token, setToken] = useState(() =>
-    typeof window === "undefined" ? "" : sessionStorage.getItem(TOKEN_STORAGE_KEY) ?? "",
-  );
-  const [tokenDraft, setTokenDraft] = useState(token);
   const [viewer, setViewer] = useState<GitHubUser>();
   const [issues, setIssues] = useState<GitHubIssue[]>([]);
   const [pullRequests, setPullRequests] = useState<GitHubPullRequest[]>([]);
@@ -312,21 +311,6 @@ export function GitHubProjectPanel({
     }
   }
 
-  function saveToken(event: React.FormEvent) {
-    event.preventDefault();
-    const nextToken = tokenDraft.trim();
-    if (nextToken) sessionStorage.setItem(TOKEN_STORAGE_KEY, nextToken);
-    else sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    setToken(nextToken);
-  }
-
-  function disconnectToken() {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
-    setToken("");
-    setTokenDraft("");
-    setViewer(undefined);
-  }
-
   async function toggleIssueState(issue: GitHubIssue) {
     if (!repository || !token) {
       onError(t("Verbinde zuerst einen GitHub-Token.", "Connect a GitHub token first."));
@@ -432,6 +416,11 @@ export function GitHubProjectPanel({
             <code>{remoteUrl}</code>
           </div>
         </div>
+        <div className="github-repository-card__stats" aria-label={t("Repository-Zusammenfassung", "Repository summary")}>
+          <span><strong>{issues.length}</strong><small>Issues</small></span>
+          <span><strong>{pullRequests.length}</strong><small>{t("Pull Requests", "Pull requests")}</small></span>
+          <span><strong>{token ? t("Aktiv", "Active") : t("Lesen", "Read")}</strong><small>{t("GitHub-Zugriff", "GitHub access")}</small></span>
+        </div>
         <div className="github-repository-card__actions">
           {viewer && (
             <span className="github-viewer">
@@ -448,35 +437,21 @@ export function GitHubProjectPanel({
         </div>
       </section>
 
-      <section className="panel github-auth-card">
-        <div>
-          <strong>{viewer ? t("GitHub verbunden", "GitHub connected") : t("Optional: GitHub verbinden", "Optional: connect GitHub")}</strong>
+      <section className={`panel github-auth-card ${token ? "github-auth-card--connected" : ""}`}>
+        <div className="github-auth-card__icon"><Icon name={token ? "check" : "info"} /></div>
+        <div className="github-auth-card__content">
+          <strong>{viewer ? t(`Verbunden als @${viewer.login}`, `Connected as @${viewer.login}`) : token ? t("GitHub-Token gespeichert", "GitHub token saved") : t("GitHub ist schreibgeschützt", "GitHub is read-only")}</strong>
           <p>
             {viewer
-              ? t("Es werden deine zugewiesenen Issues angezeigt. Statusänderungen und Kommentare sind aktiviert.", "Your assigned issues are shown. State changes and comments are enabled.")
-              : t("Ohne Token zeigt Code Deck alle Repository-Issues und Pull Requests nur lesend an.", "Without a token, Code Deck shows all repository issues and pull requests in read-only mode.")}
+              ? t("Zugewiesene Issues, Statusänderungen und Kommentare sind verfügbar.", "Assigned issues, state changes, and comments are available.")
+              : token
+                ? t("Der Token wird über die globalen Code-Deck-Einstellungen verwaltet und beim Laden geprüft.", "The token is managed in global Code Deck settings and validated while loading.")
+                : t("Öffentliche Issues und Pull Requests werden angezeigt. Für Kommentare und Statusänderungen hinterlege einen Token in den Einstellungen.", "Public issues and pull requests are shown. Add a token in Settings to comment or change issue states.")}
           </p>
         </div>
-        <form onSubmit={saveToken} className="github-token-form">
-          <input
-            type="password"
-            autoComplete="off"
-            value={tokenDraft}
-            onChange={(event) => setTokenDraft(event.target.value)}
-            placeholder="github_pat_…"
-            aria-label={t("GitHub Personal Access Token", "GitHub personal access token")}
-          />
-          <button className="button button--secondary button--small" type="submit">
-            <Icon name="check" />{viewer ? t("Token aktualisieren", "Update token") : t("Verbinden", "Connect")}
-          </button>
-          {token && (
-            <button className="button button--ghost button--small" type="button" onClick={disconnectToken}>
-              {t("Trennen", "Disconnect")}
-            </button>
-          )}
-        </form>
-        <small>{t("Der Token bleibt nur für die aktuelle App-Sitzung gespeichert und wird nicht exportiert.", "The token is kept only for the current app session and is not exported.")}</small>
-        <small>{t("Empfohlen für Fine-grained Tokens: Repository-Metadaten lesen, Issues lesen/schreiben und Pull Requests lesen.", "Recommended fine-grained token permissions: read repository metadata, read/write issues, and read pull requests.")}</small>
+        <button className="button button--secondary" type="button" onClick={onOpenGitHubSettings}>
+          <Icon name="settings" />{t("GitHub-Einstellungen", "GitHub settings")}
+        </button>
       </section>
 
       <nav className="github-subtabs" aria-label={t("GitHub-Bereiche", "GitHub sections")}>

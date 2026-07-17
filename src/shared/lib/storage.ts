@@ -66,6 +66,7 @@ export function createDefaultData(): AppData {
       checkForUpdatesOnStartup: true,
       ideDetectionComplete: false,
       notifyOnCommandCompletion: true,
+      githubToken: "",
     },
   };
 }
@@ -191,6 +192,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
         id: workspace.id ?? id(),
         name: workspace.name?.trim() || "Workspace",
         description: workspace.description ?? "",
+        autoStartOnAppLaunch: imported ? false : Boolean(workspace.autoStartOnAppLaunch),
         actions: Array.isArray(workspace.actions)
           ? workspace.actions.map((action, index) => {
               const legacy = action as typeof action & { targetId?: string };
@@ -238,6 +240,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
         ? value.settings!.theme
         : fallback.settings.theme,
       language: value.settings?.language === "de" ? "de" : "en",
+      githubToken: imported ? "" : value.settings?.githubToken?.trim() ?? "",
     },
   };
 }

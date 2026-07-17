@@ -15,6 +15,7 @@ import type {
 type ProjectDetailsProps = {
   project?: Project;
   editors: Editor[];
+  githubToken: string;
   onClose: () => void;
   onUpdate: (project: Project) => void;
   onDelete: (projectId: string) => void;
@@ -27,6 +28,7 @@ type ProjectDetailsProps = {
   onRunProject: (project: Project) => void;
   onOpenProjectUrl: (project: Project) => void;
   onRefreshInspection: (project: Project) => Promise<ProjectInspection | undefined>;
+  onOpenGitHubSettings: () => void;
   onSuccess: (message: string) => void;
   onError: (message: string) => void;
 };
@@ -37,6 +39,7 @@ type Tab = "overview" | "commands" | "git" | "edit";
 export function ProjectDetails({
   project,
   editors,
+  githubToken,
   onClose,
   onUpdate,
   onDelete,
@@ -49,6 +52,7 @@ export function ProjectDetails({
   onRunProject,
   onOpenProjectUrl,
   onRefreshInspection,
+  onOpenGitHubSettings,
   onSuccess,
   onError,
 }: ProjectDetailsProps) {
@@ -338,6 +342,8 @@ export function ProjectDetails({
           {tab === "git" && (
             <GitHubProjectPanel
               project={project}
+              token={githubToken}
+              onOpenGitHubSettings={onOpenGitHubSettings}
               onRefreshInspection={() => onRefreshInspection(project)}
               onSuccess={onSuccess}
               onError={onError}

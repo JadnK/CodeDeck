@@ -584,3 +584,367 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Readability pass: GitHub is a primary project workspace, not a compact widget. */
+.github-project-panel {
+  gap: 16px;
+  font-size: 13px;
+}
+
+.github-project-panel > .panel,
+.github-project-panel .github-issue-layout > .panel {
+  padding: 18px;
+}
+
+.github-project-panel .panel__header {
+  margin-bottom: 16px;
+}
+
+.github-project-panel .panel__header h3 {
+  font-size: 15px;
+}
+
+.github-project-panel .eyebrow {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.github-project-panel .button {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+.github-repository-card {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  align-items: center;
+  gap: 20px;
+  border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, var(--surface)), var(--surface));
+}
+
+.github-repository-card__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+}
+
+.github-repository-card__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.github-repository-card__identity {
+  gap: 14px;
+}
+
+.github-repository-card__identity h3 {
+  margin-bottom: 5px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.github-repository-card__identity code {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.github-repository-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(86px, auto));
+  gap: 8px;
+}
+
+.github-repository-card__stats > span {
+  display: grid;
+  gap: 3px;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-small);
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--surface-2) 88%, transparent);
+}
+
+.github-repository-card__stats strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.github-repository-card__stats small {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.github-repository-card__actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.github-viewer {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.github-viewer img,
+.github-comments header img {
+  width: 26px;
+  height: 26px;
+}
+
+.github-auth-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  border-color: var(--border-strong);
+}
+
+.github-auth-card--connected {
+  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
+  background: color-mix(in srgb, var(--success) 5%, var(--surface));
+}
+
+.github-auth-card__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--primary);
+  background: var(--surface-2);
+}
+
+.github-auth-card--connected .github-auth-card__icon {
+  color: var(--success);
+}
+
+.github-auth-card__icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.github-auth-card__content {
+  display: grid;
+  gap: 5px;
+}
+
+.github-auth-card__content strong {
+  font-size: 13.5px;
+}
+
+.github-auth-card__content p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.github-subtabs {
+  gap: 7px;
+  padding: 6px;
+}
+
+.github-subtabs button {
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 15px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.github-subtabs button span {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  font-size: 10.5px;
+}
+
+.github-issue-layout {
+  grid-template-columns: minmax(320px, 0.78fr) minmax(0, 1.55fr);
+  gap: 16px;
+  min-height: 590px;
+}
+
+.github-item-list,
+.github-issue-detail {
+  max-height: 780px;
+}
+
+.github-item-list__items {
+  gap: 7px;
+}
+
+.github-item-list__items > button {
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+}
+
+.github-item-list__items > button > span:last-child {
+  gap: 6px;
+}
+
+.github-item-list__items strong {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.github-item-list__items small {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.github-state-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+}
+
+.github-issue-detail {
+  gap: 18px;
+}
+
+.github-issue-detail__header {
+  gap: 18px;
+  padding-bottom: 16px;
+}
+
+.github-issue-detail__header h3 {
+  margin-top: 10px;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.github-issue-detail__header p {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.github-meta-row {
+  gap: 10px;
+}
+
+.github-meta-row > div {
+  gap: 5px;
+  padding: 11px 12px;
+}
+
+.github-meta-row span {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.github-meta-row strong {
+  font-size: 12.5px;
+}
+
+.github-label-row {
+  gap: 7px;
+}
+
+.github-label-row span {
+  padding: 4px 9px;
+  font-size: 10.5px;
+}
+
+.github-issue-body pre,
+.github-comments pre {
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.github-issue-body pre {
+  padding: 16px;
+}
+
+.github-comments {
+  gap: 12px;
+}
+
+.github-comments article header {
+  padding: 10px 12px;
+}
+
+.github-comments article header span {
+  color: var(--text);
+  font-size: 11.5px;
+}
+
+.github-comments article header small {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+.github-comments article pre {
+  padding: 13px 14px;
+}
+
+.github-comment-form textarea {
+  min-height: 118px;
+  font-size: 13px;
+}
+
+.github-pull-list > button {
+  gap: 12px;
+  padding: 13px 14px;
+}
+
+.github-pull-list strong {
+  font-size: 13.5px;
+}
+
+.github-pull-list small,
+.github-pull-list__date {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.github-project-panel .git-bulk-stage-option strong {
+  font-size: 12.5px;
+}
+
+.github-project-panel .git-bulk-stage-option small,
+.github-project-panel .git-bulk-stage-note {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+
+@media (max-width: 1180px) {
+  .github-repository-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .github-repository-card__stats {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .github-repository-card,
+  .github-auth-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .github-auth-card__icon {
+    display: none;
+  }
+
+  .github-repository-card__actions {
+    justify-content: flex-start;
+  }
+
+  .github-issue-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .github-item-list,
+  .github-issue-detail {
+    max-height: none;
+  }
+}
