@@ -704,7 +704,12 @@ pub(crate) fn shell_command(script: &str) -> Command {
     {
         use std::os::windows::process::CommandExt;
         let mut command = Command::new("cmd.exe");
-        command.args(["/D", "/S", "/C", script]);
+        let utf8_script = format!("chcp 65001>nul 2>nul & {script}");
+        command
+            .args(["/D", "/S", "/C"])
+            .arg(utf8_script)
+            .env("PYTHONUTF8", "1")
+            .env("PYTHONIOENCODING", "utf-8");
         command.creation_flags(CREATE_NO_WINDOW);
         command
     }

@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Read},
     path::PathBuf,
     process::{Command, Stdio},
     thread,
@@ -14,6 +14,52 @@ use crate::{
     process::state::{ProcessExitEvent, ProcessOutputEvent, ProcessStarted},
     projects::validation::display_path,
 };
+
+fn stream_process_output<R>(
+    reader: R,
+    app: AppHandle,
+    run_id: String,
+    stream: &'static str,
+) where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut reader = BufReader::new(reader);
+        let mut bytes = Vec::new();
+
+        loop {
+            bytes.clear();
+            match reader.read_until(b'\n', &mut bytes) {
+                Ok(0) => break,
+                Ok(_) => {
+                    while matches!(bytes.last().copied(), Some(b'\n') | Some(b'\r')) {
+                        bytes.pop();
+                    }
+                    let line = String::from_utf8_lossy(&bytes).into_owned();
+                    let _ = app.emit(
+                        "code-deck://process-output",
+                        ProcessOutputEvent {
+                            run_id: run_id.clone(),
+                            stream: stream.to_string(),
+                            line,
+                        },
+                    );
+                }
+                Err(error) => {
+                    let _ = app.emit(
+                        "code-deck://process-output",
+                        ProcessOutputEvent {
+                            run_id: run_id.clone(),
+                            stream: "stderr".to_string(),
+                            line: format!("[Code Deck] Output konnte nicht gelesen werden: {error}"),
+                        },
+                    );
+                    break;
+                }
+            }
+        }
+    });
+}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn start_process(
@@ -68,37 +114,11 @@ pub(crate) fn start_process(
     let pid = child.id();
 
     if let Some(stdout) = child.stdout.take() {
-        let app = app.clone();
-        let run_id = run_id.clone();
-        thread::spawn(move || {
-            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-                let _ = app.emit(
-                    "code-deck://process-output",
-                    ProcessOutputEvent {
-                        run_id: run_id.clone(),
-                        stream: "stdout".to_string(),
-                        line,
-                    },
-                );
-            }
-        });
+        stream_process_output(stdout, app.clone(), run_id.clone(), "stdout");
     }
 
     if let Some(stderr) = child.stderr.take() {
-        let app = app.clone();
-        let run_id = run_id.clone();
-        thread::spawn(move || {
-            for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-                let _ = app.emit(
-                    "code-deck://process-output",
-                    ProcessOutputEvent {
-                        run_id: run_id.clone(),
-                        stream: "stderr".to_string(),
-                        line,
-                    },
-                );
-            }
-        });
+        stream_process_output(stderr, app.clone(), run_id.clone(), "stderr");
     }
 
     thread::spawn(move || {
