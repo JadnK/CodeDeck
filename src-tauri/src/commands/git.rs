@@ -12,6 +12,34 @@ use crate::{
 };
 
 #[tauri::command]
+pub(crate) fn git_remote_url(project_path: String) -> Result<Option<String>, String> {
+    let root = git_project_root(&project_path)?;
+    if let Some(origin) = command_output(&root, "git", &["remote", "get-url", "origin"])
+        .filter(|value| !value.is_empty())
+    {
+        return Ok(Some(origin));
+    }
+
+    let remote_name = command_output(&root, "git", &["remote"]).and_then(|value| {
+        value
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty())
+            .map(ToString::to_string)
+    });
+    let Some(remote_name) = remote_name else {
+        return Ok(None);
+    };
+
+    Ok(command_output(
+        &root,
+        "git",
+        &["remote", "get-url", remote_name.as_str()],
+    )
+    .filter(|value| !value.is_empty()))
+}
+
+#[tauri::command]
 pub(crate) fn git_init_repository(project_path: String) -> Result<(), String> {
     let root = PathBuf::from(project_path.trim());
     if !root.is_dir() {

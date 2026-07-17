@@ -123,6 +123,9 @@ export const gitCreateBranch = (projectPath: string, branch: string) =>
 export const gitRemoteAction = (projectPath: string, action: "fetch" | "pull" | "push") =>
   call<string>("git_remote_action", { projectPath, action });
 
+export const getGitRemoteUrl = (projectPath: string) =>
+  call<string | null>("git_remote_url", { projectPath });
+
 export const getGitConflict = (projectPath: string, filePath: string) =>
   call<GitConflictContent>("git_conflict_content", { projectPath, filePath });
 

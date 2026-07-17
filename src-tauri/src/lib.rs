@@ -103,6 +103,7 @@ pub fn run() {
             commands::git::git_checkout_branch,
             commands::git::git_create_branch,
             commands::git::git_remote_action,
+            commands::git::git_remote_url,
             commands::git::git_conflict_content,
             commands::git::git_resolve_conflict,
             commands::git::git_continue_operation,

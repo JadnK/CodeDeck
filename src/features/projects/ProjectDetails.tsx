@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
-import { GitProjectPanel } from "../git/GitProjectPanel";
+import { GitHubProjectPanel } from "../github/GitHubProjectPanel";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
@@ -226,7 +226,7 @@ export function ProjectDetails({
         <nav className="tab-list" aria-label={t("Projektdetails", "Project details")}>
           <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")} type="button">{t("Übersicht", "Overview")}</button>
           <button className={tab === "commands" ? "active" : ""} onClick={() => setTab("commands")} type="button">{t("Commands", "Commands")} <span>{project.commands.length}</span></button>
-          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">{t("Git & Historie", "Git & history")}</button>
+          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">{t("GitHub", "GitHub")}</button>
           <button className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")} type="button">{t("Bearbeiten", "Edit")}</button>
         </nav>
 
@@ -336,7 +336,7 @@ export function ProjectDetails({
           )}
 
           {tab === "git" && (
-            <GitProjectPanel
+            <GitHubProjectPanel
               project={project}
               onRefreshInspection={() => onRefreshInspection(project)}
               onSuccess={onSuccess}
