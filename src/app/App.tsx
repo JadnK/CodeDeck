@@ -14,7 +14,7 @@ import { ToastStack, type Toast } from "../shared/components/ToastStack";
 import { I18nProvider, translate } from "../shared/i18n/I18n";
 import { createId, loadData, normalizeData, saveData } from "../shared/lib/storage";
 import { editorNeedsPathRepair, mergeEditorSuggestions } from "../shared/lib/editors";
-import { getDetectionSearchTerms } from "../shared/lib/projectInspection";
+import { getDetectedTechnologies, getDetectionSearchTerms } from "../shared/lib/projectInspection";
 import { resolveRuntimeCommand, runtimeEnvironment, suggestBuildCommand, suggestDevPort, suggestRunCommand } from "../shared/lib/projectRuntime";
 import {
   chooseConfigFile,
@@ -131,6 +131,7 @@ export function App() {
   const [search, setSearch] = useState("");
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [selectedTechnologies, setSelectedTechnologies] = useState<string[]>([]);
   const [projectSortKey, setProjectSortKey] = useState<ProjectSortKey>("default");
   const [projectSortDirection, setProjectSortDirection] = useState<SortDirection>("desc");
   const [selectedProjectId, setSelectedProjectId] = useState<string>();
@@ -161,11 +162,35 @@ export function App() {
   const editorById = useMemo(() => new Map(data.editors.map((editor) => [editor.id, editor])), [data.editors]);
   const activeProcesses = data.processHistory.filter((process) => ["starting", "running", "stopping"].includes(process.status));
 
+  const availableTechnologies = useMemo(() => {
+    const technologiesByKey = new Map<string, ReturnType<typeof getDetectedTechnologies>[number]>();
+
+    for (const project of data.projects) {
+      if (!showArchived && project.archived) continue;
+
+      for (const technology of getDetectedTechnologies(project.inspection)) {
+        const key = technology.label.toLowerCase();
+        if (!technologiesByKey.has(key)) technologiesByKey.set(key, technology);
+      }
+    }
+
+    return [...technologiesByKey.values()].sort((a, b) =>
+      a.label.localeCompare(b.label, data.settings.language, { numeric: true, sensitivity: "base" }),
+    );
+  }, [data.projects, data.settings.language, showArchived]);
+
   const visibleProjects = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return [...data.projects]
       .filter((project) => showArchived ? true : !project.archived)
       .filter((project) => favoriteOnly ? project.favorite : true)
+      .filter((project) => {
+        if (selectedTechnologies.length === 0) return true;
+        const projectTechnologies = new Set(
+          getDetectedTechnologies(project.inspection).map((technology) => technology.label.toLowerCase()),
+        );
+        return selectedTechnologies.every((technology) => projectTechnologies.has(technology));
+      })
       .filter((project) => {
         if (!needle) return true;
         return [
@@ -203,7 +228,21 @@ export function App() {
 
         return projectSortDirection === "asc" ? comparison : -comparison;
       });
-  }, [data.projects, data.settings.language, favoriteOnly, projectSortDirection, projectSortKey, search, showArchived]);
+  }, [data.projects, data.settings.language, favoriteOnly, projectSortDirection, projectSortKey, search, selectedTechnologies, showArchived]);
+
+  function toggleTechnologyFilter(technology: string) {
+    const key = technology.toLowerCase();
+    setSelectedTechnologies((current) =>
+      current.includes(key) ? current.filter((entry) => entry !== key) : [...current, key],
+    );
+  }
+
+  function resetProjectFilters() {
+    setSearch("");
+    setFavoriteOnly(false);
+    setShowArchived(false);
+    setSelectedTechnologies([]);
+  }
 
   function changeProjectSort(key: Exclude<ProjectSortKey, "default">) {
     if (projectSortKey === key) {
@@ -230,6 +269,14 @@ export function App() {
     const timer = window.setTimeout(() => saveData(data), 200);
     return () => window.clearTimeout(timer);
   }, [data]);
+
+  useEffect(() => {
+    const availableKeys = new Set(availableTechnologies.map((technology) => technology.label.toLowerCase()));
+    setSelectedTechnologies((current) => {
+      const next = current.filter((technology) => availableKeys.has(technology));
+      return next.length === current.length ? current : next;
+    });
+  }, [availableTechnologies]);
 
   useEffect(() => {
     document.documentElement.lang = data.settings.language;
@@ -827,13 +874,45 @@ export function App() {
               <span>{t("Archivierte anzeigen", "Show archived")}</span>
             </label>
           </div>
-          {(search || favoriteOnly || showArchived) && (
-            <button className="text-button filter-reset" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setShowArchived(false); }}>
+          {(search || favoriteOnly || showArchived || selectedTechnologies.length > 0) && (
+            <button className="text-button filter-reset" type="button" onClick={resetProjectFilters}>
               <Icon name="x" />
               <span>{t("Zurücksetzen", "Reset")}</span>
             </button>
           )}
         </section>
+
+        {availableTechnologies.length > 0 && (
+          <section className="technology-filter" aria-label={t("Nach Technologien filtern", "Filter by technologies")}>
+            <span className="technology-filter__label">{t("Technologien", "Technologies")}</span>
+            <div className="technology-filter__pills">
+              {availableTechnologies.map((technology) => {
+                const key = technology.label.toLowerCase();
+                const selected = selectedTechnologies.includes(key);
+                return (
+                  <button
+                    className={`technology-filter__pill badge badge--${technology.kind} ${selected ? "active" : ""}`}
+                    type="button"
+                    key={`${technology.kind}:${key}`}
+                    onClick={() => toggleTechnologyFilter(technology.label)}
+                    aria-pressed={selected}
+                    title={selected
+                      ? t(`${technology.label} aus dem Filter entfernen`, `Remove ${technology.label} from the filter`)
+                      : t(`Nur Projekte mit ${technology.label} anzeigen`, `Show projects using ${technology.label}`)}
+                  >
+                    <i aria-hidden="true" />
+                    {technology.label}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTechnologies.length > 1 && (
+              <small className="technology-filter__hint">
+                {t("Alle ausgewählten Technologien müssen vorhanden sein", "Projects must match every selected technology")}
+              </small>
+            )}
+          </section>
+        )}
 
         {visibleProjects.length ? (
           <section className="project-list" aria-label={t("Projektliste", "Project list")}>
@@ -901,7 +980,7 @@ export function App() {
             <p>{emptyBecauseFilters ? t("Ändere die Suche oder setze die Filter zurück.", "Change the search or reset the filters.") : t("Erstelle ein Projekt, füge einen Ordner hinzu oder klone ein Repository.", "Create a project, add a folder or clone a repository.")}</p>
             <div className="button-row">
               {emptyBecauseFilters ? (
-                <button className="button button--secondary" type="button" onClick={() => { setSearch(""); setFavoriteOnly(false); setShowArchived(false); }}>
+                <button className="button button--secondary" type="button" onClick={resetProjectFilters}>
                   <Icon name="refresh" />
                   <span>{t("Filter zurücksetzen", "Reset filters")}</span>
                 </button>
