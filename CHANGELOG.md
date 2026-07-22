@@ -15,6 +15,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.3.0] - 2026-07-22
+
+### Added
+
+- Projects: Add AND-combined technology filters.
+
 ## [1.2.6] - 2026-07-22
 
 ### Fixed
@@ -319,7 +325,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.6...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/JadnK/CodeDeck/compare/v1.2.6...v1.3.0
 [1.2.6]: https://github.com/JadnK/CodeDeck/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/JadnK/CodeDeck/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/JadnK/CodeDeck/compare/v1.2.3...v1.2.4
