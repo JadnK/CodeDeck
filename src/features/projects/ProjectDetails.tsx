@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
+import { GitProjectPanel } from "../git/GitProjectPanel";
 import { GitHubProjectPanel } from "../github/GitHubProjectPanel";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
@@ -33,7 +34,7 @@ type ProjectDetailsProps = {
   onError: (message: string) => void;
 };
 
-type Tab = "overview" | "commands" | "git" | "edit";
+type Tab = "overview" | "commands" | "git" | "github" | "edit";
 
 
 export function ProjectDetails({
@@ -230,7 +231,8 @@ export function ProjectDetails({
         <nav className="tab-list" aria-label={t("Projektdetails", "Project details")}>
           <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")} type="button">{t("Übersicht", "Overview")}</button>
           <button className={tab === "commands" ? "active" : ""} onClick={() => setTab("commands")} type="button">{t("Commands", "Commands")} <span>{project.commands.length}</span></button>
-          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">{t("GitHub", "GitHub")}</button>
+          <button className={tab === "git" ? "active" : ""} onClick={() => setTab("git")} type="button">Git</button>
+          <button className={tab === "github" ? "active" : ""} onClick={() => setTab("github")} type="button">GitHub</button>
           <button className={tab === "edit" ? "active" : ""} onClick={() => setTab("edit")} type="button">{t("Bearbeiten", "Edit")}</button>
         </nav>
 
@@ -340,6 +342,15 @@ export function ProjectDetails({
           )}
 
           {tab === "git" && (
+            <GitProjectPanel
+              project={project}
+              onRefreshInspection={() => onRefreshInspection(project)}
+              onSuccess={onSuccess}
+              onError={onError}
+            />
+          )}
+
+          {tab === "github" && (
             <GitHubProjectPanel
               project={project}
               token={githubToken}

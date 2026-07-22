@@ -929,6 +929,34 @@ pub(crate) fn launch_template(
     })
 }
 
+#[cfg(all(unix, not(target_os = "macos")))]
+fn linux_terminal_arguments(program: &str, executable: &Path, project_path: &str) -> Vec<String> {
+    let executable_name = fs::canonicalize(executable)
+        .ok()
+        .and_then(|path| {
+            path.file_stem()
+                .map(|name| name.to_string_lossy().to_ascii_lowercase())
+        })
+        .unwrap_or_else(|| program.to_ascii_lowercase());
+
+    if executable_name.contains("ghostty") {
+        return vec![
+            "+new-window".to_string(),
+            format!("--working-directory={project_path}"),
+        ];
+    }
+
+    if executable_name.contains("gnome-terminal") {
+        return vec!["--working-directory".to_string(), project_path.to_string()];
+    }
+
+    if executable_name.contains("konsole") {
+        return vec!["--workdir".to_string(), project_path.to_string()];
+    }
+
+    Vec::new()
+}
+
 pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> Result<(), String> {
     let path = PathBuf::from(&project_path);
     if !path.is_dir() {
@@ -969,28 +997,35 @@ pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> R
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        if which::which("gnome-terminal").is_ok() {
-            return Command::new("gnome-terminal")
-                .args(["--working-directory", &project_path])
+        for program in [
+            "ghostty",
+            "gnome-terminal",
+            "konsole",
+            "x-terminal-emulator",
+            "xterm",
+        ] {
+            let Ok(executable) = which::which(program) else {
+                continue;
+            };
+
+            let arguments = linux_terminal_arguments(program, &executable, &project_path);
+            let mut command = Command::new(&executable);
+            sanitize_appimage_environment(&mut command);
+
+            return command
+                .args(arguments)
+                .current_dir(&path)
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
                 .spawn()
                 .map(|_| ())
-                .map_err(|error| format!("Terminal konnte nicht gestartet werden: {error}"));
-        }
-        if which::which("konsole").is_ok() {
-            return Command::new("konsole")
-                .args(["--workdir", &project_path])
-                .spawn()
-                .map(|_| ())
-                .map_err(|error| format!("Terminal konnte nicht gestartet werden: {error}"));
-        }
-        for program in ["x-terminal-emulator", "xterm"] {
-            if which::which(program).is_ok() {
-                return Command::new(program)
-                    .current_dir(&path)
-                    .spawn()
-                    .map(|_| ())
-                    .map_err(|error| format!("Terminal konnte nicht gestartet werden: {error}"));
-            }
+                .map_err(|error| {
+                    format!(
+                        "Terminal '{}' konnte nicht gestartet werden: {error}",
+                        display_path(&executable)
+                    )
+                });
         }
         Err("Kein unterstütztes Terminal gefunden. Lege in den Einstellungen ein Terminal-Template fest.".to_string())
     }
@@ -998,4 +1033,39 @@ pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> R
 
 pub(crate) fn open_target(target: String) -> Result<(), String> {
     open::that(&target).map_err(|error| format!("Ziel konnte nicht geöffnet werden: {error}"))
+}
+
+#[cfg(all(test, unix, not(target_os = "macos")))]
+mod tests {
+    use super::linux_terminal_arguments;
+    use std::path::Path;
+
+    #[test]
+    fn ghostty_receives_the_project_working_directory() {
+        let arguments = linux_terminal_arguments(
+            "ghostty",
+            Path::new("/usr/bin/ghostty"),
+            "/tmp/Code Deck",
+        );
+
+        assert_eq!(
+            arguments,
+            vec![
+                "+new-window".to_string(),
+                "--working-directory=/tmp/Code Deck".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn generic_terminals_keep_using_the_spawn_working_directory() {
+        assert!(
+            linux_terminal_arguments(
+                "xterm",
+                Path::new("/usr/bin/xterm"),
+                "/tmp/project",
+            )
+            .is_empty()
+        );
+    }
 }
