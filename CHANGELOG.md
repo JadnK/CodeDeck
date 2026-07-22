@@ -15,6 +15,14 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.2.6] - 2026-07-22
+
+### Fixed
+
+- Projects: Restore local Git tab alongside GitHub integration.
+- Removed patch file.
+- Issue #9 and Issue #8.
+
 ## [1.2.5] - 2026-07-17
 
 ### Added
@@ -311,7 +319,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.5...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.2.6...HEAD
+[1.2.6]: https://github.com/JadnK/CodeDeck/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/JadnK/CodeDeck/compare/v1.2.4...v1.2.5
 [1.2.4]: https://github.com/JadnK/CodeDeck/compare/v1.2.3...v1.2.4
 [1.2.3]: https://github.com/JadnK/CodeDeck/compare/v1.2.2...v1.2.3
