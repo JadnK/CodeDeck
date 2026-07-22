@@ -941,7 +941,7 @@ fn linux_terminal_arguments(program: &str, executable: &Path, project_path: &str
 
     if executable_name.contains("ghostty") {
         return vec![
-            "+new-window".to_string(),
+            "--gtk-single-instance=false".to_string(),
             format!("--working-directory={project_path}"),
         ];
     }
@@ -997,11 +997,13 @@ pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> R
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
+        let mut launch_errors = Vec::new();
+
         for program in [
-            "ghostty",
             "gnome-terminal",
             "konsole",
             "x-terminal-emulator",
+            "ghostty",
             "xterm",
         ] {
             let Ok(executable) = which::which(program) else {
@@ -1011,23 +1013,22 @@ pub(crate) fn open_terminal(project_path: String, terminal_command: String) -> R
             let arguments = linux_terminal_arguments(program, &executable, &project_path);
             let mut command = Command::new(&executable);
             sanitize_appimage_environment(&mut command);
+            command.args(arguments).current_dir(&path);
 
-            return command
-                .args(arguments)
-                .current_dir(&path)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map(|_| ())
-                .map_err(|error| {
-                    format!(
-                        "Terminal '{}' konnte nicht gestartet werden: {error}",
-                        display_path(&executable)
-                    )
-                });
+            match command.spawn() {
+                Ok(_) => return Ok(()),
+                Err(error) => launch_errors.push(format!("{}: {error}", display_path(&executable))),
+            }
         }
-        Err("Kein unterstütztes Terminal gefunden. Lege in den Einstellungen ein Terminal-Template fest.".to_string())
+
+        if launch_errors.is_empty() {
+            Err("Kein unterstütztes Terminal gefunden. Lege in den Einstellungen ein Terminal-Template fest.".to_string())
+        } else {
+            Err(format!(
+                "Kein Terminal konnte gestartet werden: {}",
+                launch_errors.join("; ")
+            ))
+        }
     }
 }
 
@@ -1042,16 +1043,13 @@ mod tests {
 
     #[test]
     fn ghostty_receives_the_project_working_directory() {
-        let arguments = linux_terminal_arguments(
-            "ghostty",
-            Path::new("/usr/bin/ghostty"),
-            "/tmp/Code Deck",
-        );
+        let arguments =
+            linux_terminal_arguments("ghostty", Path::new("/usr/bin/ghostty"), "/tmp/Code Deck");
 
         assert_eq!(
             arguments,
             vec![
-                "+new-window".to_string(),
+                "--gtk-single-instance=false".to_string(),
                 "--working-directory=/tmp/Code Deck".to_string(),
             ]
         );
@@ -1060,12 +1058,8 @@ mod tests {
     #[test]
     fn generic_terminals_keep_using_the_spawn_working_directory() {
         assert!(
-            linux_terminal_arguments(
-                "xterm",
-                Path::new("/usr/bin/xterm"),
-                "/tmp/project",
-            )
-            .is_empty()
+            linux_terminal_arguments("xterm", Path::new("/usr/bin/xterm"), "/tmp/project",)
+                .is_empty()
         );
     }
 }
