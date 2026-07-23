@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>CodeDeck Hosted</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="login" class="login-shell" hidden>
+      <form id="login-form" class="login-card">
+        <div class="brand-mark">CD</div>
+        <p class="eyebrow">SELF-HOSTED</p>
+        <h1>CodeDeck</h1>
+        <p class="muted">Connect to the CodeDeck service running on your server.</p>
+        <label>
+          Access token
+          <input id="token" type="password" autocomplete="current-password" required autofocus />
+        </label>
+        <label class="check-row"><input id="remember-token" type="checkbox" /> Remember on this browser</label>
+        <button class="primary" type="submit">Open dashboard</button>
+        <p id="login-error" class="error-text" role="alert"></p>
+      </form>
+    </div>
+
+    <div id="app" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark small">CD</span><div><strong>CodeDeck</strong><small>Hosted</small></div></div>
+        <nav>
+          <button class="nav-item active" data-view="projects">Projects</button>
+          <button class="nav-item" data-view="processes">Processes <span id="process-count" class="badge">0</span></button>
+          <button class="nav-item" data-view="settings">Settings</button>
+        </nav>
+        <div class="sidebar-footer">
+          <span id="runtime-version">Hosted</span>
+          <button id="logout" class="ghost compact">Log out</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">SERVER WORKSPACE</p>
+            <h1 id="page-title">Projects</h1>
+          </div>
+          <div class="top-actions">
+            <button id="scan-open" class="secondary">Scan folders</button>
+            <button id="add-open" class="primary">Add project</button>
+          </div>
+        </header>
+
+        <section id="projects-view" class="view active">
+          <div class="toolbar">
+            <input id="search" class="search" type="search" placeholder="Search projects, paths, technologies…" />
+            <label class="check-row"><input id="favorites-only" type="checkbox" /> Favorites</label>
+          </div>
+          <div id="technology-filter" class="pill-row"></div>
+          <div class="project-layout">
+            <section>
+              <div id="project-list" class="project-grid"></div>
+              <div id="project-empty" class="empty-state" hidden>
+                <h2>No projects yet</h2>
+                <p>Mount a projects directory into the container, then add or scan it.</p>
+                <button class="primary" data-action="empty-add">Add first project</button>
+              </div>
+            </section>
+            <aside id="details" class="details-panel">
+              <div class="details-placeholder">
+                <div class="placeholder-icon">⌘</div>
+                <h2>Select a project</h2>
+                <p>Inspect technologies, run saved commands, and view Git status.</p>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section id="processes-view" class="view">
+          <div id="process-list" class="stack"></div>
+          <div id="process-empty" class="empty-state"><h2>No active processes</h2><p>Started commands and live output appear here.</p></div>
+        </section>
+
+        <section id="settings-view" class="view">
+          <div class="settings-grid">
+            <article class="panel">
+              <h2>Configuration</h2>
+              <p class="muted">The hosted instance persists data in the Docker volume mounted at <code>/data</code>.</p>
+              <div class="button-row">
+                <button id="export-data" class="secondary">Export JSON</button>
+                <label class="secondary file-button">Import JSON<input id="import-data" type="file" accept="application/json" hidden /></label>
+              </div>
+            </article>
+            <article class="panel">
+              <h2>Server paths</h2>
+              <p class="muted">Only paths below the mounted projects root are accessible.</p>
+              <dl class="meta-list"><div><dt>Projects root</dt><dd id="projects-root">Loading…</dd></div><div><dt>API mode</dt><dd>Bearer token</dd></div></dl>
+            </article>
+            <article class="panel warning-panel">
+              <h2>Command security</h2>
+              <p>Commands execute inside the container with access to the mounted project files. Only run commands you trust and keep the service behind HTTPS, a VPN, or an SSH tunnel.</p>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="add-dialog">
+      <form id="add-form" class="dialog-card">
+        <header><div><p class="eyebrow">NEW PROJECT</p><h2>Add server folder</h2></div><button type="button" class="icon-button" data-close="add-dialog">×</button></header>
+        <label>Project path<input id="add-path" placeholder="/projects/my-project" required /></label>
+        <div id="folder-browser" class="folder-browser"></div>
+        <label>Display name<input id="add-name" placeholder="Detected from folder name" /></label>
+        <label>Description<textarea id="add-description" rows="3" placeholder="Optional"></textarea></label>
+        <footer><button type="button" class="ghost" data-close="add-dialog">Cancel</button><button class="primary" type="submit">Add project</button></footer>
+        <p id="add-error" class="error-text"></p>
+      </form>
+    </dialog>
+
+    <dialog id="scan-dialog">
+      <form id="scan-form" class="dialog-card wide">
+        <header><div><p class="eyebrow">DISCOVERY</p><h2>Scan project folders</h2></div><button type="button" class="icon-button" data-close="scan-dialog">×</button></header>
+        <div class="inline-form"><input id="scan-path" placeholder="/projects" required /><button class="secondary" type="submit">Scan</button></div>
+        <div id="scan-results" class="scan-results"><p class="muted">Choose a mounted folder and scan up to three levels deep.</p></div>
+        <footer><button type="button" class="ghost" data-close="scan-dialog">Close</button><button id="scan-add-selected" class="primary" type="button" disabled>Add selected</button></footer>
+        <p id="scan-error" class="error-text"></p>
+      </form>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
