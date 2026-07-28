@@ -241,4 +241,4 @@ CodeDeck is available under the [MIT License](LICENSE).
   <br>
   If CodeDeck helps your workflow, consider giving the repository a ⭐.
 </p>
-"If you have any Ideas open an Issue!" 
+"Badge test 2" 
