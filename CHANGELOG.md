@@ -15,6 +15,23 @@ The project follows [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+## [1.3.1] - 2026-07-28
+
+### Added
+
+- Added web.
+
+### Changed
+
+- Removed patch.
+- Ci fix.
+- Remove hosted.
+- Remove patch.
+
+### Fixed
+
+- Resolve localization, git diff and markdown issues.
+
 ## [1.3.0] - 2026-07-22
 
 ### Added
@@ -325,7 +342,8 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Imported commands are never started automatically.
 - Project inspection does not modify project source files.
 
-[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/JadnK/CodeDeck/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/JadnK/CodeDeck/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/JadnK/CodeDeck/compare/v1.2.6...v1.3.0
 [1.2.6]: https://github.com/JadnK/CodeDeck/compare/v1.2.5...v1.2.6
 [1.2.5]: https://github.com/JadnK/CodeDeck/compare/v1.2.4...v1.2.5
