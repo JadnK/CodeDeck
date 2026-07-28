@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Icon } from "../../shared/components/Icon";
+import { Markdown } from "../../shared/components/Markdown";
 import { useI18n } from "../../shared/i18n/I18n";
 import { getGitRemoteUrl, openTarget } from "../../shared/lib/tauri";
 import type { Project, ProjectInspection } from "../../shared/types/models";
@@ -555,7 +556,7 @@ export function GitHubProjectPanel({
                 )}
 
                 <div className="github-issue-body">
-                  <pre>{selectedIssue.body || t("Keine Beschreibung vorhanden.", "No description provided.")}</pre>
+                  <Markdown>{selectedIssue.body || t("Keine Beschreibung vorhanden.", "No description provided.")}</Markdown>
                 </div>
 
                 <div className="github-comments">
@@ -571,7 +572,7 @@ export function GitHubProjectPanel({
                           <span><img src={comment.user.avatar_url} alt="" />@{comment.user.login}</span>
                           <small>{formatDate(comment.created_at)}</small>
                         </header>
-                        <pre>{comment.body}</pre>
+                        <Markdown>{comment.body}</Markdown>
                       </article>
                     ))
                   ) : (

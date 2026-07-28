@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
+import { Markdown } from "../../shared/components/Markdown";
 import { Modal } from "../../shared/components/Modal";
 import { useI18n } from "../../shared/i18n/I18n";
 import { createId } from "../../shared/lib/storage";
@@ -175,14 +176,25 @@ export function ProjectTodosModal({ project, onClose, onUpdate, onError }: Proje
                         <option value="done">{t("Erledigt", "Done")}</option>
                       </select>
                     </div>
-                    <button className="todo-item__content" type="button" onClick={() => editTodo(todo)}>
+                    <div
+                      className="todo-item__content"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => editTodo(todo)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          editTodo(todo);
+                        }
+                      }}
+                    >
                       <span className="todo-item__title-row">
                         <strong>{todo.title}</strong>
                         <span className={`todo-priority todo-priority--${todo.priority}`}>{priorityLabel(todo.priority)}</span>
                       </span>
-                      {todo.description && <p>{todo.description}</p>}
+                      {todo.description && <Markdown className="todo-item__description" allowInteractiveElements={false}>{todo.description}</Markdown>}
                       <small>{t("Aktualisiert", "Updated")} {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(todo.updatedAt))}</small>
-                    </button>
+                    </div>
                     <div className="todo-item__actions">
                       <button className="icon-button icon-button--small" type="button" onClick={() => moveTodo(todo.id, -1)} disabled={sortMode !== "manual" || manualIndex <= 0} title={t("Nach oben", "Move up")}><Icon name="arrow-up" /></button>
                       <button className="icon-button icon-button--small" type="button" onClick={() => moveTodo(todo.id, 1)} disabled={sortMode !== "manual" || manualIndex >= todos.length - 1} title={t("Nach unten", "Move down")}><Icon name="arrow-down" /></button>
@@ -213,7 +225,7 @@ export function ProjectTodosModal({ project, onClose, onUpdate, onError }: Proje
           </div>
           <div className="form-field">
             <label htmlFor="todo-description">{t("Beschreibung", "Description")}</label>
-            <textarea id="todo-description" rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Optional: Details oder nächste Schritte", "Optional: details or next steps")} />
+            <textarea id="todo-description" rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Optional: Details oder nächste Schritte (Markdown möglich)", "Optional: details or next steps (Markdown supported)")} />
           </div>
           <div className="form-grid form-grid--2">
             <div className="form-field">

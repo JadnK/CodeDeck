@@ -1,4 +1,7 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     git::{
@@ -118,20 +121,125 @@ pub(crate) fn git_branches(project_path: String) -> Result<Vec<String>, String> 
         .collect())
 }
 
+fn binary_untracked_file_diff(file_path: &str) -> String {
+    format!(
+        "diff --git a/{0} b/{0}\nnew file mode 100644\nBinary files /dev/null and b/{0} differ",
+        file_path
+    )
+}
+
+fn untracked_file_diff(file_path: &str, bytes: Vec<u8>) -> String {
+    if bytes.contains(&0) {
+        return binary_untracked_file_diff(file_path);
+    }
+
+    let Ok(content) = String::from_utf8(bytes) else {
+        return binary_untracked_file_diff(file_path);
+    };
+
+    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
+    if normalized.is_empty() {
+        return format!(
+            "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}",
+            file_path
+        );
+    }
+
+    let lines = normalized.lines().collect::<Vec<_>>();
+    let mut diff = format!(
+        "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}\n@@ -0,0 +1,{1} @@\n",
+        file_path,
+        lines.len()
+    );
+
+    for line in lines {
+        diff.push('+');
+        diff.push_str(line);
+        diff.push('\n');
+    }
+    if !normalized.ends_with('\n') {
+        diff.push_str("\\ No newline at end of file\n");
+    }
+
+    diff.trim_end_matches('\n').to_string()
+}
+
+fn tracked_file_diff(root: &Path, file_path: &str, cached: bool) -> Result<String, String> {
+    let mut args = vec![
+        "diff".to_string(),
+        "--no-ext-diff".to_string(),
+        "--no-color".to_string(),
+    ];
+    if cached {
+        args.push("--cached".to_string());
+    }
+    args.extend(["--".to_string(), file_path.to_string()]);
+    run_git(root, &args)
+}
+
 #[tauri::command]
 pub(crate) fn git_diff(
     project_path: String,
     file_path: String,
     staged: bool,
+    unstaged: bool,
+    untracked: bool,
 ) -> Result<String, String> {
     let root = git_project_root(&project_path)?;
-    let _ = safe_repo_path(&root, &file_path)?;
-    let mut args = vec!["diff".to_string()];
-    if staged {
-        args.push("--cached".to_string());
+    let target = safe_repo_path(&root, &file_path)?;
+
+    if untracked {
+        let bytes = fs::read(&target).map_err(|error| {
+            format!(
+                "Untracked file could not be read ({}): {error}",
+                display_path(&target)
+            )
+        })?;
+        return Ok(untracked_file_diff(&file_path, bytes));
     }
-    args.extend(["--".to_string(), file_path]);
-    run_git(&root, &args)
+
+    let mut sections = Vec::new();
+    if staged {
+        let staged_diff = tracked_file_diff(&root, &file_path, true)?;
+        if !staged_diff.is_empty() {
+            sections.push(staged_diff);
+        }
+    }
+    if unstaged || !staged {
+        let unstaged_diff = tracked_file_diff(&root, &file_path, false)?;
+        if !unstaged_diff.is_empty() {
+            sections.push(unstaged_diff);
+        }
+    }
+
+    Ok(sections.join("\n\n"))
+}
+
+#[cfg(test)]
+mod diff_tests {
+    use super::untracked_file_diff;
+
+    #[test]
+    fn renders_untracked_text_as_added_lines() {
+        let diff = untracked_file_diff("src/example.txt", b"first\nsecond\n".to_vec());
+        assert!(diff.contains("--- /dev/null"));
+        assert!(diff.contains("+++ b/src/example.txt"));
+        assert!(diff.contains("@@ -0,0 +1,2 @@"));
+        assert!(diff.contains("+first\n+second"));
+    }
+
+    #[test]
+    fn reports_binary_untracked_files() {
+        let diff = untracked_file_diff("image.bin", vec![0xff, 0xfe, 0xfd]);
+        assert!(diff.contains("new file mode 100644"));
+        assert!(diff.contains("Binary files /dev/null and b/image.bin differ"));
+    }
+
+    #[test]
+    fn treats_nul_bytes_as_binary() {
+        let diff = untracked_file_diff("data.bin", b"hello\0world".to_vec());
+        assert!(diff.contains("Binary files /dev/null and b/data.bin differ"));
+    }
 }
 
 #[tauri::command]

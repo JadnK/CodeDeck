@@ -341,19 +341,15 @@
   background: var(--surface-2);
 }
 
-.github-issue-body pre,
-.github-comments pre {
-  margin: 0;
-  overflow-wrap: anywhere;
-  color: var(--text-muted);
-  font-family: inherit;
-  font-size: 11px;
-  line-height: 1.55;
-  white-space: pre-wrap;
+.github-issue-body > .markdown-content {
+  padding: 12px;
 }
 
-.github-issue-body pre {
-  padding: 12px;
+.github-issue-body .markdown-content,
+.github-comments .markdown-content {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .github-comments {
@@ -389,7 +385,7 @@
   font-size: 9.5px;
 }
 
-.github-comments article pre {
+.github-comments article > .markdown-content {
   padding: 10px;
 }
 

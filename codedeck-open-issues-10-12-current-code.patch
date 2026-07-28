@@ -1,0 +1,807 @@
+diff --git a/src-tauri/src/commands/git.rs b/src-tauri/src/commands/git.rs
+index 47de222..52bd995 100644
+--- a/src-tauri/src/commands/git.rs
++++ b/src-tauri/src/commands/git.rs
+@@ -1,4 +1,7 @@
+-use std::{fs, path::PathBuf};
++use std::{
++    fs,
++    path::{Path, PathBuf},
++};
+ 
+ use crate::{
+     git::{
+@@ -118,20 +121,125 @@ pub(crate) fn git_branches(project_path: String) -> Result<Vec<String>, String>
+         .collect())
+ }
+ 
++fn binary_untracked_file_diff(file_path: &str) -> String {
++    format!(
++        "diff --git a/{0} b/{0}\nnew file mode 100644\nBinary files /dev/null and b/{0} differ",
++        file_path
++    )
++}
++
++fn untracked_file_diff(file_path: &str, bytes: Vec<u8>) -> String {
++    if bytes.contains(&0) {
++        return binary_untracked_file_diff(file_path);
++    }
++
++    let Ok(content) = String::from_utf8(bytes) else {
++        return binary_untracked_file_diff(file_path);
++    };
++
++    let normalized = content.replace("\r\n", "\n").replace('\r', "\n");
++    if normalized.is_empty() {
++        return format!(
++            "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}",
++            file_path
++        );
++    }
++
++    let lines = normalized.lines().collect::<Vec<_>>();
++    let mut diff = format!(
++        "diff --git a/{0} b/{0}\nnew file mode 100644\n--- /dev/null\n+++ b/{0}\n@@ -0,0 +1,{1} @@\n",
++        file_path,
++        lines.len()
++    );
++
++    for line in lines {
++        diff.push('+');
++        diff.push_str(line);
++        diff.push('\n');
++    }
++    if !normalized.ends_with('\n') {
++        diff.push_str("\\ No newline at end of file\n");
++    }
++
++    diff.trim_end_matches('\n').to_string()
++}
++
++fn tracked_file_diff(root: &Path, file_path: &str, cached: bool) -> Result<String, String> {
++    let mut args = vec![
++        "diff".to_string(),
++        "--no-ext-diff".to_string(),
++        "--no-color".to_string(),
++    ];
++    if cached {
++        args.push("--cached".to_string());
++    }
++    args.extend(["--".to_string(), file_path.to_string()]);
++    run_git(root, &args)
++}
++
+ #[tauri::command]
+ pub(crate) fn git_diff(
+     project_path: String,
+     file_path: String,
+     staged: bool,
++    unstaged: bool,
++    untracked: bool,
+ ) -> Result<String, String> {
+     let root = git_project_root(&project_path)?;
+-    let _ = safe_repo_path(&root, &file_path)?;
+-    let mut args = vec!["diff".to_string()];
++    let target = safe_repo_path(&root, &file_path)?;
++
++    if untracked {
++        let bytes = fs::read(&target).map_err(|error| {
++            format!(
++                "Untracked file could not be read ({}): {error}",
++                display_path(&target)
++            )
++        })?;
++        return Ok(untracked_file_diff(&file_path, bytes));
++    }
++
++    let mut sections = Vec::new();
+     if staged {
+-        args.push("--cached".to_string());
++        let staged_diff = tracked_file_diff(&root, &file_path, true)?;
++        if !staged_diff.is_empty() {
++            sections.push(staged_diff);
++        }
++    }
++    if unstaged || !staged {
++        let unstaged_diff = tracked_file_diff(&root, &file_path, false)?;
++        if !unstaged_diff.is_empty() {
++            sections.push(unstaged_diff);
++        }
++    }
++
++    Ok(sections.join("\n\n"))
++}
++
++#[cfg(test)]
++mod diff_tests {
++    use super::untracked_file_diff;
++
++    #[test]
++    fn renders_untracked_text_as_added_lines() {
++        let diff = untracked_file_diff("src/example.txt", b"first\nsecond\n".to_vec());
++        assert!(diff.contains("--- /dev/null"));
++        assert!(diff.contains("+++ b/src/example.txt"));
++        assert!(diff.contains("@@ -0,0 +1,2 @@"));
++        assert!(diff.contains("+first\n+second"));
++    }
++
++    #[test]
++    fn reports_binary_untracked_files() {
++        let diff = untracked_file_diff("image.bin", vec![0xff, 0xfe, 0xfd]);
++        assert!(diff.contains("new file mode 100644"));
++        assert!(diff.contains("Binary files /dev/null and b/image.bin differ"));
++    }
++
++    #[test]
++    fn treats_nul_bytes_as_binary() {
++        let diff = untracked_file_diff("data.bin", b"hello\0world".to_vec());
++        assert!(diff.contains("Binary files /dev/null and b/data.bin differ"));
+     }
+-    args.extend(["--".to_string(), file_path]);
+-    run_git(&root, &args)
+ }
+ 
+ #[tauri::command]
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+index 648cb79..b3ceefb 100644
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -29,6 +29,45 @@ mod storage;
+ 
+ use tauri::{Manager, WindowEvent};
+ 
++#[cfg(desktop)]
++struct TrayMenuItems {
++    show: tauri::menu::MenuItem<tauri::Wry>,
++    hide: tauri::menu::MenuItem<tauri::Wry>,
++    quit: tauri::menu::MenuItem<tauri::Wry>,
++}
++
++#[tauri::command]
++fn set_application_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
++    #[cfg(desktop)]
++    {
++        let labels = if language.eq_ignore_ascii_case("de") {
++            ("Code Deck öffnen", "Fenster ausblenden", "Code Deck beenden")
++        } else {
++            ("Open Code Deck", "Hide window", "Quit Code Deck")
++        };
++        let items = app.state::<TrayMenuItems>();
++        items
++            .show
++            .set_text(labels.0)
++            .map_err(|error| error.to_string())?;
++        items
++            .hide
++            .set_text(labels.1)
++            .map_err(|error| error.to_string())?;
++        items
++            .quit
++            .set_text(labels.2)
++            .map_err(|error| error.to_string())?;
++    }
++
++    #[cfg(not(desktop))]
++    {
++        let _ = (app, language);
++    }
++
++    Ok(())
++}
++
+ #[cfg_attr(mobile, tauri::mobile_entry_point)]
+ pub fn run() {
+     tauri::Builder::default()
+@@ -46,12 +85,17 @@ pub fn run() {
+                     .plugin(tauri_plugin_updater::Builder::new().build())?;
+ 
+                 let show_item =
+-                    MenuItem::with_id(app, "show", "Code Deck öffnen", true, None::<&str>)?;
++                    MenuItem::with_id(app, "show", "Open Code Deck", true, None::<&str>)?;
+                 let hide_item =
+-                    MenuItem::with_id(app, "hide", "Fenster ausblenden", true, None::<&str>)?;
++                    MenuItem::with_id(app, "hide", "Hide window", true, None::<&str>)?;
+                 let quit_item =
+-                    MenuItem::with_id(app, "quit", "Code Deck beenden", true, None::<&str>)?;
++                    MenuItem::with_id(app, "quit", "Quit Code Deck", true, None::<&str>)?;
+                 let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
++                app.manage(TrayMenuItems {
++                    show: show_item.clone(),
++                    hide: hide_item.clone(),
++                    quit: quit_item.clone(),
++                });
+                 let mut tray = TrayIconBuilder::new()
+                     .tooltip("Code Deck")
+                     .menu(&menu)
+@@ -90,6 +134,7 @@ pub fn run() {
+             Ok(())
+         })
+         .invoke_handler(tauri::generate_handler![
++            set_application_language,
+             commands::projects::create_project_from_template,
+             commands::projects::clone_repository,
+             commands::projects::inspect_project,
+diff --git a/src/app/App.tsx b/src/app/App.tsx
+index 8922c0d..11ea203 100644
+--- a/src/app/App.tsx
++++ b/src/app/App.tsx
+@@ -28,6 +28,7 @@ import {
+   openTarget,
+   openTerminal,
+   readTextFile,
++  setApplicationLanguage,
+   startProcess,
+   stopProcess,
+   writeTextFile,
+@@ -280,6 +281,11 @@ export function App() {
+ 
+   useEffect(() => {
+     document.documentElement.lang = data.settings.language;
++    if (isTauri()) {
++      void setApplicationLanguage(data.settings.language).catch((error) => {
++        console.warn("Code Deck tray localization could not be updated", error);
++      });
++    }
+   }, [data.settings.language]);
+ 
+   useEffect(() => {
+diff --git a/src/features/git/GitProjectPanel.tsx b/src/features/git/GitProjectPanel.tsx
+index b317614..57d2a97 100644
+--- a/src/features/git/GitProjectPanel.tsx
++++ b/src/features/git/GitProjectPanel.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useMemo, useState } from "react";
++import { useEffect, useMemo, useRef, useState } from "react";
+ import { Icon } from "../../shared/components/Icon";
+ import { useI18n } from "../../shared/i18n/I18n";
+ import {
+@@ -40,7 +40,7 @@ function statusLabel(file: GitFileStatus) {
+ }
+ 
+ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onError }: GitProjectPanelProps) {
+-  const { t } = useI18n();
++  const { t, language } = useI18n();
+   const [status, setStatus] = useState<GitRepositoryStatus>();
+   const [branches, setBranches] = useState<string[]>([]);
+   const [loading, setLoading] = useState(false);
+@@ -48,10 +48,12 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
+   const [selectedPath, setSelectedPath] = useState("");
+   const [diff, setDiff] = useState("");
+   const [diffLoading, setDiffLoading] = useState(false);
++  const [diffRevision, setDiffRevision] = useState(0);
+   const [commitMessage, setCommitMessage] = useState("");
+   const [newBranch, setNewBranch] = useState("");
+   const [conflict, setConflict] = useState<GitConflictContent>();
+   const [resolution, setResolution] = useState("");
++  const diffRequestRef = useRef(0);
+ 
+   const selectedFile = useMemo(
+     () => status?.files.find((file) => file.path === selectedPath),
+@@ -73,6 +75,7 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
+       ]);
+       setStatus(nextStatus);
+       setBranches(nextBranches);
++      setDiffRevision((revision) => revision + 1);
+       if (!keepSelection || !nextStatus.files.some((file) => file.path === selectedPath)) {
+         setSelectedPath(nextStatus.files[0]?.path ?? "");
+         setDiff("");
+@@ -86,26 +89,55 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
+     }
+   }
+ 
+-  async function selectFile(file: GitFileStatus) {
+-    setSelectedPath(file.path);
+-    setDiffLoading(true);
++  useEffect(() => {
++    const requestId = ++diffRequestRef.current;
+     setConflict(undefined);
++    setResolution("");
+     setDiff("");
+-    try {
+-      if (file.conflicted) {
+-        const content = await getGitConflict(project.path, file.path);
+-        setConflict(content);
+-        setResolution(content.workingTree);
+-      } else {
+-        const content = await getGitDiff(project.path, file.path, file.staged && !file.unstaged);
+-        setDiff(content || t("Für diese Datei ist kein Text-Diff verfügbar.", "No text diff is available for this file."));
+-      }
+-    } catch (error) {
+-      onError(messageOf(error));
+-    } finally {
++
++    if (!selectedFile) {
+       setDiffLoading(false);
++      return;
+     }
+-  }
++
++    setDiffLoading(true);
++    async function loadSelectedFile(file: GitFileStatus) {
++      try {
++        if (file.conflicted) {
++          const content = await getGitConflict(project.path, file.path);
++          if (requestId !== diffRequestRef.current) return;
++          setConflict(content);
++          setResolution(content.workingTree);
++        } else {
++          const content = await getGitDiff(project.path, file.path, {
++            staged: file.staged,
++            unstaged: file.unstaged,
++            untracked: file.untracked,
++          });
++          if (requestId !== diffRequestRef.current) return;
++          setDiff(content || t("Für diese Datei ist kein Text-Diff verfügbar.", "No text diff is available for this file."));
++        }
++      } catch (error) {
++        if (requestId === diffRequestRef.current) onError(messageOf(error));
++      } finally {
++        if (requestId === diffRequestRef.current) setDiffLoading(false);
++      }
++    }
++
++    void loadSelectedFile(selectedFile);
++    return () => {
++      if (requestId === diffRequestRef.current) diffRequestRef.current += 1;
++    };
++  }, [
++    project.path,
++    selectedFile?.path,
++    selectedFile?.staged,
++    selectedFile?.unstaged,
++    selectedFile?.untracked,
++    selectedFile?.conflicted,
++    diffRevision,
++    language,
++  ]);
+ 
+   async function runAction(key: string, action: () => Promise<unknown>, success: string) {
+     setBusyAction(key);
+@@ -251,7 +283,7 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
+           {status?.files.length ? (
+             <div className="git-file-list">
+               {status.files.map((file) => (
+-                <button type="button" key={file.path} className={`${selectedPath === file.path ? "active" : ""} ${file.conflicted ? "conflicted" : ""}`} onClick={() => void selectFile(file)}>
++                <button type="button" key={file.path} className={`${selectedPath === file.path ? "active" : ""} ${file.conflicted ? "conflicted" : ""}`} onClick={() => { setSelectedPath(file.path); setDiffRevision((revision) => revision + 1); }}>
+                   <span><Icon name={file.conflicted ? "info" : "file"} /><strong>{file.path}</strong></span>
+                   <small>{statusLabel(file)}</small>
+                 </button>
+diff --git a/src/features/github/GitHubProjectPanel.tsx b/src/features/github/GitHubProjectPanel.tsx
+index e8c2f57..a74f7fe 100644
+--- a/src/features/github/GitHubProjectPanel.tsx
++++ b/src/features/github/GitHubProjectPanel.tsx
+@@ -1,6 +1,7 @@
+ import { useEffect, useMemo, useState } from "react";
+ 
+ import { Icon } from "../../shared/components/Icon";
++import { Markdown } from "../../shared/components/Markdown";
+ import { useI18n } from "../../shared/i18n/I18n";
+ import { getGitRemoteUrl, openTarget } from "../../shared/lib/tauri";
+ import type { Project, ProjectInspection } from "../../shared/types/models";
+@@ -555,7 +556,7 @@ export function GitHubProjectPanel({
+                 )}
+ 
+                 <div className="github-issue-body">
+-                  <pre>{selectedIssue.body || t("Keine Beschreibung vorhanden.", "No description provided.")}</pre>
++                  <Markdown>{selectedIssue.body || t("Keine Beschreibung vorhanden.", "No description provided.")}</Markdown>
+                 </div>
+ 
+                 <div className="github-comments">
+@@ -571,7 +572,7 @@ export function GitHubProjectPanel({
+                           <span><img src={comment.user.avatar_url} alt="" />@{comment.user.login}</span>
+                           <small>{formatDate(comment.created_at)}</small>
+                         </header>
+-                        <pre>{comment.body}</pre>
++                        <Markdown>{comment.body}</Markdown>
+                       </article>
+                     ))
+                   ) : (
+diff --git a/src/features/github/github.css b/src/features/github/github.css
+index d406f69..fd1a25d 100644
+--- a/src/features/github/github.css
++++ b/src/features/github/github.css
+@@ -341,19 +341,15 @@
+   background: var(--surface-2);
+ }
+ 
+-.github-issue-body pre,
+-.github-comments pre {
+-  margin: 0;
+-  overflow-wrap: anywhere;
++.github-issue-body > .markdown-content {
++  padding: 12px;
++}
++
++.github-issue-body .markdown-content,
++.github-comments .markdown-content {
+   color: var(--text-muted);
+-  font-family: inherit;
+   font-size: 11px;
+   line-height: 1.55;
+-  white-space: pre-wrap;
+-}
+-
+-.github-issue-body pre {
+-  padding: 12px;
+ }
+ 
+ .github-comments {
+@@ -389,7 +385,7 @@
+   font-size: 9.5px;
+ }
+ 
+-.github-comments article pre {
++.github-comments article > .markdown-content {
+   padding: 10px;
+ }
+ 
+diff --git a/src/features/projects/ProjectTodosModal.tsx b/src/features/projects/ProjectTodosModal.tsx
+index 39c5410..95b72aa 100644
+--- a/src/features/projects/ProjectTodosModal.tsx
++++ b/src/features/projects/ProjectTodosModal.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect, useMemo, useState } from "react";
+ import { Icon } from "../../shared/components/Icon";
++import { Markdown } from "../../shared/components/Markdown";
+ import { Modal } from "../../shared/components/Modal";
+ import { useI18n } from "../../shared/i18n/I18n";
+ import { createId } from "../../shared/lib/storage";
+@@ -175,14 +176,25 @@ export function ProjectTodosModal({ project, onClose, onUpdate, onError }: Proje
+                         <option value="done">{t("Erledigt", "Done")}</option>
+                       </select>
+                     </div>
+-                    <button className="todo-item__content" type="button" onClick={() => editTodo(todo)}>
++                    <div
++                      className="todo-item__content"
++                      role="button"
++                      tabIndex={0}
++                      onClick={() => editTodo(todo)}
++                      onKeyDown={(event) => {
++                        if (event.key === "Enter" || event.key === " ") {
++                          event.preventDefault();
++                          editTodo(todo);
++                        }
++                      }}
++                    >
+                       <span className="todo-item__title-row">
+                         <strong>{todo.title}</strong>
+                         <span className={`todo-priority todo-priority--${todo.priority}`}>{priorityLabel(todo.priority)}</span>
+                       </span>
+-                      {todo.description && <p>{todo.description}</p>}
++                      {todo.description && <Markdown className="todo-item__description" allowInteractiveElements={false}>{todo.description}</Markdown>}
+                       <small>{t("Aktualisiert", "Updated")} {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(todo.updatedAt))}</small>
+-                    </button>
++                    </div>
+                     <div className="todo-item__actions">
+                       <button className="icon-button icon-button--small" type="button" onClick={() => moveTodo(todo.id, -1)} disabled={sortMode !== "manual" || manualIndex <= 0} title={t("Nach oben", "Move up")}><Icon name="arrow-up" /></button>
+                       <button className="icon-button icon-button--small" type="button" onClick={() => moveTodo(todo.id, 1)} disabled={sortMode !== "manual" || manualIndex >= todos.length - 1} title={t("Nach unten", "Move down")}><Icon name="arrow-down" /></button>
+@@ -213,7 +225,7 @@ export function ProjectTodosModal({ project, onClose, onUpdate, onError }: Proje
+           </div>
+           <div className="form-field">
+             <label htmlFor="todo-description">{t("Beschreibung", "Description")}</label>
+-            <textarea id="todo-description" rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Optional: Details oder nächste Schritte", "Optional: details or next steps")} />
++            <textarea id="todo-description" rows={5} value={description} onChange={(event) => setDescription(event.target.value)} placeholder={t("Optional: Details oder nächste Schritte (Markdown möglich)", "Optional: details or next steps (Markdown supported)")} />
+           </div>
+           <div className="form-grid form-grid--2">
+             <div className="form-field">
+diff --git a/src/features/settings/SettingsPanel.tsx b/src/features/settings/SettingsPanel.tsx
+index 36741f3..6c3e9de 100644
+--- a/src/features/settings/SettingsPanel.tsx
++++ b/src/features/settings/SettingsPanel.tsx
+@@ -409,15 +409,15 @@ export function SettingsPanel({
+             <section className="settings-page" id="project-template-settings">
+               <div className="settings-page__header">
+                 <Icon name="layers" />
+-                <div><p className="eyebrow">Scaffolding</p><h3>{t("Eigene Projektvorlagen", "Custom project templates")}</h3><small>{t("Lokale Ordner als wiederverwendbare Grundgerüste", "Reusable starters from local folders")}</small></div>
++                <div><p className="eyebrow">{t("Grundgerüste", "Scaffolding")}</p><h3>{t("Eigene Projektvorlagen", "Custom project templates")}</h3><small>{t("Lokale Ordner als wiederverwendbare Grundgerüste", "Reusable starters from local folders")}</small></div>
+               </div>
+               <div className="settings-help"><Icon name="info" /><p>{t("Beim Erstellen kopiert Code Deck den Inhalt des Quellordners. Generierte Ordner wie", "When creating a project, Code Deck copies the source folder. Generated folders such as")} <code>node_modules</code>, <code>.git</code>, <code>target</code>, <code>dist</code> {t("und", "and")} <code>build</code> {t("werden ausgelassen.", "are skipped.")}</p></div>
+               <div className="editor-settings-grid">
+                 <form className="settings-card" onSubmit={submitProjectTemplate}>
+                   <h3>{editingProjectTemplateId ? t("Projektvorlage bearbeiten", "Edit project template") : t("Projektvorlage anlegen", "Create project template")}</h3>
+-                  <div className="form-field"><label htmlFor="project-template-name">{t("Name der Vorlage", "Template name")}</label><input id="project-template-name" value={projectTemplateName} onChange={(event) => setProjectTemplateName(event.target.value)} placeholder="Meine Spring-Basis" /></div>
+-                  <div className="form-field"><label htmlFor="project-template-description">{t("Kurze Erklärung", "Short description")}</label><input id="project-template-description" value={projectTemplateDescription} onChange={(event) => setProjectTemplateDescription(event.target.value)} placeholder="Spring API mit Security und Docker Compose" /></div>
+-                  <div className="form-field"><label htmlFor="project-template-path">{t("Quellordner", "Source folder")}</label><div className="input-action-row"><input id="project-template-path" value={projectTemplatePath} onChange={(event) => setProjectTemplatePath(event.target.value)} placeholder="C:\\Users\\du\\Templates\\spring-api" /><button className="button button--secondary" type="button" onClick={browseTemplateDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Der Quellordner selbst bleibt unverändert.", "The source folder itself remains unchanged.")}</small></div>
++                  <div className="form-field"><label htmlFor="project-template-name">{t("Name der Vorlage", "Template name")}</label><input id="project-template-name" value={projectTemplateName} onChange={(event) => setProjectTemplateName(event.target.value)} placeholder={t("Meine Spring-Basis", "My Spring starter")} /></div>
++                  <div className="form-field"><label htmlFor="project-template-description">{t("Kurze Erklärung", "Short description")}</label><input id="project-template-description" value={projectTemplateDescription} onChange={(event) => setProjectTemplateDescription(event.target.value)} placeholder={t("Spring API mit Security und Docker Compose", "Spring API with security and Docker Compose")} /></div>
++                  <div className="form-field"><label htmlFor="project-template-path">{t("Quellordner", "Source folder")}</label><div className="input-action-row"><input id="project-template-path" value={projectTemplatePath} onChange={(event) => setProjectTemplatePath(event.target.value)} placeholder={t("~/Vorlagen/spring-api", "~/Templates/spring-api")} /><button className="button button--secondary" type="button" onClick={browseTemplateDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Der Quellordner selbst bleibt unverändert.", "The source folder itself remains unchanged.")}</small></div>
+                   <div className="form-field"><label htmlFor="project-template-editor">{t("Standard-IDE", "Default IDE")}</label><select id="project-template-editor" value={projectTemplateEditorId} onChange={(event) => setProjectTemplateEditorId(event.target.value)}><option value="">{t("Keine Vorgabe", "No default")}</option>{editors.filter((editor) => editor.enabled).map((editor) => <option key={editor.id} value={editor.id}>{editor.name}</option>)}</select></div>
+                   <div className="form-actions">{editingProjectTemplateId && <button className="button button--ghost" type="button" onClick={resetProjectTemplateForm}>{t("Abbrechen", "Cancel")}</button>}<button className="button button--primary" type="submit"><Icon name={editingProjectTemplateId ? "check" : "plus"} />{editingProjectTemplateId ? t("Vorlage speichern", "Save template") : t("Vorlage hinzufügen", "Add template")}</button></div>
+                 </form>
+@@ -439,10 +439,10 @@ export function SettingsPanel({
+             <section className="settings-page">
+               <div className="settings-page__header">
+                 <Icon name="terminal" />
+-                <div><p className="eyebrow">Defaults</p><h3>{t("Projekte & Terminal", "Projects & terminal")}</h3><small>{t("Standardordner und Terminal-Startbefehl", "Default folder and terminal launch command")}</small></div>
++                <div><p className="eyebrow">{t("Standardwerte", "Defaults")}</p><h3>{t("Projekte & Terminal", "Projects & terminal")}</h3><small>{t("Standardordner und Terminal-Startbefehl", "Default folder and terminal launch command")}</small></div>
+               </div>
+               <div className="settings-section settings-section--plain">
+-                <div className="form-field"><label htmlFor="default-project-dir">{t("Standard-Projektordner", "Default project folder")}</label><div className="input-action-row"><input id="default-project-dir" value={settings.defaultProjectDir} onChange={(event) => onSettingsChange({ ...settings, defaultProjectDir: event.target.value })} placeholder="C:\\Users\\du\\Projects" /><button className="button button--secondary" type="button" onClick={browseDefaultDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Dieser Ordner wird beim Erstellen neuer Projekte vorausgewählt.", "This folder is preselected when creating new projects.")}</small></div>
++                <div className="form-field"><label htmlFor="default-project-dir">{t("Standard-Projektordner", "Default project folder")}</label><div className="input-action-row"><input id="default-project-dir" value={settings.defaultProjectDir} onChange={(event) => onSettingsChange({ ...settings, defaultProjectDir: event.target.value })} placeholder={t("~/Projekte", "~/Projects")} /><button className="button button--secondary" type="button" onClick={browseDefaultDirectory}><Icon name="folder" />{t("Ordner wählen", "Choose folder")}</button></div><small>{t("Dieser Ordner wird beim Erstellen neuer Projekte vorausgewählt.", "This folder is preselected when creating new projects.")}</small></div>
+                 <div className="form-field"><label htmlFor="terminal-command">{t("Terminal-Startbefehl (optional)", "Terminal launch command (optional)")}</label><input id="terminal-command" value={settings.terminalCommand} onChange={(event) => onSettingsChange({ ...settings, terminalCommand: event.target.value })} placeholder={'wt.exe -d "{projectPath}"'} /><small>{t("Leer lassen, um das Standardterminal des Betriebssystems zu verwenden.", "Leave empty to use the operating-system default terminal.")}</small></div>
+               </div>
+               <label className="checkbox-row"><input type="checkbox" checked={settings.notifyOnCommandCompletion} onChange={(event) => onSettingsChange({ ...settings, notifyOnCommandCompletion: event.target.checked })} /><span><strong>{t("Desktop-Benachrichtigung nach Commands", "Desktop notification after commands")}</strong><small>{t("Code Deck meldet erfolgreiche und fehlgeschlagene Builds oder Runs über das Betriebssystem.", "Code Deck reports successful and failed builds or runs through the operating system.")}</small></span></label>
+@@ -506,7 +506,7 @@ export function SettingsPanel({
+             <section className="settings-page">
+               <div className="settings-page__header">
+                 <Icon name="download" />
+-                <div><p className="eyebrow">Local data</p><h3>{t("Backup & Sicherheit", "Backup & security")}</h3><small>{t("Projekte, IDEs, Startsets und Vorlagen sichern", "Back up projects, IDEs, launch sets and templates")}</small></div>
++                <div><p className="eyebrow">{t("Lokale Daten", "Local data")}</p><h3>{t("Backup & Sicherheit", "Backup & security")}</h3><small>{t("Projekte, IDEs, Startsets und Vorlagen sichern", "Back up projects, IDEs, launch sets and templates")}</small></div>
+               </div>
+               <div className="settings-section settings-section--plain">
+                 <label className="checkbox-row"><input type="checkbox" checked={settings.confirmImportedCommands} onChange={(event) => onSettingsChange({ ...settings, confirmImportedCommands: event.target.checked })} /><span><strong>{t("Importierte Commands vor dem ersten Start bestätigen", "Confirm imported commands before first run")}</strong><small>{t("Verhindert, dass unbekannte Befehle versehentlich ausgeführt werden.", "Prevents unknown commands from being run accidentally.")}</small></span></label>
+diff --git a/src/shared/lib/storage.ts b/src/shared/lib/storage.ts
+index fd78497..3dfed02 100644
+--- a/src/shared/lib/storage.ts
++++ b/src/shared/lib/storage.ts
+@@ -13,6 +13,17 @@ function id() {
+ 
+ export const createId = id;
+ 
++function preferredLanguage(): "de" | "en" {
++  if (typeof navigator === "undefined") return "en";
++  const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
++  for (const language of languages) {
++    const normalized = language.toLowerCase();
++    if (normalized.startsWith("de")) return "de";
++    if (normalized.startsWith("en")) return "en";
++  }
++  return "en";
++}
++
+ function normalizeEditorTemplate(idValue: string, nameValue: string, commandTemplate: string) {
+   const template = commandTemplate.trim();
+   if (template.includes("{projectPath}")) return template;
+@@ -58,7 +69,7 @@ export function createDefaultData(): AppData {
+     processHistory: [],
+     settings: {
+       theme: "dark",
+-      language: "en",
++      language: preferredLanguage(),
+       terminalCommand: "",
+       defaultProjectDir: "",
+       onboardingComplete: false,
+@@ -119,7 +130,9 @@ export function normalizeData(input: unknown, imported = false): AppData {
+   if (!input || typeof input !== "object") return fallback;
+ 
+   const value = input as Partial<AppData>;
+-  const language = value.settings?.language === "de" ? "de" : "en";
++  const language = value.settings?.language === "de" || value.settings?.language === "en"
++    ? value.settings.language
++    : fallback.settings.language;
+   const rawEditors = Array.isArray(value.editors) ? value.editors : [];
+   const editors = rawEditors.length
+     ? rawEditors.map((editor) => {
+@@ -239,7 +252,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
+       theme: ["dark", "light", "system"].includes(value.settings?.theme ?? "")
+         ? value.settings!.theme
+         : fallback.settings.theme,
+-      language: value.settings?.language === "de" ? "de" : "en",
++      language,
+       githubToken: imported ? "" : value.settings?.githubToken?.trim() ?? "",
+     },
+   };
+diff --git a/src/shared/lib/tauri.ts b/src/shared/lib/tauri.ts
+index dee7cc3..a1e85d9 100644
+--- a/src/shared/lib/tauri.ts
++++ b/src/shared/lib/tauri.ts
+@@ -16,6 +16,9 @@ import type {
+ export const isTauri = () =>
+   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+ 
++export const setApplicationLanguage = (language: "de" | "en") =>
++  call<void>("set_application_language", { language });
++
+ const runtimeText = (german: string, english: string) =>
+   typeof document !== "undefined" && document.documentElement.lang === "en" ? english : german;
+ 
+@@ -102,8 +105,11 @@ export const getGitStatus = (projectPath: string) =>
+ export const getGitBranches = (projectPath: string) =>
+   call<string[]>("git_branches", { projectPath });
+ 
+-export const getGitDiff = (projectPath: string, filePath: string, staged = false) =>
+-  call<string>("git_diff", { projectPath, filePath, staged });
++export const getGitDiff = (
++  projectPath: string,
++  filePath: string,
++  state: { staged: boolean; unstaged: boolean; untracked: boolean },
++) => call<string>("git_diff", { projectPath, filePath, ...state });
+ 
+ export const gitStageFiles = (projectPath: string, paths: string[]) =>
+   call<void>("git_stage", { projectPath, paths });
+diff --git a/src/styles.css b/src/styles.css
+index 574a6b5..0605c82 100644
+--- a/src/styles.css
++++ b/src/styles.css
+@@ -3227,12 +3227,151 @@ svg {
+   background: var(--warning);
+ }
+ 
++/* Safe Markdown rendering for GitHub issue details, comments, and todos. */
++.markdown-content {
++  min-width: 0;
++  overflow-wrap: anywhere;
++}
++
++.markdown-content > :first-child {
++  margin-top: 0;
++}
++
++.markdown-content > :last-child {
++  margin-bottom: 0;
++}
++
++.markdown-content h1,
++.markdown-content h2,
++.markdown-content h3,
++.markdown-content h4,
++.markdown-content h5,
++.markdown-content h6 {
++  margin: 1.1em 0 0.45em;
++  color: var(--text);
++  line-height: 1.25;
++}
++
++.markdown-content h1 { font-size: 1.55em; }
++.markdown-content h2 { font-size: 1.35em; }
++.markdown-content h3 { font-size: 1.18em; }
++.markdown-content h4,
++.markdown-content h5,
++.markdown-content h6 { font-size: 1em; }
++
++.markdown-content p,
++.markdown-content ul,
++.markdown-content ol,
++.markdown-content blockquote,
++.markdown-content pre,
++.markdown-content .markdown-table-wrap {
++  margin: 0 0 0.8em;
++}
++
++.markdown-content ul,
++.markdown-content ol {
++  padding-left: 1.6em;
++}
++
++.markdown-content li + li {
++  margin-top: 0.25em;
++}
++
++.markdown-content .markdown-task-item {
++  display: flex;
++  align-items: flex-start;
++  gap: 0.45em;
++  list-style: none;
++}
++
++.markdown-content .markdown-task-item input {
++  width: 1em;
++  height: 1em;
++  margin: 0.28em 0 0;
++  accent-color: var(--primary);
++}
++
++.markdown-content .markdown-task-marker {
++  flex: 0 0 auto;
++  margin-top: 0.02em;
++}
++
++.markdown-content a {
++  color: var(--primary);
++  text-decoration: underline;
++  text-underline-offset: 2px;
++}
++
++.markdown-content code {
++  border: 1px solid var(--border);
++  border-radius: 4px;
++  padding: 0.08em 0.32em;
++  color: var(--text);
++  background: var(--surface-3);
++  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
++  font-size: 0.92em;
++}
++
++.markdown-content pre {
++  max-width: 100%;
++  overflow: auto;
++  border: 1px solid var(--border);
++  border-radius: var(--radius-small);
++  padding: 10px;
++  background: var(--surface);
++  white-space: pre;
++}
++
++.markdown-content pre code {
++  border: 0;
++  padding: 0;
++  background: transparent;
++  font-size: inherit;
++}
++
++.markdown-content blockquote {
++  border-left: 3px solid var(--primary);
++  padding: 0.15em 0 0.15em 0.9em;
++  color: var(--text-faint);
++}
++
++.markdown-content hr {
++  height: 1px;
++  margin: 1em 0;
++  border: 0;
++  background: var(--border);
++}
++
++.markdown-table-wrap {
++  max-width: 100%;
++  overflow-x: auto;
++}
++
++.markdown-content table {
++  width: 100%;
++  border-collapse: collapse;
++}
++
++.markdown-content th,
++.markdown-content td {
++  border: 1px solid var(--border);
++  padding: 0.45em 0.6em;
++  text-align: left;
++  vertical-align: top;
++}
++
++.markdown-content th {
++  color: var(--text);
++  background: var(--surface-3);
++}
++
+ .todo-status-dot--done {
+   background: var(--success);
+ }
+ 
+ .todo-item__content {
+   display: grid;
++  cursor: pointer;
+   min-width: 0;
+   gap: 4px;
+   border: 0;
+@@ -3242,6 +3381,12 @@ svg {
+   text-align: left;
+ }
+ 
++.todo-item__content:focus-visible {
++  border-radius: 4px;
++  outline: 2px solid var(--primary);
++  outline-offset: 3px;
++}
++
+ .todo-item__title-row {
+   display: flex;
+   align-items: center;
+@@ -3270,6 +3415,26 @@ svg {
+   -webkit-line-clamp: 2;
+ }
+ 
++.todo-item__description {
++  max-height: 3.35em;
++  overflow: hidden;
++  color: var(--text-muted);
++  font-size: 11.5px;
++  line-height: 1.45;
++}
++
++.todo-item__description > * {
++  margin: 0;
++  color: inherit;
++  font-size: inherit;
++  line-height: inherit;
++}
++
++.todo-item__description pre,
++.todo-item__description code {
++  white-space: pre-wrap;
++}
++
+ .todo-item__content small {
+   color: var(--text-faint);
+   font-size: 10px;

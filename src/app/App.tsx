@@ -28,6 +28,7 @@ import {
   openTarget,
   openTerminal,
   readTextFile,
+  setApplicationLanguage,
   startProcess,
   stopProcess,
   writeTextFile,
@@ -280,6 +281,11 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.lang = data.settings.language;
+    if (isTauri()) {
+      void setApplicationLanguage(data.settings.language).catch((error) => {
+        console.warn("Code Deck tray localization could not be updated", error);
+      });
+    }
   }, [data.settings.language]);
 
   useEffect(() => {

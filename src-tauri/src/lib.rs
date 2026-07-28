@@ -29,6 +29,45 @@ mod storage;
 
 use tauri::{Manager, WindowEvent};
 
+#[cfg(desktop)]
+struct TrayMenuItems {
+    show: tauri::menu::MenuItem<tauri::Wry>,
+    hide: tauri::menu::MenuItem<tauri::Wry>,
+    quit: tauri::menu::MenuItem<tauri::Wry>,
+}
+
+#[tauri::command]
+fn set_application_language(app: tauri::AppHandle, language: String) -> Result<(), String> {
+    #[cfg(desktop)]
+    {
+        let labels = if language.eq_ignore_ascii_case("de") {
+            ("Code Deck öffnen", "Fenster ausblenden", "Code Deck beenden")
+        } else {
+            ("Open Code Deck", "Hide window", "Quit Code Deck")
+        };
+        let items = app.state::<TrayMenuItems>();
+        items
+            .show
+            .set_text(labels.0)
+            .map_err(|error| error.to_string())?;
+        items
+            .hide
+            .set_text(labels.1)
+            .map_err(|error| error.to_string())?;
+        items
+            .quit
+            .set_text(labels.2)
+            .map_err(|error| error.to_string())?;
+    }
+
+    #[cfg(not(desktop))]
+    {
+        let _ = (app, language);
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -46,12 +85,17 @@ pub fn run() {
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
 
                 let show_item =
-                    MenuItem::with_id(app, "show", "Code Deck öffnen", true, None::<&str>)?;
+                    MenuItem::with_id(app, "show", "Open Code Deck", true, None::<&str>)?;
                 let hide_item =
-                    MenuItem::with_id(app, "hide", "Fenster ausblenden", true, None::<&str>)?;
+                    MenuItem::with_id(app, "hide", "Hide window", true, None::<&str>)?;
                 let quit_item =
-                    MenuItem::with_id(app, "quit", "Code Deck beenden", true, None::<&str>)?;
+                    MenuItem::with_id(app, "quit", "Quit Code Deck", true, None::<&str>)?;
                 let menu = Menu::with_items(app, &[&show_item, &hide_item, &quit_item])?;
+                app.manage(TrayMenuItems {
+                    show: show_item.clone(),
+                    hide: hide_item.clone(),
+                    quit: quit_item.clone(),
+                });
                 let mut tray = TrayIconBuilder::new()
                     .tooltip("Code Deck")
                     .menu(&menu)
@@ -90,6 +134,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            set_application_language,
             commands::projects::create_project_from_template,
             commands::projects::clone_repository,
             commands::projects::inspect_project,

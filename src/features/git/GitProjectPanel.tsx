@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../shared/components/Icon";
 import { useI18n } from "../../shared/i18n/I18n";
 import {
@@ -40,7 +40,7 @@ function statusLabel(file: GitFileStatus) {
 }
 
 export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onError }: GitProjectPanelProps) {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [status, setStatus] = useState<GitRepositoryStatus>();
   const [branches, setBranches] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,10 +48,12 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
   const [selectedPath, setSelectedPath] = useState("");
   const [diff, setDiff] = useState("");
   const [diffLoading, setDiffLoading] = useState(false);
+  const [diffRevision, setDiffRevision] = useState(0);
   const [commitMessage, setCommitMessage] = useState("");
   const [newBranch, setNewBranch] = useState("");
   const [conflict, setConflict] = useState<GitConflictContent>();
   const [resolution, setResolution] = useState("");
+  const diffRequestRef = useRef(0);
 
   const selectedFile = useMemo(
     () => status?.files.find((file) => file.path === selectedPath),
@@ -73,6 +75,7 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
       ]);
       setStatus(nextStatus);
       setBranches(nextBranches);
+      setDiffRevision((revision) => revision + 1);
       if (!keepSelection || !nextStatus.files.some((file) => file.path === selectedPath)) {
         setSelectedPath(nextStatus.files[0]?.path ?? "");
         setDiff("");
@@ -86,26 +89,55 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
     }
   }
 
-  async function selectFile(file: GitFileStatus) {
-    setSelectedPath(file.path);
-    setDiffLoading(true);
+  useEffect(() => {
+    const requestId = ++diffRequestRef.current;
     setConflict(undefined);
+    setResolution("");
     setDiff("");
-    try {
-      if (file.conflicted) {
-        const content = await getGitConflict(project.path, file.path);
-        setConflict(content);
-        setResolution(content.workingTree);
-      } else {
-        const content = await getGitDiff(project.path, file.path, file.staged && !file.unstaged);
-        setDiff(content || t("Für diese Datei ist kein Text-Diff verfügbar.", "No text diff is available for this file."));
-      }
-    } catch (error) {
-      onError(messageOf(error));
-    } finally {
+
+    if (!selectedFile) {
       setDiffLoading(false);
+      return;
     }
-  }
+
+    setDiffLoading(true);
+    async function loadSelectedFile(file: GitFileStatus) {
+      try {
+        if (file.conflicted) {
+          const content = await getGitConflict(project.path, file.path);
+          if (requestId !== diffRequestRef.current) return;
+          setConflict(content);
+          setResolution(content.workingTree);
+        } else {
+          const content = await getGitDiff(project.path, file.path, {
+            staged: file.staged,
+            unstaged: file.unstaged,
+            untracked: file.untracked,
+          });
+          if (requestId !== diffRequestRef.current) return;
+          setDiff(content || t("Für diese Datei ist kein Text-Diff verfügbar.", "No text diff is available for this file."));
+        }
+      } catch (error) {
+        if (requestId === diffRequestRef.current) onError(messageOf(error));
+      } finally {
+        if (requestId === diffRequestRef.current) setDiffLoading(false);
+      }
+    }
+
+    void loadSelectedFile(selectedFile);
+    return () => {
+      if (requestId === diffRequestRef.current) diffRequestRef.current += 1;
+    };
+  }, [
+    project.path,
+    selectedFile?.path,
+    selectedFile?.staged,
+    selectedFile?.unstaged,
+    selectedFile?.untracked,
+    selectedFile?.conflicted,
+    diffRevision,
+    language,
+  ]);
 
   async function runAction(key: string, action: () => Promise<unknown>, success: string) {
     setBusyAction(key);
@@ -251,7 +283,7 @@ export function GitProjectPanel({ project, onRefreshInspection, onSuccess, onErr
           {status?.files.length ? (
             <div className="git-file-list">
               {status.files.map((file) => (
-                <button type="button" key={file.path} className={`${selectedPath === file.path ? "active" : ""} ${file.conflicted ? "conflicted" : ""}`} onClick={() => void selectFile(file)}>
+                <button type="button" key={file.path} className={`${selectedPath === file.path ? "active" : ""} ${file.conflicted ? "conflicted" : ""}`} onClick={() => { setSelectedPath(file.path); setDiffRevision((revision) => revision + 1); }}>
                   <span><Icon name={file.conflicted ? "info" : "file"} /><strong>{file.path}</strong></span>
                   <small>{statusLabel(file)}</small>
                 </button>

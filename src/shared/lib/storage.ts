@@ -13,6 +13,17 @@ function id() {
 
 export const createId = id;
 
+function preferredLanguage(): "de" | "en" {
+  if (typeof navigator === "undefined") return "en";
+  const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const language of languages) {
+    const normalized = language.toLowerCase();
+    if (normalized.startsWith("de")) return "de";
+    if (normalized.startsWith("en")) return "en";
+  }
+  return "en";
+}
+
 function normalizeEditorTemplate(idValue: string, nameValue: string, commandTemplate: string) {
   const template = commandTemplate.trim();
   if (template.includes("{projectPath}")) return template;
@@ -58,7 +69,7 @@ export function createDefaultData(): AppData {
     processHistory: [],
     settings: {
       theme: "dark",
-      language: "en",
+      language: preferredLanguage(),
       terminalCommand: "",
       defaultProjectDir: "",
       onboardingComplete: false,
@@ -119,7 +130,9 @@ export function normalizeData(input: unknown, imported = false): AppData {
   if (!input || typeof input !== "object") return fallback;
 
   const value = input as Partial<AppData>;
-  const language = value.settings?.language === "de" ? "de" : "en";
+  const language = value.settings?.language === "de" || value.settings?.language === "en"
+    ? value.settings.language
+    : fallback.settings.language;
   const rawEditors = Array.isArray(value.editors) ? value.editors : [];
   const editors = rawEditors.length
     ? rawEditors.map((editor) => {
@@ -239,7 +252,7 @@ export function normalizeData(input: unknown, imported = false): AppData {
       theme: ["dark", "light", "system"].includes(value.settings?.theme ?? "")
         ? value.settings!.theme
         : fallback.settings.theme,
-      language: value.settings?.language === "de" ? "de" : "en",
+      language,
       githubToken: imported ? "" : value.settings?.githubToken?.trim() ?? "",
     },
   };

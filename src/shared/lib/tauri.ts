@@ -16,6 +16,9 @@ import type {
 export const isTauri = () =>
   typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+export const setApplicationLanguage = (language: "de" | "en") =>
+  call<void>("set_application_language", { language });
+
 const runtimeText = (german: string, english: string) =>
   typeof document !== "undefined" && document.documentElement.lang === "en" ? english : german;
 
@@ -102,8 +105,11 @@ export const getGitStatus = (projectPath: string) =>
 export const getGitBranches = (projectPath: string) =>
   call<string[]>("git_branches", { projectPath });
 
-export const getGitDiff = (projectPath: string, filePath: string, staged = false) =>
-  call<string>("git_diff", { projectPath, filePath, staged });
+export const getGitDiff = (
+  projectPath: string,
+  filePath: string,
+  state: { staged: boolean; unstaged: boolean; untracked: boolean },
+) => call<string>("git_diff", { projectPath, filePath, ...state });
 
 export const gitStageFiles = (projectPath: string, paths: string[]) =>
   call<void>("git_stage", { projectPath, paths });
